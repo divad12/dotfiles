@@ -356,7 +356,6 @@ au BufWritePre * call StripTrailingWhitespace()
 " ------------------------------------------------------------------------------
 
 " ----- JavaScript -----
-
 function! EnterJavaScript()
     " Integrate JSLint as make program
     set makeprg=/home/davidhu/jslintvim
