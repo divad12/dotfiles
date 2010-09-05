@@ -1,1 +1,5 @@
+# No visual bell
 vbell off
+
+# Sef default scrollback buffer # of lines
+defscrollback 5000
