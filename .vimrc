@@ -1,4 +1,7 @@
 
+" TODO: Organize Andrew's stuff from bottom of file
+
+
 " ------------------------------------------------------------------------------
 " Vim Settings
 " ------------------------------------------------------------------------------
@@ -65,6 +68,8 @@ set completeopt=menuone,preview
 set vb t_vb=
 
 " Gvim turn off scrollbars and other unnecessary menu items
+" The initial += is a bug workaround
+set guioptions+=LlRrbT
 set guioptions-=LlRrbT
 
 " Disallow menu access using the Alt key
@@ -93,6 +98,9 @@ set title
 
 " Allow mouse to be used. Works on Ubuntu gvim AND terminal vim; not on Mac
 set mouse=a
+
+" Automatically change directories when switching windows
+set autochdir
 
 
 " ------------------------------------------------------------------------------
@@ -242,7 +250,7 @@ let Tlist_Auto_Open = 1
 let Tlist_Use_Right_Window = 1
 let Tlist_WinWidth = 30
 let Tlist_Exit_OnlyWindow = 1
-let Tlist_Show_One_File = 1
+let Tlist_Show_One_File = 0
 
 " Show functions, methods, classes, and global variables in JavaScript
 let tlist_javascript_settings = 'javascript;f:function;m:method;c:constructor;v:variable'
@@ -412,14 +420,13 @@ au Filetype scheme call EnterScheme()
 " Andrew's vimrc + Google
 " ------------------------------------------------------------------------------
 
-"source /home/build/public/eng/vim/google.vim
-
 " Attempt to get sane indenting:
 set autoindent
+set cindent
+set expandtab
 set tabstop=2
 set shiftwidth=2
-set expandtab
-set cinoptions=l1,g0.5s,h0.5s,i2s,+2s,(0,W2s
+"set cinoptions=l1,g0.5s,h0.5s,i2s,+2s,(0,W2s
 " Make sure that the tab key actually inserts a tab.
 " imap <TAB> <C-V><TAB>
 
@@ -439,25 +446,8 @@ set textwidth=0
 set wildmenu wildmode=longest:full
 
 
-" Highlights lines that are too long
-"func! HighlightLongLines()
-"  highlight def link RightMargin Error
-"  exec 'match RightMargin /\%<' . (83) . 'v.\%>' . (81) . 'v/'
-"endfun
-
-"augroup filetypedetect
-"  au BufNewFile,BufRead * call HighlightLongLines()
-"augroup END
-
-
 " Jump to last location when re-opening file
 :au BufReadPost * if line("'\"") > 0 && line("'\"") <= line("$") | exe "normal g'\"" | endif
-
-
-" Read Perforce //depot paths
-autocmd BufReadCmd //depot/* exe "0r !v4 print -q <afile>"
-autocmd BufReadCmd //depot/* 1
-autocmd BufReadCmd //depot/* set readonly
 
 
 " Some nice shortcuts:
@@ -474,15 +464,6 @@ map \ @q
 " Get rid of trailing whitespace.
 map gw :%s/[ <Tab>]\+$//<CR>
 
-" Fix paragraph movement ('{' and '}') to ignore whitespace.
-" (This mostly works correctly, except when used in selection ('V') mode,
-"  where the last search is changed.)
-"nmap <silent>{ ?\S?;?^\s*$<CR>:call histdel("search", -1)<CR>:let @/ = histget("search", -1)<CR>:noh<CR>
-"omap <silent>{ ?\S?;?^\s*$<CR>:call histdel("search", -1)<CR>:let @/ = histget("search", -1)<CR>:noh<CR>
-""vmap <silent>{ ?\S?;?^\s*$<CR>
-"nmap <silent>} /\S/;/^\s*$<CR>:call histdel("search", -1)<CR>:let @/ = histget("search", -1)<CR>:noh<CR>
-"omap <silent>} /\S/;/^\s*$<CR>:call histdel("search", -1)<CR>:let @/ = histget("search", -1)<CR>:noh<CR>
-"vmap <silent>} /\S/;/^\s*$<CR>
 
 " Autoload commands:
 if has("autocmd")
@@ -491,42 +472,11 @@ if has("autocmd")
 endif
 
 
-
-" make helpers
-let workdir = getcwd()
-let g3root = matchstr(getcwd(), ".*google3")
-au QuickFixCmdPre make execute ':cd' . g3root
-au QuickFixCmdPost make execute ':cd' . workdir
-set makeprg=blaze\ $*
-
-
-" perforce commands
-command! -nargs=* -complete=file PEdit :!v4 edit "%"
-"command! -nargs=* -complete=file PEdit :!if [[ "%" =~ "/google/code/" ]]; then v4 edit "%"; else g4 edit "%"; fi
-command! -nargs=* -complete=file PRevert :!v4 revert %
-command! -nargs=* -complete=file PDiff :!v4 diff %
-
-function! s:CheckOutFile()
-  if filereadable(expand("%")) && ! filewritable(expand("%"))
-    let option = confirm("Readonly file, do you want to checkout?"
-             \, "&Yes\n&No", 1, "Question")
-    if option == 1
-      PEdit
-    endif
-    edit!
-  endif
-endfunction
-au FileChangedRO * nested :call <SID>CheckOutFile()
-
 " Andrew's stuff
-"set autochdir
 "set textwidth=0 "Disable auto-wrapping when you type
 set tw=0 "Disable auto-wrapping when you type
 set background=dark
 
-
-" open new line with alt+o
-inoremap <M-o>       <Esc>o
 
 " so we can undo newlines
 " this mapping below does not work right now (the output part)
@@ -534,26 +484,6 @@ inoremap <M-o>       <Esc>o
 
 " Enable plugin ragtag.vim
 let g:ragtag_global_maps = 1
-
-" perforce commands
-command! -nargs=* -complete=file PEdit :!g4 edit %
-command! -nargs=* -complete=file PRevert :!g4 revert %
-command! -nargs=* -complete=file PDiff :!g4 diff %
-
-function! s:CheckOutFile()
- if filereadable(expand("%")) && ! filewritable(expand("%"))
-   let s:pos = getpos('.')
-   let option = confirm("Readonly file, do you want to checkout from p4?"
-         \, "&Yes\n&No", 1, "Question")
-   if option == 1
-     PEdit
-   endif
-   edit!
-   call cursor(s:pos[1:3])
- endif
-endfunction
-au FileChangedRO * nested :call <SID>CheckOutFile()
-
 
 "function! EnterCpp()
 "	map <buffer> <F2> :w<CR>:!clear;g++ -Wall %

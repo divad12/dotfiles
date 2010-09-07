@@ -1,3 +1,6 @@
+# Temporary
+alias bot='cd /home/david/code/galcon/latest/mybot'
+
 # alias for listing more recent files first
 alias lt='ls -trlh'
 alias vm='vim `ls --color=none -t | head -n 1`'
