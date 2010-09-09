@@ -1,8 +1,12 @@
 # Temporary
-alias bot='cd /home/david/code/galcon/latest/mybot'
+alias bot='cd /home/david/code/galcon/latest'
+
+# Override command aliases
+alias less='less -I'
 
 # alias for listing more recent files first
 alias lt='ls -trlh'
+alias ll='ls -l'
 alias vm='vim `ls --color=none -t | head -n 1`'
 alias rs='resize -s 900 900'
 alias cs='cd ~/Documents/school/cs138'
