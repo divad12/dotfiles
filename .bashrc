@@ -97,8 +97,8 @@ if [ -x /usr/bin/dircolors ]; then
 fi
 
 # some more ls aliases
-#alias ll='ls -l'
-#alias la='ls -A'
+alias ll='ls -l'
+alias la='ls -A'
 #alias l='ls -CF'
 LS_COLORS='ow=34'
 export LS_COLORS
@@ -113,5 +113,11 @@ set -o vi
 if [ -f /etc/bash_completion ]; then
     . /etc/bash_completion
 fi
+
 export WORKON_HOME=/home/david/.virtualenvs
 source /usr/local/bin/virtualenvwrapper_bashrc
+
+source /etc/profile
+
+CDPATH='/home/david/cdpath'
+export CDPATH
