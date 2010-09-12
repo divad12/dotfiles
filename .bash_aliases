@@ -5,8 +5,7 @@ alias bot='cd /home/david/code/galcon/latest'
 alias less='less -I'
 
 
-
-alias lt='ls -trlhu'
+alias lt='ls -trlh'
 alias ll='ls -l'
 alias vm='vim `ls --color=none -t | head -n 1`'
 alias rs='resize -s 900 900'

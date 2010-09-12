@@ -130,10 +130,11 @@ inoremap <C-y> <C-o><C-y>
 inoremap <C-e> <C-o><C-e>
 
 " Move a line of text using ctrl+[jk]
-nnoremap <C-j> mz:m+<cr>`z
-nnoremap <C-k> mz:m-2<cr>`z
-vnoremap <C-j> :m'>+<cr>gv
-vnoremap <C-k> :m'<-2<cr>gv
+" TODO: think of better shortcut keys. ctrl-j is too easily mistakenly pressed
+"nnoremap <C-j> mz:m+<cr>`z
+"nnoremap <C-k> mz:m-2<cr>`z
+"vnoremap <C-j> :m'>+<cr>gv
+"vnoremap <C-k> :m'<-2<cr>gv
 
 " Shortcuts for system clipboard access: works in Ubuntu gvim & terminal vim.
 " Does not work in Mac. Will be overwritten by Yankring
