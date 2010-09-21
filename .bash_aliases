@@ -1,15 +1,17 @@
 # Temporary
 alias bot='cd /home/david/code/galcon/latest'
+alias cs='cd ~/Documents/school/cs241'
 
 # Override command aliases
 alias less='less -I'
 
+alias pdate='ssh pdate@184.106.221.127'
+alias dserver='python manage.py runserver 9999'
 
 alias lt='ls -trlh'
 alias ll='ls -l'
 alias vm='vim `ls --color=none -t | head -n 1`'
 alias rs='resize -s 900 900'
-alias cs='cd ~/Documents/school/cs138'
 alias cproj='cd ~/code/eatsleep/kwizr'
 alias cindent='~/cindent.bash'
 alias oldHome='cd /media/disk/Users/David/'

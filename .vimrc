@@ -425,8 +425,9 @@ au Filetype scheme call EnterScheme()
 set autoindent
 set cindent
 set expandtab
-set tabstop=2
-set shiftwidth=2
+" TODO: detect file and different tabbing options
+set tabstop=4
+set shiftwidth=4
 "set cinoptions=l1,g0.5s,h0.5s,i2s,+2s,(0,W2s
 " Make sure that the tab key actually inserts a tab.
 " imap <TAB> <C-V><TAB>
