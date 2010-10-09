@@ -1,8 +1,4 @@
 
-" TODO: Organize Andrew's stuff from bottom of file
-" TODO: mappings for alt+hjkl for movement in insert mode
-
-
 " ------------------------------------------------------------------------------
 " Vim Settings
 " ------------------------------------------------------------------------------
@@ -54,7 +50,7 @@ set directory=~/.vim_backups//
 
 " Highlight search results and map <Space> to turn off
 set hlsearch
-nnoremap <silent> <ESC> :noh<cr><ESC>
+nnoremap <silent> <space> :noh<cr>
 "nnoremap <silent> <space> :set hls!<cr>  "Toggles, but is not automatically set on when searching again
 
 " Smart '>' & '<' indentation! With 3 spaces, press '>', insert 1 space, not 4.
@@ -69,15 +65,13 @@ set completeopt=menuone,preview
 set vb t_vb=
 
 " Gvim turn off scrollbars and other unnecessary menu items
-" The initial += is a bug workaround
-set guioptions+=LlRrbT
 set guioptions-=LlRrbT
 
 " Disallow menu access using the Alt key
 set winaltkeys=no
 
 " GVim font
-"set guifont=Bitstream\ Vera\ Sans\ Mono\ 10.7
+set guifont=Bitstream\ Vera\ Sans\ Mono\ 10.7
 
 " Minimum width and height of window containing cursor
 set winheight=30
@@ -87,8 +81,7 @@ set winwidth=85
 set cmdheight=2
 
 " Horizontal line indicating cursor position
-" This is disabled because it slows down cursor movements, especially with multi-line lines
-"set cursorline
+set cursorline
 
 " Better window splitting start locations
 set splitbelow
@@ -99,9 +92,6 @@ set title
 
 " Allow mouse to be used. Works on Ubuntu gvim AND terminal vim; not on Mac
 set mouse=a
-
-" Automatically change directories when switching windows
-set autochdir
 
 
 " ------------------------------------------------------------------------------
@@ -131,11 +121,10 @@ inoremap <C-y> <C-o><C-y>
 inoremap <C-e> <C-o><C-e>
 
 " Move a line of text using ctrl+[jk]
-" TODO: think of better shortcut keys. ctrl-j is too easily mistakenly pressed
-"nnoremap <C-j> mz:m+<cr>`z
-"nnoremap <C-k> mz:m-2<cr>`z
-"vnoremap <C-j> :m'>+<cr>gv
-"vnoremap <C-k> :m'<-2<cr>gv
+nnoremap <C-j> mz:m+<cr>`z
+nnoremap <C-k> mz:m-2<cr>`z
+vnoremap <C-j> :m'>+<cr>gv
+vnoremap <C-k> :m'<-2<cr>gv
 
 " Shortcuts for system clipboard access: works in Ubuntu gvim & terminal vim.
 " Does not work in Mac. Will be overwritten by Yankring
@@ -178,9 +167,6 @@ nnoremap k gk
 nnoremap j gj
 nnoremap gk k
 nnoremap gj j
-
-" Undo enters created in insert mode
-inoremap <Cr> <C-g>u<Cr>
 
 " Key mappings for window switching. To map the alt key (aka meta key) in some
 " TODO: Detect what vim is running on, and conditionally map keys.
@@ -255,7 +241,7 @@ let Tlist_Auto_Open = 1
 let Tlist_Use_Right_Window = 1
 let Tlist_WinWidth = 30
 let Tlist_Exit_OnlyWindow = 1
-let Tlist_Show_One_File = 0
+let Tlist_Show_One_File = 1
 
 " Show functions, methods, classes, and global variables in JavaScript
 let tlist_javascript_settings = 'javascript;f:function;m:method;c:constructor;v:variable'
@@ -266,7 +252,7 @@ let tlist_javascript_settings = 'javascript;f:function;m:method;c:constructor;v:
 
 " ----- AutoComplPop -----
 " Disable and use SuperTab instead (slows typing a bit over NX Ubiquity)
-"au VimEnter * AcpDisable
+au VimEnter * AcpDisable
 
 " ----- Yankring -----
 " NOTE: This plugin may override custom yank and paste mappings.
@@ -318,7 +304,7 @@ let javascript_enable_domhtmlcss=1
 noremap <silent> <Leader>nt	:NERDTreeToggle<CR>
 
 " Open NERDTree sidebar upon Vim startup
-"au VimEnter * NERDTree
+au VimEnter * NERDTree
 
 " ----- Trailing Whitespace -----
 " Remove trailing whitespace on save
@@ -330,55 +316,6 @@ function! StripTrailingWhitespace()
   let @/ = saved_search
 endfunction
 au BufWritePre * call StripTrailingWhitespace()
-
-" ----- Hex Editing -----
-" From http://vim.wikia.com/wiki/Improved_hex_editing
-nnoremap <leader>x :Hexmode<CR>
-"inoremap <C-H> <Esc>:Hexmode<CR>
-"vnoremap <C-H> :<C-U>Hexmode<CR>
-" ex command for toggling hex mode - define mapping if desired
-command -bar Hexmode call ToggleHex()
-
-" helper function to toggle hex mode
-function! ToggleHex()
-  " hex mode should be considered a read-only operation
-  " save values for modified and read-only for restoration later,
-  " and clear the read-only flag for now
-   setlocal noeol
-"  let l:modified=&mod
-"  let l:oldreadonly=&readonly
-"  let &readonly=0
-"  let l:oldmodifiable=&modifiable
-"  let &modifiable=1
-  if !exists("b:editHex") || !b:editHex
-    " save old options
-"    let b:oldft=&ft
-"    let b:oldbin=&bin
-"    " set new options
-"    setlocal binary " make sure it overrides any textwidth, etc.
-"    let &ft="xxd"
-    " set status
-    let b:editHex=1
-    " switch to hex editor
-    %!xxd
-  else
-    " restore old options
-"    let &ft=b:oldft
-"    if !b:oldbin
-"      setlocal nobinary
-"    endif
-    " set status
-    let b:editHex=0
-    " return to normal editing
-    %!xxd -r
-  endif
-  " restore values for modified and read only state
-"  let &mod=l:modified
-"  let &readonly=l:oldreadonly
-"  let &modifiable=l:oldmodifiable
-endfunction
-
-
 
 " ----- Automatic Session Saving -----
 " From http://vim.wikia.com/wiki/Go_away_and_come_back
@@ -418,6 +355,7 @@ endfunction
 " ------------------------------------------------------------------------------
 
 " ----- JavaScript -----
+
 function! EnterJavaScript()
     " Integrate JSLint as make program
     set makeprg=/home/davidhu/jslintvim
@@ -446,7 +384,6 @@ au Filetype javascript call EnterJavaScript()
 "endfunction
 
 
-" TODO: use make
 " ----- C++ -----
 " F2 to compile; F3 to run
 function! EnterCpp()
@@ -475,14 +412,14 @@ au Filetype scheme call EnterScheme()
 " Andrew's vimrc + Google
 " ------------------------------------------------------------------------------
 
+"source /home/build/public/eng/vim/google.vim
+
 " Attempt to get sane indenting:
 set autoindent
-set cindent
+set tabstop=2
+set shiftwidth=2
 set expandtab
-" TODO: detect file and different tabbing options
-set tabstop=4
-set shiftwidth=4
-"set cinoptions=l1,g0.5s,h0.5s,i2s,+2s,(0,W2s
+set cinoptions=l1,g0.5s,h0.5s,i2s,+2s,(0,W2s
 " Make sure that the tab key actually inserts a tab.
 " imap <TAB> <C-V><TAB>
 
@@ -502,8 +439,25 @@ set textwidth=0
 set wildmenu wildmode=longest:full
 
 
+" Highlights lines that are too long
+func! HighlightLongLines()
+  highlight def link RightMargin Error
+  exec 'match RightMargin /\%<' . (83) . 'v.\%>' . (81) . 'v/'
+endfun
+
+augroup filetypedetect
+  au BufNewFile,BufRead * call HighlightLongLines()
+augroup END
+
+
 " Jump to last location when re-opening file
 :au BufReadPost * if line("'\"") > 0 && line("'\"") <= line("$") | exe "normal g'\"" | endif
+
+
+" Read Perforce //depot paths
+autocmd BufReadCmd //depot/* exe "0r !v4 print -q <afile>"
+autocmd BufReadCmd //depot/* 1
+autocmd BufReadCmd //depot/* set readonly
 
 
 " Some nice shortcuts:
@@ -520,6 +474,15 @@ map \ @q
 " Get rid of trailing whitespace.
 map gw :%s/[ <Tab>]\+$//<CR>
 
+" Fix paragraph movement ('{' and '}') to ignore whitespace.
+" (This mostly works correctly, except when used in selection ('V') mode,
+"  where the last search is changed.)
+"nmap <silent>{ ?\S?;?^\s*$<CR>:call histdel("search", -1)<CR>:let @/ = histget("search", -1)<CR>:noh<CR>
+"omap <silent>{ ?\S?;?^\s*$<CR>:call histdel("search", -1)<CR>:let @/ = histget("search", -1)<CR>:noh<CR>
+""vmap <silent>{ ?\S?;?^\s*$<CR>
+"nmap <silent>} /\S/;/^\s*$<CR>:call histdel("search", -1)<CR>:let @/ = histget("search", -1)<CR>:noh<CR>
+"omap <silent>} /\S/;/^\s*$<CR>:call histdel("search", -1)<CR>:let @/ = histget("search", -1)<CR>:noh<CR>
+"vmap <silent>} /\S/;/^\s*$<CR>
 
 " Autoload commands:
 if has("autocmd")
@@ -528,14 +491,69 @@ if has("autocmd")
 endif
 
 
+
+" make helpers
+let workdir = getcwd()
+let g3root = matchstr(getcwd(), ".*google3")
+au QuickFixCmdPre make execute ':cd' . g3root
+au QuickFixCmdPost make execute ':cd' . workdir
+set makeprg=blaze\ $*
+
+
+" perforce commands
+command! -nargs=* -complete=file PEdit :!v4 edit "%"
+"command! -nargs=* -complete=file PEdit :!if [[ "%" =~ "/google/code/" ]]; then v4 edit "%"; else g4 edit "%"; fi
+command! -nargs=* -complete=file PRevert :!v4 revert %
+command! -nargs=* -complete=file PDiff :!v4 diff %
+
+function! s:CheckOutFile()
+  if filereadable(expand("%")) && ! filewritable(expand("%"))
+    let option = confirm("Readonly file, do you want to checkout?"
+             \, "&Yes\n&No", 1, "Question")
+    if option == 1
+      PEdit
+    endif
+    edit!
+  endif
+endfunction
+au FileChangedRO * nested :call <SID>CheckOutFile()
+
 " Andrew's stuff
+"set autochdir
 "set textwidth=0 "Disable auto-wrapping when you type
 set tw=0 "Disable auto-wrapping when you type
 set background=dark
 
 
+" open new line with alt+o
+inoremap <M-o>       <Esc>o
+
+" so we can undo newlines
+" this mapping below does not work right now (the output part)
+"inoremap 	<Esc>o
+
 " Enable plugin ragtag.vim
 let g:ragtag_global_maps = 1
+
+" perforce commands
+command! -nargs=* -complete=file PEdit :!g4 edit %
+command! -nargs=* -complete=file PRevert :!g4 revert %
+command! -nargs=* -complete=file PDiff :!g4 diff %
+
+function! s:CheckOutFile()
+ if filereadable(expand("%")) && ! filewritable(expand("%"))
+   let s:pos = getpos('.')
+   let option = confirm("Readonly file, do you want to checkout from p4?"
+         \, "&Yes\n&No", 1, "Question")
+   if option == 1
+     PEdit
+   endif
+   edit!
+   call cursor(s:pos[1:3])
+ endif
+endfunction
+au FileChangedRO * nested :call <SID>CheckOutFile()
+
 
 "function! EnterCpp()
 "	map <buffer> <F2> :w<CR>:!clear;g++ -Wall %

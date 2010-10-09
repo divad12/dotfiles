@@ -119,5 +119,9 @@ source /usr/local/bin/virtualenvwrapper_bashrc
 
 source /etc/profile
 
-CDPATH='/home/david/cdpath'
-export CDPATH
+export CDPATH='/home/david/cdpath'
+# CS 241 tools folder
+export "CLASSPATH=.:/home/david/Documents/school/cs241/classes:$CLASSPATH"
+
+# PICkit
+export PATH="$PATH:/usr/share/pk2"

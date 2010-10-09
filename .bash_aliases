@@ -1,6 +1,7 @@
 # Temporary
 alias bot='cd /home/david/code/galcon/latest'
 alias cs='cd ~/Documents/school/cs241'
+alias marmoset='marmoset -u dyhu -c CS241'
 
 # Override command aliases
 alias less='less -I'
