@@ -1,6 +1,7 @@
 
 " TODO: Organize Andrew's stuff from bottom of file
 " TODO: mappings for alt+hjkl for movement in insert mode
+" TODO: get latex plugins
 
 
 " ------------------------------------------------------------------------------
@@ -271,8 +272,9 @@ let tlist_javascript_settings = 'javascript;f:function;m:method;c:constructor;v:
 " ----- Yankring -----
 " NOTE: This plugin may override custom yank and paste mappings.
 
+let g:yankring_enabled = 0  " Disables YankRing. I hate this plugin.
 " Shortcut to display all entries in Yankring.
-nnoremap <silent> <F11> :YRShow<CR>
+"nnoremap <silent> <F11> :YRShow<CR>
 
 " ----- NERD Commenter -----
 " Toggles comment state of selected lines.
@@ -360,7 +362,7 @@ function! ToggleHex()
     " set status
     let b:editHex=1
     " switch to hex editor
-    %!xxd
+    %!xxd -c4
   else
     " restore old options
 "    let &ft=b:oldft
@@ -469,6 +471,13 @@ function! EnterScheme()
   map <buffer> <F2> :w<CR>:!clear;mzscheme %<CR>
 endfunction
 au Filetype scheme call EnterScheme()
+
+" ----- TeX -----
+" F2 to run
+function! EnterTex()
+  map <buffer> <F2> :w<CR>:!pdflatex % <CR>
+endfunction
+au Filetype tex call EnterTex()
 
 
 " ------------------------------------------------------------------------------
