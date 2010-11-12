@@ -19,7 +19,7 @@ syntax on
 
 " Set colour scheme. Wombat is a third-party colorscheme. Also good: ir_black
 " (third-party), desert (comes by default)
-colorscheme wombat
+colorscheme ir_black
 
 " Allow filetype-specific plugins, such as matchit
 filetype plugin on
@@ -109,8 +109,12 @@ set autochdir
 " Vim Mappings
 " ------------------------------------------------------------------------------
 
+" Use comma for custom key-mapping first-character
+let mapleader=","
+let g:mapleader=","
+
 " When just learning Vim, disable operation of arrow keys to forcibly adjust to
-" using hjkl
+" using hjkl + normal mode
 "noremap <Left>	<Nop>
 "noremap <Right>	<Nop>
 "noremap <Up>	<Nop>
@@ -118,6 +122,7 @@ set autochdir
 
 " Use semicolon instead of colon to enter command mode.
 noremap ; :
+noremap : ;
 
 " Visual-mode indentation shifting: don't de-select after shift, keep selected.
 vnoremap < <gv
@@ -180,7 +185,7 @@ nnoremap j gj
 nnoremap gk k
 nnoremap gj j
 
-" Undo enters created in insert mode
+" Set undo-points at newlines created in insert mode, to reduce undo step size
 inoremap <Cr> <C-g>u<Cr>
 
 " Key mappings for window switching. To map the alt key (aka meta key) in some
@@ -478,6 +483,16 @@ function! EnterTex()
   map <buffer> <F2> :w<CR>:!pdflatex % <CR>
 endfunction
 au Filetype tex call EnterTex()
+
+" Automatically make files beginning with a bang-path executable
+if has("unix")
+    autocmd BufWritePost *
+                \   if getline(1) =~ "^#!"            |
+                \       if getline(1) =~ "/bin/"      |
+                \           silent !chmod u+x <afile> |
+                \       endif                         |
+                \   endif
+endif
 
 
 " ------------------------------------------------------------------------------
