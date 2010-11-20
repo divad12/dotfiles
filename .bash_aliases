@@ -86,3 +86,8 @@ fi
 dir=$(locate -n 1 -r $1$)
 cd "$dir";
 }
+
+# make directory and cd to it
+function md() {
+    mkdir -p $1 && cd $1
+}

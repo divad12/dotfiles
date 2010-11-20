@@ -124,4 +124,4 @@ export CDPATH='/home/david/cdpath'
 export "CLASSPATH=.:/home/david/Documents/school/cs241/classes:$CLASSPATH"
 
 # PICkit
-export PATH="$PATH:/usr/share/pk2"
+export PATH="$PATH:/usr/share/pk2:/home/david/.virtualenvs/pinax-env/lib/python2.6/site-packages/django/bin/"
