@@ -212,7 +212,7 @@ if !exists('loaded_taglist')
     if !exists('Tlist_Auto_Highlight_Tag')
         let Tlist_Auto_Highlight_Tag = 1
     endif
-    
+
     " Automatically highlight the current tag on entering a buffer
     if !exists('Tlist_Highlight_Tag_On_BufEnter')
         let Tlist_Highlight_Tag_On_BufEnter = 1
@@ -350,7 +350,7 @@ let loaded_taglist = 'available'
 " Variable name format:
 "
 "       s:tlist_def_{vim_ftype}_settings
-" 
+"
 " vim_ftype - Filetype detected by Vim
 "
 " Value format:
@@ -670,7 +670,7 @@ function! s:Tlist_Log_Msg(msg)
             if len > 3000
                 let s:tlist_msg = strpart(s:tlist_msg, len - 3000)
             endif
-            let s:tlist_msg = s:tlist_msg . strftime('%H:%M:%S') . ': ' . 
+            let s:tlist_msg = s:tlist_msg . strftime('%H:%M:%S') . ': ' .
                         \ a:msg . "\n"
         endif
     endif
@@ -2419,7 +2419,7 @@ function! s:Tlist_Process_File(filename, ftype)
         let s:tlist_{fidx}_tag_count = tidx
     endif
 
-    call s:Tlist_Log_Msg('Processed ' . s:tlist_{fidx}_tag_count . 
+    call s:Tlist_Log_Msg('Processed ' . s:tlist_{fidx}_tag_count .
                 \ ' tags in ' . a:filename)
 
     return fidx
@@ -4097,41 +4097,41 @@ endfunction
 " window. Used after entering a tab. If this is not done, then the folds
 " are not properly created for taglist windows displayed in multiple tabs.
 function! s:Tlist_Refresh_Folds()
-    let winnum = bufwinnr(g:TagList_title)
-    if winnum == -1
-        return
-    endif
+    "let winnum = bufwinnr(g:TagList_title)
+    "if winnum == -1
+        "return
+    "endif
 
-    let save_wnum = winnr()
-    exe winnum . 'wincmd w'
+    "let save_wnum = winnr()
+    "exe winnum . 'wincmd w'
 
-    " First remove all the existing folds
-    normal! zE
+    "" First remove all the existing folds
+    "normal! zE
 
-    " Create the folds for each in the tag list
-    let fidx = 0
-    while fidx < s:tlist_file_count
-        let ftype = s:tlist_{fidx}_filetype
+    "" Create the folds for each in the tag list
+    "let fidx = 0
+    "while fidx < s:tlist_file_count
+        "let ftype = s:tlist_{fidx}_filetype
 
-        " Create the folds for each tag type in a file
-        let j = 1
-        while j <= s:tlist_{ftype}_count
-            let ttype = s:tlist_{ftype}_{j}_name
-            if s:tlist_{fidx}_{ttype}_count
-                let s = s:tlist_{fidx}_start + s:tlist_{fidx}_{ttype}_offset
-                let e = s + s:tlist_{fidx}_{ttype}_count
-                exe s . ',' . e . 'fold'
-            endif
-            let j = j + 1
-        endwhile
+        "" Create the folds for each tag type in a file
+        "let j = 1
+        "while j <= s:tlist_{ftype}_count
+            "let ttype = s:tlist_{ftype}_{j}_name
+            "if s:tlist_{fidx}_{ttype}_count
+                "let s = s:tlist_{fidx}_start + s:tlist_{fidx}_{ttype}_offset
+                "let e = s + s:tlist_{fidx}_{ttype}_count
+                "exe s . ',' . e . 'fold'
+            "endif
+            "let j = j + 1
+        "endwhile
 
-        exe s:tlist_{fidx}_start . ',' . s:tlist_{fidx}_end . 'fold'
-        exe 'silent! ' . s:tlist_{fidx}_start . ',' .
-                    \ s:tlist_{fidx}_end . 'foldopen!'
-        let fidx = fidx + 1
-    endwhile
+        "exe s:tlist_{fidx}_start . ',' . s:tlist_{fidx}_end . 'fold'
+        "exe 'silent! ' . s:tlist_{fidx}_start . ',' .
+                    "\ s:tlist_{fidx}_end . 'foldopen!'
+        "let fidx = fidx + 1
+    "endwhile
 
-    exe save_wnum . 'wincmd w'
+    "exe save_wnum . 'wincmd w'
 endfunction
 
 function! s:Tlist_Menu_Add_Base_Menu()

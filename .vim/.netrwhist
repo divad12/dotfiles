@@ -1,5 +1,5 @@
 let g:netrw_dirhistmax  =10
-let g:netrw_dirhist_cnt =8
+let g:netrw_dirhist_cnt =9
 let g:netrw_dirhist_1='/home/david/.vim/plugin'
 let g:netrw_dirhist_2='/home/david/.vim/syntax'
 let g:netrw_dirhist_3='/home/david'
@@ -8,3 +8,4 @@ let g:netrw_dirhist_5='/home/david/.vim/plugin'
 let g:netrw_dirhist_6='/home/david/code/eatsleep/kwizr/templates/questiontypes'
 let g:netrw_dirhist_7='/usr/lib/python2.6'
 let g:netrw_dirhist_8='/home/david/.vim/plugin'
+let g:netrw_dirhist_9='/home/david/code/toy'
