@@ -1,8 +1,3 @@
-# Temporary
-alias bot='cd /home/david/code/galcon/latest'
-alias cs='cd ~/Documents/school/cs241'
-alias marmoset='marmoset -u dyhu -c CS241'
-
 # Override command aliases
 alias less='less -I'
 
@@ -20,6 +15,10 @@ alias g='gvim'
 alias wr='cd /home/david/Documents/work/work_reports/wt1/'
 alias go='gnome-open'
 alias agi='sudo apt-get install'
+#TODO: make this so it can handle directory argumetns wihtout a trailing slash
+function mr() {
+    echo "$1$(ls -t $1 | head -n 1)";
+}
 
 # ------------------------------------------------------------------------------
 # directory navigation shortcuts
