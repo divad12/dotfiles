@@ -19,6 +19,7 @@ alias agi='sudo apt-get install'
 function mr() {
     echo "$1$(ls -t $1 | head -n 1)";
 }
+alias qqmake='qmake -project && echo "QT += script" >> *.pro && qmake *.pro'
 
 # ------------------------------------------------------------------------------
 # directory navigation shortcuts

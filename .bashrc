@@ -114,15 +114,26 @@ if [ -f /etc/bash_completion ]; then
     . /etc/bash_completion
 fi
 
-export WORKON_HOME=/home/david/.virtualenvs
-source /usr/local/bin/virtualenvwrapper_bashrc
+# export WORKON_HOME=/home/david/.virtualenvs
+# source /usr/local/bin/virtualenvwrapper_bashrc
 
 source /etc/profile
 
-export CDPATH='/home/david/cdpath'
+# export CDPATH='/home/david/cdpath'
 
 # CS 241 tools folder
-export "CLASSPATH=.:/home/david/Documents/school/cs241/classes:$CLASSPATH"
+# export "CLASSPATH=.:/home/david/Documents/school/cs241/classes:$CLASSPATH"
 
 # PICkit
-export PATH="$PATH:/usr/share/pk2:/home/david/.virtualenvs/pinax-env/lib/python2.6/site-packages/django/bin/:$HOME/bin:/home/david/qtsdk-2010.05/qt/bin"
+
+# default editor for perforce
+export EDITOR='vim'
+
+# Perforce
+export P4CONFIG=.p4config
+export P4DIFF=/home/build/public/google/tools/p4diff
+export P4MERGE=/home/build/public/eng/perforce/mergep4.tcl
+export P4EDITOR=$EDITOR
+
+
+export PATH="$PATH:$HOME/bin:/usr/local/Trolltech/Qt-4.7.1/bin"

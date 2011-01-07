@@ -73,7 +73,7 @@ set shiftround
 set completeopt=menuone,preview
 
 " Turn off visual bell
-set vb t_vb=
+autocmd VimEnter * set vb t_vb=
 
 " Gvim turn off scrollbars and other unnecessary menu items
 " The initial += is a bug workaround
@@ -117,8 +117,9 @@ set cindent
 set expandtab
 
 " TODO: detect file and use different options. filetype indent?
-set tabstop=4
-set shiftwidth=4
+set tabstop=8
+set shiftwidth=2
+set softtabstop=2
 
 " Automatically change directories when switching windows
 set autochdir
@@ -133,6 +134,9 @@ set listchars=tab:>.,trail:.,extends:#,nbsp:.
 " but disable tab special chars in html and xml files
 autocmd filetype html,xml set listchars-=tab:>.
 
+" Disable console vim from attepting to connect to the X display, which may
+" slow things down for a few seconds
+set cb="exclude:.*"
 
 " ------------------------------------------------------------------------------
 " Vim Mappings
@@ -519,7 +523,6 @@ set ruler
 set showcmd
 "set hlsearch        " Highlight previous search results
 set backspace=2
-"set visualbell
 "set nowrap
 set textwidth=0
 
@@ -568,4 +571,28 @@ let g:ragtag_global_maps = 1
 	"let b:comment_prefix = '//'
 	"endfunction
 "au FileType cpp call EnterCpp()
-"
+
+
+
+"" perforce commands
+command! -nargs=* -complete=file PEdit :!g4 edit %
+command! -nargs=* -complete=file PRevert :!g4 revert %
+command! -nargs=* -complete=file PDiff :!g4 diff %
+
+function! s:CheckOutFile()
+ if filereadable(expand("%")) && ! filewritable(expand("%"))
+   let s:pos = getpos('.')
+   let option = confirm("Readonly file, do you want to checkout from p4?"
+         \, "&Yes\n&No", 1, "Question")
+   if option == 1
+     PEdit
+   endif
+   edit!
+   call cursor(s:pos[1:3])
+ endif
+endfunction
+au FileChangedRO * nested :call <SID>CheckOutFile()
+
+
+" google.vim
+source /usr/share/vim/google/google.vim
