@@ -138,6 +138,12 @@ autocmd filetype html,xml set listchars-=tab:>.
 " slow things down for a few seconds
 set cb="exclude:.*"
 
+" This will look in the current directory for 'tags', and work up the tree
+" towards root until one is found.
+" From: http://stackoverflow.com/questions/563616/vim-and-ctags-tips-and-tricks
+set tags=tags;/
+
+
 " ------------------------------------------------------------------------------
 " Vim Mappings
 " ------------------------------------------------------------------------------
@@ -432,22 +438,24 @@ endfunction
 "au VimEnter * call LoadSession()
 "au VimLeave * call MakeSession()
 
+" Cscope
+cscope add /home/davidhu/clients/earth/googleclient/earth/
 
 " ------------------------------------------------------------------------------
 " Filetype Handling
 " ------------------------------------------------------------------------------
 
 " ----- JavaScript -----
-function! EnterJavaScript()
-    " Integrate JSLint as make program
-    set makeprg=/home/davidhu/jslintvim
-    set errorformat=%f:%l\\,\ E:%n:\ %m
-
-    " Invoke JSLint on buffer(s) with shortcut key
-    noremap <buffer><F2> <Esc>:!clear<Cr>:up \| make %:p<Cr>
-    noremap <buffer><F3> <Esc>:!clear<Cr>:wa \| make<Cr>
-endfunction
-au Filetype javascript call EnterJavaScript()
+"function! EnterJavaScript()
+"    " Integrate JSLint as make program
+"    set makeprg=/home/davidhu/jslintvim
+"    set errorformat=%f:%l\\,\ E:%n:\ %m
+"
+"    " Invoke JSLint on buffer(s) with shortcut key
+"    noremap <buffer><F2> <Esc>:!clear<Cr>:up \| make %:p<Cr>
+"    noremap <buffer><F3> <Esc>:!clear<Cr>:wa \| make<Cr>
+"endfunction
+"au Filetype javascript call EnterJavaScript()
 
 " JavaScript folding
 " Mappings and function from http://amix.dk/vim/vimrc.html

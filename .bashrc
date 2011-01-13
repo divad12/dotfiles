@@ -136,4 +136,7 @@ export P4MERGE=/home/build/public/eng/perforce/mergep4.tcl
 export P4EDITOR=$EDITOR
 
 
-export PATH="$PATH:$HOME/bin:/usr/local/Trolltech/Qt-4.7.1/bin"
+export
+PATH="$PATH:$HOME/bin:/usr/local/Trolltech/Qt-4.7.1/bin:/home/davidhu/pulse_personal_builds/pulse-dev-2.2.16/bin"
+
+export CSCOPE_DB="$HOME/clients/earth/googleclient/earth/"

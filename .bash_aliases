@@ -1,3 +1,7 @@
+# Google
+alias qqmake='qmake -project && echo "QT += script network scripttools" >> *.pro && qmake *.pro'
+alias gtags="/home/build/nonconf/google3/tools/tags/gtags.sh"
+
 # Override command aliases
 alias less='less -I'
 
@@ -12,14 +16,13 @@ alias cproj='cd ~/code/eatsleep/kwizr'
 alias cindent='~/cindent.bash'
 alias oldHome='cd /media/disk/Users/David/'
 alias g='gvim'
-alias wr='cd /home/david/Documents/work/work_reports/wt1/'
 alias go='gnome-open'
 alias agi='sudo apt-get install'
 #TODO: make this so it can handle directory argumetns wihtout a trailing slash
 function mr() {
     echo "$1$(ls -t $1 | head -n 1)";
 }
-alias qqmake='qmake -project && echo "QT += script" >> *.pro && qmake *.pro'
+alias cc='g4 pending | head -n 1 | cut -d " " -f 2'
 
 # ------------------------------------------------------------------------------
 # directory navigation shortcuts
