@@ -2,8 +2,15 @@
 alias qqmake='qmake -project && echo "QT += script network scripttools" >> *.pro && qmake *.pro'
 alias gtags="/home/build/nonconf/google3/tools/tags/gtags.sh"
 
+hammer() {
+  EARTH_ROOT=$(echo $PWD | sed "s#\(.*/googleclient/\).*#\1#")
+  $EARTH_ROOT/earth/client/hammer.sh $*
+}
+
+
 # Override command aliases
 alias less='less -I'
+alias gvim='gvim --remote-tab'
 
 alias pdate='ssh pdate@184.106.221.127'
 alias dserver='python manage.py runserver 9999'

@@ -349,13 +349,13 @@ noremap <silent> <Leader>nt	:NERDTreeToggle<CR>
 " ----- Trailing Whitespace -----
 " Remove trailing whitespace on save
 function! StripTrailingWhitespace()
-  silent exe "normal mz<CR>"
-  let saved_search = @/
-  %s/\s\+$//e
-  silent exe "normal `z<CR>"
-  let @/ = saved_search
+ silent exe "normal mz<CR>"
+ let saved_search = @/
+ %s/\s\+$//e
+ silent exe "normal `z<CR>"
+ let @/ = saved_search
 endfunction
-au BufWritePre * call StripTrailingWhitespace()
+"au BufWritePre * call StripTrailingWhitespace()
 
 " ----- Hex Editing -----
 " From http://vim.wikia.com/wiki/Improved_hex_editing
