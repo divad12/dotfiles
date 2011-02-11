@@ -24,7 +24,7 @@
 vbell off
 
 # Sef default scrollback buffer # of lines
-defscrollback 5000
+defscrollback 20000
 
 startup_message off
 nethack on

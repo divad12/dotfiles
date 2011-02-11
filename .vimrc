@@ -61,7 +61,7 @@ set undoreload=10000
 
 " Highlight search results and map <Space> to turn off
 set hlsearch
-nnoremap <silent> <ESC> :noh<cr><ESC>
+nnoremap <silent> <Space> :set invhlsearch<cr><ESC>
 "nnoremap <silent> <space> :set hls!<cr>  "Toggles, but is not automatically set on when searching again
 
 " Smart '>' & '<' indentation! With 3 spaces, press '>', insert 1 space, not 4.
@@ -193,9 +193,9 @@ vnoremap gY "+Y
 nnoremap <silent><C-S-Tab> :tabp<CR>
 nnoremap <silent><C-Tab> :tabn<CR>
 
-" Ctrl-s for smart saving. (Don't write to file if no changes)
-nnoremap <silent><C-s> :update<Cr>
-inoremap <silent><C-s> <Esc>:update<Cr>
+" Ctrl-s for save all changed buffers.
+nnoremap <silent><C-s> :wa<Cr>
+inoremap <silent><C-s> <Esc>:wa<Cr>
 
 " Jump to beginning and end of brace-surrounded blocks
 noremap [[ [{

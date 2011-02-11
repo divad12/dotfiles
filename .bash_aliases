@@ -1,6 +1,10 @@
 # Google
 alias qqmake='qmake -project && echo "QT += script network scripttools" >> *.pro && qmake *.pro'
 alias gtags="/home/build/nonconf/google3/tools/tags/gtags.sh"
+alias cs='/home/build/static/projects/codesearch/cs'
+function ge() {
+  ./googleearth-bin --runscript /testing/qtscriptlib/test_*.js --qsincludepath /testing 
+}
 
 hammer() {
   EARTH_ROOT=$(echo $PWD | sed "s#\(.*/googleclient/\).*#\1#")
