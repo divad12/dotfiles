@@ -6,6 +6,14 @@ function ge() {
   ./googleearth-bin --runscript /testing/qtscriptlib/test_*.js --qsincludepath /testing 
 }
 
+function jsdoc() {
+JSDOCDIR=/home/davidhu/code/jsdoc-toolkit
+JSDOCWWW=/home/davidhu/www/qstest-jsdoc
+java -Djsdoc.dir=$JSDOCDIR -jar "$JSDOCDIR"/jsrun.jar "$JSDOCDIR"/app/run.js -t="$JSDOCDIR"/templates/jsdoc -d=$JSDOCWWW $@
+
+chmod -R a+rx $JSDOCWWW
+}
+
 hammer() {
   EARTH_ROOT=$(echo $PWD | sed "s#\(.*/googleclient/\).*#\1#")
   $EARTH_ROOT/earth/client/hammer.sh $*

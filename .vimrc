@@ -506,14 +506,14 @@ endfunction
 au Filetype tex call EnterTex()
 
 " Automatically make files beginning with a bang-path executable
-if has("unix")
-    autocmd BufWritePost *
-                \   if getline(1) =~ "^#!"            |
-                \       if getline(1) =~ "/bin/"      |
-                \           silent !chmod +x <afile>; |
-                \       endif                         |
-                \   endif
-endif
+"if has("unix")
+"    autocmd BufWritePost *
+"                \   if getline(1) =~ "^#!"            |
+"                \       if getline(1) =~ "/bin/"      |
+"                \           silent !chmod +x <afile>; |
+"                \       endif                         |
+"                \   endif
+"endif
 
 
 " ------------------------------------------------------------------------------

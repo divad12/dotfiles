@@ -144,4 +144,13 @@ export GE_ROOT=$HOME/clients/earth
 #export PS1="${debian_chroot:+($debian_chroot)}\u@\h:\w\$ "
 #export PS1="$\w\$ "
 #export PS1="\[\e[1;31m[\w \@]\$ \e[m\]"
-export PS1="\[\e[0;34m\]\@ \[\e[32;1m\]\w$ \[\e[0m\]"
+#export PS1="[\[\e[0;34m\]\t \[\e[31;1m\]\w]\$ \[\e[0m\]"
+export PS1="\[\e[31;1m\][\w]\$ \[\e[0m\]"
+
+export LESS_TERMCAP_mb=$'\E[01;31m'
+export LESS_TERMCAP_md=$'\E[01;37m'
+export LESS_TERMCAP_me=$'\E[0m'
+export LESS_TERMCAP_se=$'\E[0m'
+export LESS_TERMCAP_so=$'\E[01;44;33m'
+export LESS_TERMCAP_ue=$'\E[0m'
+export LESS_TERMCAP_us=$'\E[01;32m'
