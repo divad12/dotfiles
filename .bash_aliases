@@ -1,5 +1,7 @@
 # Override command aliases
 alias less='less -I'
+alias latex2html='latex2html -no_footnode -auto_prefix -split 0 -info 0 -no_navigation'
+
 
 alias pdate='ssh pdate@184.106.221.127'
 alias dserver='python manage.py runserver 9999'
@@ -15,9 +17,11 @@ alias g='gvim'
 alias wr='cd /home/david/Documents/work/work_reports/wt1/'
 alias go='gnome-open'
 alias agi='sudo apt-get install'
-#TODO: make this so it can handle directory argumetns wihtout a trailing slash
 function mr() {
-    echo "$1$(ls -t $1 | head -n 1)";
+    echo "$1/$(ls --color=no -t $1 | head -n 1)";
+}
+function wiki() {
+    dig +short txt "$*".wp.dg.cx
 }
 
 # ------------------------------------------------------------------------------

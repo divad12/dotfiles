@@ -158,8 +158,10 @@ vnoremap < <gv
 vnoremap > >gv
 
 " Paste with respect to current line's indent. Will be overriden by Yankring.
-nnoremap P [p
-nnoremap p ]p
+"nnoremap P [p
+"nnoremap p ]p
+"nnoremap [p P
+"nnoremap ]p P
 
 " Scroll down/up in insert mode without displacing cursor
 inoremap <C-y> <C-o><C-y>
@@ -204,7 +206,7 @@ noremap Y y$
 " TODO: This should be more sophisticated, preferrably scripted instead of
 " simple mapping
 inoremap {<CR> {<CR>}<Left><CR><Up><Tab>
-inoremap {<Space> {<Space><Space>};<Left><Left><Left>
+"inoremap {<Space> {<Space><Space>};<Left><Left><Left>
 inoremap {;<CR> {<Esc>o};<Esc>O
 
 " let [jk] go down and up by display lines instead of real lines. Let g[jk]
