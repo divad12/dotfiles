@@ -1,2 +1,5 @@
-# Use case-insensitive less as the pager
---pager=less -I
+# Use case-insensitive less as the pager. -r is so we get color escape codes
+--pager=less -Ir
+
+# Always use color
+--color
