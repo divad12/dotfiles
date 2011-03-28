@@ -1,7 +1,7 @@
 # Override command aliases
 alias less='less -I'
 alias latex2html='latex2html -no_footnode -auto_prefix -split 0 -info 0 -no_navigation'
-
+alias ack='ack-grep'
 
 alias pdate='ssh pdate@184.106.221.127'
 alias dserver='python manage.py runserver 9999'
