@@ -280,6 +280,7 @@ let tlist_javascript_settings = 'javascript;f:function;m:method;c:constructor;v:
 " ----- SuperTab -----
 " Default completion type is <c-p>
 let g:SuperTabDefaultCompletionType = '<c-n>'
+let g:SuperTabLongestHighlight = 1
 
 " ----- AutoComplPop -----
 " Disable and use SuperTab instead (slows typing a bit over NX Ubiquity)
@@ -462,6 +463,18 @@ au Filetype javascript call EnterJavaScript()
 "    endfunction
 "    setl foldtext=FoldText()
 "endfunction
+
+" Vimdfiff
+au FilterWritePre * if &diff | syntax off | endif
+"highlight DiffAdd cterm=none ctermfg=bg ctermbg=green gui=none guifg=bg guibg=Green
+"highlight DiffDelete cterm=none ctermfg=bg ctermbg=Red gui=none guifg=bg guibg=Red
+"highlight DiffChange cterm=none ctermfg=bg ctermbg=Yellow gui=none guifg=bg guibg=Yellow
+"highlight DiffText cterm=none ctermfg=bg ctermbg=Magenta gui=none guifg=bg guibg=Magenta
+
+highlight DiffAdd term=reverse cterm=bold ctermbg=green ctermfg=white
+highlight DiffChange term=reverse cterm=bold ctermbg=cyan ctermfg=black
+highlight DiffText term=reverse cterm=bold ctermbg=gray ctermfg=black
+highlight DiffDelete term=reverse cterm=bold ctermbg=red ctermfg=black
 
 
 " TODO: use make

@@ -31,7 +31,7 @@ pushd()
 {
     builtin pushd "$@" > /dev/null
 }
-alias cd='pushd '
+#alias cd='pushd '
 alias pu='pushd'
 alias po='popd'
 alias cd-='popd'
