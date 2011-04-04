@@ -16,4 +16,4 @@ for file in .*; do
     ln -sfv "$source" "$dest"
 done
 
-ln -sfv "$dir/home_bin" $HOME/bin
+ln -sfvn "$dir/home_bin" "$HOME/bin"
