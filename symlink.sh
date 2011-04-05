@@ -10,9 +10,7 @@ for file in .*; do
     fi
     source="$dir/$file"
     dest="$HOME/$file"
-    if [[ -e "$dest" || -L "$dest" ]]; then
-        rm -rf "$dest"
-    fi
+    rm -rf "$dest"
     ln -sfv "$source" "$dest"
 done
 
