@@ -16,3 +16,6 @@
 
 [apply]
     whitespace = fix  # http://stackoverflow.com/questions/267761/what-does-your-gitconfig-contain/347870#347870
+
+[merge]
+    tool = gvimdiff
