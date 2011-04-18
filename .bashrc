@@ -132,7 +132,7 @@ shopt -s histappend
 #export PS1="$\w\$ "
 #export PS1="\[\e[1;31m[\w \@]\$ \e[m\]"
 #export PS1="[\[\e[0;34m\]\t \[\e[31;1m\]\w]\$ \[\e[0m\]"
-export PS1="\[\e[31;1m\][\w]\$ \[\e[0m\]"
+export PS1="\[\e[33;1m\][\w]\$ \[\e[0m\]"
 
 # Less pager colouring (useful for man)
 export LESS_TERMCAP_mb=$'\E[01;31m'
