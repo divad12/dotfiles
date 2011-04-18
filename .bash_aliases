@@ -17,6 +17,7 @@ alias g='gvim'
 alias wr='cd /home/david/Documents/work/work_reports/wt1/'
 alias go='gnome-open'
 alias agi='sudo apt-get install'
+alias docs='google docs edit --title'
 function mr() {
     echo "$1/$(ls --color=no -t $1 | head -n 1)";
 }
