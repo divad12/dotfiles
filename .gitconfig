@@ -13,7 +13,7 @@
 
 [alias]
     co = checkout
-    lg = log --graph --decorate --pretty=oneline --abbrev-commit --all
+    graph = log --graph --decorate --oneline --all --full-history
 
 [apply]
     whitespace = fix  # http://stackoverflow.com/questions/267761/what-does-your-gitconfig-contain/347870#347870
