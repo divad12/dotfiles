@@ -4,13 +4,15 @@
 
 dir=`pwd`
 
+
 for file in .*; do
+    # XXX Use list of stuff to not include. Also README.
     if [[ "$file" == ".git" || "$file" == "." || "$file" == ".." ]]; then
         continue
     fi
     source="$dir/$file"
     dest="$HOME/$file"
-    rm -rf "$dest"
+    mv "$dest{,.orig}"
     ln -sfv "$source" "$dest"
 done
 
