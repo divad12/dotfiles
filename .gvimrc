@@ -1,5 +1,6 @@
 set vb t_vb="
 colorscheme ir_black
+set lines=100 columns=400
 
 " ----- Ubuntu GVim -----
 

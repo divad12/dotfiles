@@ -61,7 +61,7 @@ set undoreload=10000
 
 " Highlight search results and map <Space> to turn off
 set hlsearch
-nnoremap <silent> <ESC> :noh<cr><ESC>
+nnoremap <silent> <Space> :set invhlsearch<cr><ESC>
 "nnoremap <silent> <space> :set hls!<cr>  "Toggles, but is not automatically set on when searching again
 
 " Smart '>' & '<' indentation! With 3 spaces, press '>', insert 1 space, not 4.
@@ -73,7 +73,7 @@ set shiftround
 set completeopt=menuone,preview
 
 " Turn off visual bell
-set vb t_vb=
+autocmd VimEnter * set vb t_vb=
 
 " Gvim turn off scrollbars and other unnecessary menu items
 " The initial += is a bug workaround
@@ -119,6 +119,7 @@ set expandtab
 " TODO: detect file and use different options. filetype indent?
 set tabstop=4
 set shiftwidth=4
+set softtabstop=4
 
 " Automatically change directories when switching windows
 set autochdir
@@ -132,6 +133,15 @@ set list
 set listchars=tab:>.,trail:.,extends:#,nbsp:.
 " but disable tab special chars in html and xml files
 autocmd filetype html,xml set listchars-=tab:>.
+
+" Disable console vim from attepting to connect to the X display, which may
+" slow things down for a few seconds
+set cb="exclude:.*"
+
+" This will look in the current directory for 'tags', and work up the tree
+" towards root until one is found.
+" From: http://stackoverflow.com/questions/563616/vim-and-ctags-tips-and-tricks
+set tags=tags;/
 
 
 " ------------------------------------------------------------------------------
@@ -185,9 +195,9 @@ vnoremap gY "+Y
 nnoremap <silent><C-S-Tab> :tabp<CR>
 nnoremap <silent><C-Tab> :tabn<CR>
 
-" Ctrl-s for smart saving. (Don't write to file if no changes)
-nnoremap <silent><C-s> :update<Cr>
-inoremap <silent><C-s> <Esc>:update<Cr>
+" Ctrl-s for save all changed buffers.
+nnoremap <silent><C-s> :wa<Cr>
+inoremap <silent><C-s> <Esc>:wa<Cr>
 
 " Jump to beginning and end of brace-surrounded blocks
 noremap [[ [{
@@ -345,13 +355,13 @@ let g:C_Styles = { '*.c,*.h' : 'default', '*.cc,*.cpp,*.hh' : 'CPP' }
 " ----- Trailing Whitespace -----
 " Remove trailing whitespace on save
 function! StripTrailingWhitespace()
-  silent exe "normal mz<CR>"
-  let saved_search = @/
-  %s/\s\+$//e
-  silent exe "normal `z<CR>"
-  let @/ = saved_search
+ silent exe "normal mz<CR>"
+ let saved_search = @/
+ %s/\s\+$//e
+ silent exe "normal `z<CR>"
+ let @/ = saved_search
 endfunction
-au BufWritePre * call StripTrailingWhitespace()
+"au BufWritePre * call StripTrailingWhitespace()
 
 " ----- Hex Editing -----
 " From http://vim.wikia.com/wiki/Improved_hex_editing
@@ -434,22 +444,24 @@ endfunction
 "au VimEnter * call LoadSession()
 "au VimLeave * call MakeSession()
 
+" Cscope
+cscope add /home/davidhu/clients/earth/googleclient/earth/
 
 " ------------------------------------------------------------------------------
 " Filetype Handling
 " ------------------------------------------------------------------------------
 
 " ----- JavaScript -----
-function! EnterJavaScript()
-    " Integrate JSLint as make program
-    set makeprg=/home/davidhu/jslintvim
-    set errorformat=%f:%l\\,\ E:%n:\ %m
-
-    " Invoke JSLint on buffer(s) with shortcut key
-    noremap <buffer><F2> <Esc>:!clear<Cr>:up \| make %:p<Cr>
-    noremap <buffer><F3> <Esc>:!clear<Cr>:wa \| make<Cr>
-endfunction
-au Filetype javascript call EnterJavaScript()
+"function! EnterJavaScript()
+"    " Integrate JSLint as make program
+"    set makeprg=/home/davidhu/jslintvim
+"    set errorformat=%f:%l\\,\ E:%n:\ %m
+"
+"    " Invoke JSLint on buffer(s) with shortcut key
+"    noremap <buffer><F2> <Esc>:!clear<Cr>:up \| make %:p<Cr>
+"    noremap <buffer><F3> <Esc>:!clear<Cr>:wa \| make<Cr>
+"endfunction
+"au Filetype javascript call EnterJavaScript()
 
 " JavaScript folding
 " Mappings and function from http://amix.dk/vim/vimrc.html
@@ -512,14 +524,14 @@ endfunction
 au Filetype tex call EnterTex()
 
 " Automatically make files beginning with a bang-path executable
-if has("unix")
-    autocmd BufWritePost *
-                \   if getline(1) =~ "^#!"            |
-                \       if getline(1) =~ "/bin/"      |
-                \           silent !chmod +x <afile>; |
-                \       endif                         |
-                \   endif
-endif
+"if has("unix")
+"    autocmd BufWritePost *
+"                \   if getline(1) =~ "^#!"            |
+"                \       if getline(1) =~ "/bin/"      |
+"                \           silent !chmod +x <afile>; |
+"                \       endif                         |
+"                \   endif
+"endif
 
 
 " ------------------------------------------------------------------------------
@@ -537,7 +549,6 @@ set ruler
 set showcmd
 "set hlsearch        " Highlight previous search results
 set backspace=2
-"set visualbell
 "set nowrap
 set textwidth=0
 
@@ -586,4 +597,3 @@ let g:ragtag_global_maps = 1
 	"let b:comment_prefix = '//'
 	"endfunction
 "au FileType cpp call EnterCpp()
-"

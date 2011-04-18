@@ -1,4 +1,4 @@
-*xml-plugin.txt*  Help edit XML and SGML documents.                   v1.84
+*xml-plugin.txt*  Help edit XML and SGML documents.                  #version#
 
                                    XML Edit      ~
 
@@ -155,7 +155,8 @@ XmlAttribCallback
         This is a generic callback for xml tags intended to add attributes.
 
                                                              *xml-plugin-html*
-Callback Example      ~
+/#version#/ v1.84/
+ack Example      ~
 
 The following is an example of using XmlAttribCallback in your .vimrc
 >

@@ -114,17 +114,31 @@ if [ -f /etc/bash_completion ]; then
     . /etc/bash_completion
 fi
 
-export WORKON_HOME=/home/david/.virtualenvs
-source /usr/local/bin/virtualenvwrapper_bashrc
+# export WORKON_HOME=/home/david/.virtualenvs
+# source /usr/local/bin/virtualenvwrapper_bashrc
 
 source /etc/profile
 
-export CDPATH='/home/david/cdpath'
+export CDPATH='$HOME/cdpath'
 
-# CS 241 tools folder
-export "CLASSPATH=.:/home/david/Documents/school/cs241/classes:$CLASSPATH"
-
-# PICkit
-export PATH="$PATH:/usr/share/pk2:/home/david/.virtualenvs/pinax-env/lib/python2.6/site-packages/django/bin/:$HOME/bin:/home/david/qtsdk-2010.05/qt/bin:/home/david/.cabal/bin"
+#export PATH="$PATH:/usr/share/pk2:/home/david/.virtualenvs/pinax-env/lib/python2.6/site-packages/django/bin/:$HOME/bin:/home/david/qtsdk-2010.05/qt/bin:/home/david/.cabal/bin"
+export PATH="$PATH:$HOME/bin"
 
 shopt -s histappend
+
+
+# Prompt colouring
+#export PS1="${debian_chroot:+($debian_chroot)}\u@\h:\w\$ "
+#export PS1="$\w\$ "
+#export PS1="\[\e[1;31m[\w \@]\$ \e[m\]"
+#export PS1="[\[\e[0;34m\]\t \[\e[31;1m\]\w]\$ \[\e[0m\]"
+export PS1="\[\e[31;1m\][\w]\$ \[\e[0m\]"
+
+# Less pager colouring (useful for man)
+export LESS_TERMCAP_mb=$'\E[01;31m'
+export LESS_TERMCAP_md=$'\E[01;37m'
+export LESS_TERMCAP_me=$'\E[0m'
+export LESS_TERMCAP_se=$'\E[0m'
+export LESS_TERMCAP_so=$'\E[01;44;33m'
+export LESS_TERMCAP_ue=$'\E[0m'
+export LESS_TERMCAP_us=$'\E[01;32m'
