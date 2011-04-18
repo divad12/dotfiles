@@ -339,6 +339,9 @@ noremap <silent> <Leader>nt	:NERDTreeToggle<CR>
 " Open NERDTree sidebar upon Vim startup
 "au VimEnter * NERDTree
 
+" ---- C-support ----
+let g:C_Styles = { '*.c,*.h' : 'default', '*.cc,*.cpp,*.hh' : 'CPP' }
+
 " ----- Trailing Whitespace -----
 " Remove trailing whitespace on save
 function! StripTrailingWhitespace()
