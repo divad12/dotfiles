@@ -19,8 +19,8 @@ set nocompatible
 syntax on
 
 " Set colour scheme. Wombat is a third-party colorscheme. Also good: ir_black
-" (third-party), desert (comes by default)
-colorscheme desert
+" molokai, xoria256, desert (comes by default)
+colorscheme mustang
 
 " Allow filetype-specific plugins, such as matchit
 filetype plugin on
@@ -61,7 +61,7 @@ set undoreload=10000
 
 " Highlight search results and map <Space> to turn off
 set hlsearch
-nnoremap <silent> <Space> :set invhlsearch<cr><ESC>
+nnoremap <silent> <Space> :nohlsearch<cr><ESC>
 "nnoremap <silent> <space> :set hls!<cr>  "Toggles, but is not automatically set on when searching again
 
 " Smart '>' & '<' indentation! With 3 spaces, press '>', insert 1 space, not 4.
@@ -143,6 +143,8 @@ set cb="exclude:.*"
 " From: http://stackoverflow.com/questions/563616/vim-and-ctags-tips-and-tricks
 set tags=tags;/
 
+" Always display a status line
+set laststatus=2
 
 " ------------------------------------------------------------------------------
 " Vim Mappings
@@ -355,7 +357,7 @@ function! StripTrailingWhitespace()
  silent exe "normal `z<CR>"
  let @/ = saved_search
 endfunction
-"au BufWritePre * call StripTrailingWhitespace()
+au BufWritePre * call StripTrailingWhitespace()
 
 " ----- Hex Editing -----
 " From http://vim.wikia.com/wiki/Improved_hex_editing
