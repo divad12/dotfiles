@@ -12,7 +12,7 @@ for file in .*; do
     fi
     source="$dir/$file"
     dest="$HOME/$file"
-    mv "$dest{,.orig}"
+    mv "$dest" "$dest".orig
     ln -sfv "$source" "$dest"
 done
 
