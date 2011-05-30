@@ -132,7 +132,28 @@ shopt -s histappend
 #export PS1="$\w\$ "
 #export PS1="\[\e[1;31m[\w \@]\$ \e[m\]"
 #export PS1="[\[\e[0;34m\]\t \[\e[31;1m\]\w]\$ \[\e[0m\]"
-export PS1="\[\e[33;1m\][\w]\$ \[\e[0m\]"
+#export PS1="\[\e[33;1m\] [ \w ]\$ \[\e[0m\]"
+
+# from http://www.ibm.com/developerworks/linux/library/l-tip-prompt/
+#export PS1="\[\e]2;\u@\H \w\a\e[32;1m\]>\[\e[0m\] "
+
+case $TERM in
+xterm*)
+    # Set the prompt to a basic coloured current working directory
+    export PS1="\[\e[33;1m\] [ \w ]\$ \[\e[0m\]"
+    PROMPT_COMMAND=''
+    ;;
+screen*)
+    # Set the screen window name to the basename of the working directory
+    PROMPT_COMMAND='bpwd=$(basename `pwd`); echo -ne "\033]0;\007\033k$bpwd\033\\"'
+    # Set the hardstatus to the working directory, which will display on GNU
+    # screen's caption as well as xterm's title bar. Now our prompt can be a short
+    # and sweet $.
+    export PS1="\[\e]2;\w\a\e[32;1m\] \$\[\e[0m\] "
+    ;;
+*)
+    ;;
+esac
 
 # Less pager colouring (useful for man)
 export LESS_TERMCAP_mb=$'\E[01;31m'
