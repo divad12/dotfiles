@@ -3,6 +3,7 @@
 " TODO: mappings for alt+hjkl for movement in insert mode
 " TODO: get latex plugins
 " TODO: turn off matchparen for certain files for faster scrolling
+" TODO: remap window-navigation keys to CTRL
 
 
 " ------------------------------------------------------------------------------
@@ -129,10 +130,11 @@ set incsearch
 
 " Set out tab characters, trailing whitespace and invisible spaces visually
 " From http://nvie.com/posts/how-i-boosted-my-vim/
-set list
-set listchars=tab:>.,trail:.,extends:#,nbsp:.
-" but disable tab special chars in html and xml files
-autocmd filetype html,xml set listchars-=tab:>.
+" TODO: highlight instead
+"set list
+"set listchars=trail:.,extends:#,nbsp:.
+"" but disable tab special chars in certain files
+"autocmd filetype html,xml,Makefile set listchars-=tab:>.
 
 " Disable console vim from attepting to connect to the X display, which may
 " slow things down for a few seconds
@@ -143,6 +145,13 @@ set cb="exclude:.*"
 " From: http://stackoverflow.com/questions/563616/vim-and-ctags-tips-and-tricks
 set tags=tags;/
 
+" Tell vim to remember certain things when we exit
+"  '10 : marks will be remembered for up to 10 previously edited files
+"  "100 : will save up to 100 lines for each register
+"  :20 : up to 20 lines of command-line history will be remembered
+"  % : saves and restores the buffer list
+"  n... : where to save the viminfo files
+set viminfo='10,\"100,:20,%,n~/.viminfo
 
 " ------------------------------------------------------------------------------
 " Vim Mappings
@@ -266,6 +275,9 @@ onoremap s normal:k][[[kV][j<CR>
 " When editing file requiring root privileges, but forgot to sudo
 cnoremap w!! w !sudo tee % >/dev/null
 
+" Format an XML doc. From http://uucode.com/blog/2005/06/15/indenting-xml-in-vim/
+map <leader>x <Esc>:1,$!xmllint --format -<CR>
+
 
 " ------------------------------------------------------------------------------
 " Plugin Settings and Mappings
@@ -361,6 +373,7 @@ function! StripTrailingWhitespace()
  silent exe "normal `z<CR>"
  let @/ = saved_search
 endfunction
+" TODO: add keyboard shortcut to do this for all buffers.
 "au BufWritePre * call StripTrailingWhitespace()
 
 " ----- Hex Editing -----

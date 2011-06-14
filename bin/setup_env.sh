@@ -6,15 +6,16 @@
 # To install (absolute must):
 # - screen
 # - ack-grep
-# - autojump (write a script for this)
+# - autojump (write a script to install this)
 # - google command line
+# - htop
 # - compiz with Grid (tiling by numpad)
 #   - sudo apt-get install compiz-fusion-plugins-extra
 # - keyboard shortcut to launch terminal window, maximized. start with screen.
 # - flux or Redshift for Linux: gtk-redshift -t 5700:3700
 # - Google Chrome w/ extensions: facebook photo zoom, google quick scroll,
 #     hover zoom (!!MUST), tweetdeck, pinned tabs (gmail, calendar, fb, reader,
-#     twitter, github, phone to chrome). Use Chrome sync.
+#     twitter, github, phone to chrome), vimium. Use Chrome sync.
 # - Ubuntu panels: cpu, memory, etc. and weather (set current location for time)
 # - make terminal and gvim windows semi-transparent
 # - copy ssh keys and run ssh-agent
