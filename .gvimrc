@@ -7,10 +7,10 @@ set lines=100 columns=400
 " Font on Mac
 if has("unix")
     if system("uname") == "Darwin\n"
-        set guifont=Menlo:h12
+        "set guifont=Menlo:h12
+        set guifont=Bitstream\ Vera\ Sans\ Mono:h12
     endif
 endif
-"set guifont=Bitstream\ Vera\ Sans\ Mono:h12
 
 " Use alt+hjkl to navigate between split windows
 nnoremap ∆  <C-w>j
