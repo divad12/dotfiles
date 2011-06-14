@@ -34,6 +34,10 @@ $%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 #include <cstring>
 #include <iostream>
 
+#define foreach( i, c )\
+typedef __typeof__( c ) c##_CONTAINERTYPE;\
+for( c##_CONTAINERTYPE::iterator i = c.begin(); i != c.end(); ++i )
+
 // TODO: don't do this
 using namespace std;
 

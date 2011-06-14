@@ -12,6 +12,14 @@ fi
 
 alias dserver='python manage.py runserver 9999'
 
+alias s3cmd='s3cmd -c /home/david/code/ura-2011-spring/websearch-experiment/dedup/third_party/s3cmd/.s3cfg'
+alias elastic-mapreduce='$HOME/bin/elastic-mapreduce-ruby/elastic-mapreduce'
+
+function jsdoc() {
+    JSDOCDIR=$HOME/bin/jsdoc-toolkit
+    java -Djsdoc.dir=$JSDOCDIR -jar "$JSDOCDIR"/jsrun.jar "$JSDOCDIR"/app/run.js -t="$JSDOCDIR"/templates/jsdoc -d=doc/ $@
+}
+
 alias lt='ls -trlh'
 alias ll='ls -l'
 alias vm='vim `ls --color=none -t | head -n 1`'
