@@ -1,29 +1,37 @@
 set vb t_vb="
 colorscheme ir_black
+
+" Maximize
 set lines=100 columns=400
 
-" ----- Ubuntu GVim -----
+" Font on Mac
+if has("unix")
+    if system("uname") == "Darwin\n"
+        set guifont=Menlo:h12
+    endif
+endif
+"set guifont=Bitstream\ Vera\ Sans\ Mono:h12
 
 " Use alt+hjkl to navigate between split windows
-nnoremap <M-j>  <C-w>j
-nnoremap <M-k>  <C-w>k
-nnoremap <M-h>  <C-w>h
-nnoremap <M-l>  <C-w>l
+nnoremap ∆  <C-w>j
+nnoremap ˚  <C-w>k
+nnoremap ˙  <C-w>h
+nnoremap ¬  <C-w>l
 
 " Use alt+<>-= to resize split windows
-nnoremap <M-,>  <C-w><
-nnoremap <M-.>  <C-w>>
-nnoremap <M-=>  <C-w>+
-nnoremap <M-->  <C-w>-
+nnoremap ≤  <C-w><
+nnoremap ≥  <C-w>>
+nnoremap ≠  <C-w>+
+nnoremap –  <C-w>-
 
 " Use alt+# to switch to a certain numbered tab
 " TODO use some number wildcard or for-loop instead of repeating mapping 9 times
-nnoremap <M-1> 1gt
-nnoremap <M-2> 2gt
-nnoremap <M-3> 3gt
-nnoremap <M-4> 4gt
-nnoremap <M-5> 5gt
-nnoremap <M-6> 6gt
-nnoremap <M-7> 7gt
-nnoremap <M-8> 8gt
-nnoremap <M-9> 9gt
+nnoremap ¡ 1gt
+nnoremap ™ 2gt
+nnoremap £ 3gt
+nnoremap ¢ 4gt
+nnoremap ∞ 5gt
+nnoremap § 6gt
+nnoremap ¶ 7gt
+nnoremap • 8gt
+nnoremap ª 9gt

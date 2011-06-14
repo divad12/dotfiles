@@ -100,8 +100,11 @@ fi
 alias ll='ls -l'
 alias la='ls -A'
 #alias l='ls -CF'
-LS_COLORS='ow=34'
-export LS_COLORS
+export LS_COLORS='ow=34'
+
+# For Mac (BSD ls)
+export CLICOLOR=1
+export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
 
 # Use vi modal editing for readline
 # see http://www.catonmat.net/blog/bash-vi-editing-mode-cheat-sheet/
