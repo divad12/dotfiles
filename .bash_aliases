@@ -1,9 +1,15 @@
+# TODO: clean up this mess; organize into sections
+
+uname=$(uname)
+
 # Override command aliases
 alias less='less -I'
 alias latex2html='latex2html -no_footnode -auto_prefix -split 0 -info 0 -no_navigation'
-alias ack='ack-grep'
 
-alias pdate='ssh pdate@184.106.221.127'
+if [[ "$uname" == 'Linux' ]]; then
+    alias ack='ack-grep'
+fi
+
 alias dserver='python manage.py runserver 9999'
 
 alias s3cmd='s3cmd -c /home/david/code/ura-2011-spring/websearch-experiment/dedup/third_party/s3cmd/.s3cfg'

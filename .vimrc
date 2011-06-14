@@ -84,9 +84,6 @@ set guioptions-=LlRrbT
 " Disallow menu access using the Alt key
 set winaltkeys=no
 
-" GVim font
-"set guifont=Bitstream\ Vera\ Sans\ Mono\ 10.7
-
 " Minimum width and height of window containing cursor
 set winheight=30
 set winwidth=85
@@ -460,9 +457,6 @@ endfunction
 "
 "au VimEnter * call LoadSession()
 "au VimLeave * call MakeSession()
-
-" Cscope
-cscope add /home/davidhu/clients/earth/googleclient/earth/
 
 " ------------------------------------------------------------------------------
 " Filetype Handling
