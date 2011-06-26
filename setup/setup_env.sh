@@ -4,6 +4,8 @@
 # TODO: script to rsync (in case machine doesn't have git): https://github.com/rtomayko/dotfiles/blob/rtomayko/bin/sync-home
 
 # To install (absolute must):
+# - run :BundleInstall in vim to install plugins
+# - build native c object files for command-t (:h CommandT)
 # - screen
 # - ack-grep
 # - autojump (write a script to install this)
@@ -21,7 +23,7 @@
 # - office
 # - source-highlight (for less syntax highlighting)
 # - solarized colorscheme for terminals
-# - build native c object files for command-t (:h CommandT)
+# - vimpager
 
 # Ubuntu specific
 # - compiz with Grid (tiling by numpad)

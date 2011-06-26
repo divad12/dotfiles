@@ -41,7 +41,7 @@ Bundle 'repeat.vim'
 Bundle 'pyflakes'
 Bundle 'Gundo'
 Bundle 'Syntastic'
-Bundle 'Javascript-syntax-with-Ajax-Support'
+"Bundle 'Javascript-syntax-with-Ajax-Support'
 
 " Color schemes
 Bundle 'Solarized'
@@ -55,9 +55,11 @@ Bundle 'Wombat'
 syntax on
 
 " Set colour scheme. Wombat is a third-party colorscheme. Also good: ir_black
-" molokai, xoria256, desert (comes by default)
+" molokai, xoria256, desert (comes by default). For some reason, solarized
+" doesn't work well in normal terminal vim...
 set background=dark
-colorscheme solarized
+set t_Co=256
+colorscheme xoria256
 
 " Allow filetype-specific plugins, such as matchit
 filetype plugin indent on
@@ -153,7 +155,7 @@ set cindent
 set expandtab
 
 " Disable auto-wrapping when you type
-set tw=0
+set textwidth=0
 
 " TODO: detect file and use different options. filetype indent?
 set tabstop=2
@@ -195,6 +197,9 @@ set viminfo='10,\"100,:20,%,n~/.viminfo
 
 " Always display a status line
 set laststatus=2
+
+" Allow backspacing over indent, eol, and start of insert
+set backspace=2
 
 " Let fugitive display current git branch
 set statusline=%<%f\ %h%m%r%{fugitive#statusline()}%=%-14.(%l,%c%V%)\ %P
@@ -337,7 +342,7 @@ map <leader>x <Esc>:1,$!xmllint --format -<CR>
 noremap <silent> <Leader>tl	:TlistToggle<CR>
 
 " Taglist window options
-let Tlist_Auto_Open = 1
+"let Tlist_Auto_Open = 1
 let Tlist_Use_Right_Window = 1
 let Tlist_WinWidth = 30
 let Tlist_Exit_OnlyWindow = 1
@@ -367,7 +372,7 @@ nnoremap <silent> <C-b> :CommandTBuffer<CR>
 autocmd FileType python map <buffer> <F3> :call Pyflakes()<CR
 
 " ----- Gundo -----
-nnoremap <leader>g :GundoToggle<CR>
+nnoremap <leader>gd :GundoToggle<CR>
 
 " ----- Syntastic -----
 let g:syntastic_enable_signs=1
@@ -596,9 +601,6 @@ set showmatch
 set ruler
 set showcmd
 "set hlsearch        " Highlight previous search results
-set backspace=2
-"set nowrap
-set textwidth=0
 
 " Tab-complete filenames to longest unambiguous match and present menu:
 set wildmenu wildmode=longest:full
@@ -626,15 +628,3 @@ if has("autocmd")
   " When editing a file, always jump to the last cursor position
   autocmd BufReadPost * if line("'\"") | exe "'\"" | endif
 endif
-
-
-" Andrew's stuff
-"set textwidth=0 "Disable auto-wrapping when you type
-
-
-"function! EnterCpp()
-"	map <buffer> <F2> :w<CR>:!clear;g++ -Wall %
-	"map <buffer> <F3> :!clear;./a.out
-	"let b:comment_prefix = '//'
-	"endfunction
-"au FileType cpp call EnterCpp()

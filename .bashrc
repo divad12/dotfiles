@@ -88,17 +88,19 @@ fi
 # enable color support of ls and also add handy aliases
 if [ -x /usr/bin/dircolors ]; then
     eval "`dircolors -b`"
-    alias ls='ls --color'
+    alias ls='ls --color -F'
 
     #alias dir='dir --color=auto'
     #alias vdir='vdir --color=auto'
 
     #alias fgrep='fgrep --color=auto'
     #alias egrep='egrep --color=auto'
+else
+    alias ls='ls -F'
 fi
 
 #export GREP_COLOR='1;32'
-alias grep='grep --color=always -n' # So as not to break scripts that may use grep
+alias grep='grep --color=always -n' # Alias instead of env var so as not to break scripts that may use grep
 
 # Less syntax higlighting - from http://linux-tips.org/article/78/syntax-highlighting-in-less
 export LESSOPEN="| /usr/local/bin/src-hilite-lesspipe.sh %s"
@@ -162,7 +164,7 @@ screen*)
     # Set the hardstatus to the working directory, which will display on GNU
     # screen's caption as well as xterm's title bar. Now our prompt can be a short
     # and sweet $.
-    export PS1="\[\e]2;\w\a\e[32;1m\] \$\[\e[0m\] "
+    export PS1="\[\e]2;\w\a\e[32;40m\] \$\[\e[0m\] "
     ;;
 *)
     ;;
@@ -176,6 +178,7 @@ export LESS_TERMCAP_se=$'\E[0m'
 export LESS_TERMCAP_so=$'\E[01;44;33m'
 export LESS_TERMCAP_ue=$'\E[0m'
 export LESS_TERMCAP_us=$'\E[01;32m'
+
 
 # autojump: https://github.com/joelthelion/autojump/wiki/
 _autojump()

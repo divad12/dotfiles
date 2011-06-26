@@ -5,15 +5,14 @@
 dir=`pwd`
 
 
-for file in .*; do
-    # XXX Use list of stuff to not include. Also README.
+for file in .* bin; do
     if [[ "$file" == ".git" || "$file" == "." || "$file" == ".." ]]; then
         continue
     fi
     source="$dir/$file"
     dest="$HOME/$file"
-    mv "$dest" "$dest".orig
-    ln -sfv "$source" "$dest"
+    if [ -e "$dest" ]; then
+        mv "$dest" "$dest".orig
+    fi
+    ln -sfvn "$source" "$dest"
 done
-
-ln -sfvn "$dir/home_bin" "$HOME/bin"

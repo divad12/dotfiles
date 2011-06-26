@@ -1,5 +1,7 @@
 set vb t_vb="
 
+colorscheme solarized
+
 " Maximize
 set lines=100 columns=400
 

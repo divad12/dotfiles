@@ -8,7 +8,14 @@ alias latex2html='latex2html -no_footnode -auto_prefix -split 0 -info 0 -no_navi
 
 if [[ "$uname" == 'Linux' ]]; then
     alias ack='ack-grep'
+    alias vt='gvim --remote-tab'
+    alias agi='sudo apt-get install'
+    alias go='gnome-open'
+elif [[ "$uname" == "Darwin" ]]; then
+    alias vt='mvim --remote-tab'
+    alias go='open'
 fi
+
 
 alias dserver='python manage.py runserver 9999'
 
@@ -24,13 +31,9 @@ alias lt='ls -trlhu'
 alias ll='ls -l'
 alias vm='vim `ls --color=none -t | head -n 1`'
 alias rs='resize -s 900 900'
-alias cproj='cd ~/code/eatsleep/kwizr'
 alias cindent='~/cindent.bash'
 alias oldHome='cd /media/disk/Users/David/'
 alias g='gvim'
-alias gt='gvim --remote-tab'
-alias go='gnome-open'
-alias agi='sudo apt-get install'
 alias docs='google docs edit --title'
 function mr() {
     echo "$1/$(ls --color=no -t $1 | head -n 1)";
