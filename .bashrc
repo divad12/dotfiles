@@ -97,9 +97,12 @@ if [ -x /usr/bin/dircolors ]; then
     #alias egrep='egrep --color=auto'
 fi
 
-export GREP_COLOR='1;32'
+#export GREP_COLOR='1;32'
 alias grep='grep --color=always -n' # So as not to break scripts that may use grep
-export LESS='-R'
+
+# Less syntax higlighting - from http://linux-tips.org/article/78/syntax-highlighting-in-less
+export LESSOPEN="| /usr/local/bin/src-hilite-lesspipe.sh %s"
+export LESS=' -R '
 
 # some more ls aliases
 alias ll='ls -l'
@@ -109,7 +112,9 @@ export LS_COLORS='ow=34'
 
 # For Mac (BSD ls)
 export CLICOLOR=1
-export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx
+#export LSCOLORS=gxBxhxDxfxhxhxhxhxcxcx  # Cyan instead of blue for ls
+
+export EDITOR=vim
 
 # Use vi modal editing for readline
 # see http://www.catonmat.net/blog/bash-vi-editing-mode-cheat-sheet/
