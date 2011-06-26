@@ -16,15 +16,51 @@
 " set iskeyword
 set nocompatible
 
+" Required for Vundle - https://github.com/gmarik/vundle
+filetype off
+set rtp+=~/.vim/bundle/vundle/
+call vundle#rc()
+
+" ----- Plugins managed by Vundle -----
+Bundle 'gmarik/vundle'
+Bundle 'tpope/vim-fugitive'
+Bundle 'The-NERD-Commenter'
+Bundle 'EasyMotion'
+" Bundle 'rstacruz/sparkup', {'rtp': 'vim/'}
+Bundle 'divad12/sparkup', {'rtp': 'vim/'}
+Bundle 'scrooloose/nerdtree'
+Bundle 'a.vim'
+Bundle 'ctags.vim'
+Bundle 'Command-T'
+Bundle 'taglist.vim'
+Bundle 'SuperTab-continued.'
+Bundle 'matchit.zip'
+Bundle 'ragtag.vim'
+Bundle 'surround.vim'
+Bundle 'repeat.vim'
+Bundle 'pyflakes'
+Bundle 'Gundo'
+Bundle 'Syntastic'
+Bundle 'Javascript-syntax-with-Ajax-Support'
+
+" Color schemes
+Bundle 'Solarized'
+Bundle 'xoria256.vim'
+Bundle 'Mustang2'
+Bundle 'molokai'
+Bundle 'Wombat'
+
+
 " Syntax highlighting
 syntax on
 
 " Set colour scheme. Wombat is a third-party colorscheme. Also good: ir_black
 " molokai, xoria256, desert (comes by default)
-colorscheme mustang
+set background=dark
+colorscheme solarized
 
 " Allow filetype-specific plugins, such as matchit
-filetype plugin on
+filetype plugin indent on
 
 " Have Vim automatically reload changed files on disk. Very useful when using
 " git and switching between branches
@@ -51,14 +87,16 @@ set backupdir=~/.vim_backups//
 silent execute '!mkdir -p ~/.vim_backups'
 set directory=~/.vim_backups//
 
-" Remember more history & undos
+" Remember more history
 set history=1000
 set undolevels=5000
 
-" Persistent undo asdf
-set undofile
-set undodir=~/.vim_undos
-set undoreload=10000
+" Persistent undo
+if has("persistent_undo")
+  set undofile
+  set undodir=~/.vim_undos
+  set undoreload=10000
+endif
 
 " Highlight search results and map <Space> to turn off
 set hlsearch
@@ -114,13 +152,18 @@ set cindent
 " Expand tabs to spaces
 set expandtab
 
+" Disable auto-wrapping when you type
+set tw=0
+
 " TODO: detect file and use different options. filetype indent?
 set tabstop=2
 set shiftwidth=2
 set softtabstop=2
 
 " Automatically change directories when switching windows
-set autochdir
+if has("autochdir")
+  set autochdir
+endif
 
 " Incremental search when /
 set incsearch
@@ -152,6 +195,9 @@ set viminfo='10,\"100,:20,%,n~/.viminfo
 
 " Always display a status line
 set laststatus=2
+
+" Let fugitive display current git branch
+set statusline=%<%f\ %h%m%r%{fugitive#statusline()}%=%-14.(%l,%c%V%)\ %P
 
 
 " ------------------------------------------------------------------------------
@@ -185,7 +231,7 @@ vnoremap > >gv
 
 " Scroll down/up in insert mode without displacing cursor
 inoremap <C-y> <C-o><C-y>
-inoremap <C-e> <C-o><C-e>
+"inoremap <C-e> <C-o><C-e>  " Conflicts with sparkup
 
 " Move a line of text using ctrl+[jk]
 " TODO: think of better shortcut keys. ctrl-j is too easily mistakenly pressed
@@ -194,8 +240,7 @@ inoremap <C-e> <C-o><C-e>
 "vnoremap <C-j> :m'>+<cr>gv
 "vnoremap <C-k> :m'<-2<cr>gv
 
-" Shortcuts for system clipboard access: works in Ubuntu gvim & terminal vim.
-" Does not work in Mac. Will be overwritten by Yankring
+" Shortcuts for system clipboard access: works in Ubuntu gvim, terminal vim, macvim.
 noremap gp "+]p
 noremap gP "+[P
 vnoremap gy "+y
@@ -237,7 +282,8 @@ nnoremap gk k
 nnoremap gj j
 
 " Set undo-points at newlines created in insert mode, to reduce undo step size
-inoremap <Cr> <C-g>u<Cr>
+" TODO: For some reason this creates two newlines instead of one
+"inoremap <Cr> <C-g>u<Cr>
 
 " Key mappings for window switching. To map the alt key (aka meta key) in some
 " TODO: Detect what vim is running on, and conditionally map keys.
@@ -305,42 +351,27 @@ let tlist_javascript_settings = 'javascript;f:function;m:method;c:constructor;v:
 let g:SuperTabDefaultCompletionType = '<c-n>'
 let g:SuperTabLongestHighlight = 1
 
-" ----- AutoComplPop -----
-" Disable and use SuperTab instead (slows typing a bit over NX Ubiquity)
-"au VimEnter * AcpDisable
-
-" ----- Yankring -----
-" NOTE: This plugin may override custom yank and paste mappings.
-
-let g:yankring_enabled = 0  " Disables YankRing. I hate this plugin.
-" Shortcut to display all entries in Yankring.
-"nnoremap <silent> <F11> :YRShow<CR>
-
 " ----- NERD Commenter -----
 " Toggles comment state of selected lines.
-nnoremap gc ,c<Space>
-vnoremap gc ,c<Space>
+" TODO: Why don't mappings below work. Gross hack below.
+"nnoremap gc <plug>NERDCommenterToggle
+"vnoremap gc <plug>NERDCommenterToggle
+nmap gc <leader>c<space>
+vmap gc <leader>c<space>
 
-" ----- FuzzyFinder -----
-" Do not disable any modes
-let g:fuf_modesDisable = []
+" ----- Command-T -----
+nnoremap <silent> <C-f> :CommandT<CR>
+nnoremap <silent> <C-b> :CommandTBuffer<CR>
 
-" Most recently used file & command list max size
-let g:fuf_mrufile_maxItem = 300
-let g:fuf_mrucmd_maxItem = 400
+" ----- Pyflakes -----
+autocmd FileType python map <buffer> <F3> :call Pyflakes()<CR
 
-" Key mappings: all prefixed by Ctrl-f
-nnoremap <silent> <C-f>b     :FufBuffer<CR>
-nnoremap <silent> <C-f>d     :FufFileWithCurrentBufferDir<CR>
-nnoremap <silent> <C-f>w 	   :FufFileWithFullCwd<CR>
-nnoremap <silent> <C-f>f     :FufFile<CR>
-nnoremap <silent> <C-f>m     :FufMruFile<CR>
-nnoremap <silent> <C-f>c     :FufMruCmd<CR>
-nnoremap <silent> <C-f>k     :FufBookmark<CR>
-nnoremap <silent> <C-f>t     :FufTag<CR>
-nnoremap <silent> <C-f>l     :FufLine<CR>
-nnoremap <silent> <C-f>h     :FufHelp<CR>
-nnoremap <silent> <C-f>e     :FufEditInfo<CR>
+" ----- Gundo -----
+nnoremap <leader>g :GundoToggle<CR>
+
+" ----- Syntastic -----
+let g:syntastic_enable_signs=1
+let g:syntastic_auto_loc_list=0
 
 " ----- JavaScript Syntax File -----
 let javascript_enable_domhtmlcss=1
@@ -359,6 +390,12 @@ let javascript_enable_domhtmlcss=1
 " \nt Toggles NERDTree file browser sidebar
 noremap <silent> <Leader>nt	:NERDTreeToggle<CR>
 
+" ----- ragtag -----
+let g:ragtag_global_maps = 1
+
+" ----- Sparkup -----
+" let g:sparkup = '$HOME/.vim/bundle/sparkup/sparkup'
+
 " Open NERDTree sidebar upon Vim startup
 "au VimEnter * NERDTree
 
@@ -374,7 +411,7 @@ function! StripTrailingWhitespace()
  silent exe "normal `z<CR>"
  let @/ = saved_search
 endfunction
-au BufWritePre * call StripTrailingWhitespace()
+"au BufWritePre * call StripTrailingWhitespace()
 
 
 " ----- Hex Editing -----
@@ -383,7 +420,7 @@ nnoremap <leader>x :Hexmode<CR>
 "inoremap <C-H> <Esc>:Hexmode<CR>
 "vnoremap <C-H> :<C-U>Hexmode<CR>
 " ex command for toggling hex mode - define mapping if desired
-command -bar Hexmode call ToggleHex()
+command! -bar Hexmode call ToggleHex()
 
 " helper function to toggle hex mode
 function! ToggleHex()
@@ -580,8 +617,6 @@ map Q gq
 "map gg :e#<CR>
 " Turn on word-wrapping.
 "map gw :se tw=75<CR>
-" Execute contents of register q
-map \ @q
 " Get rid of trailing whitespace.
 map gw :%s/[ <Tab>]\+$//<CR>
 
@@ -595,12 +630,7 @@ endif
 
 " Andrew's stuff
 "set textwidth=0 "Disable auto-wrapping when you type
-set tw=0 "Disable auto-wrapping when you type
-set background=dark
 
-
-" Enable plugin ragtag.vim
-let g:ragtag_global_maps = 1
 
 "function! EnterCpp()
 "	map <buffer> <F2> :w<CR>:!clear;g++ -Wall %

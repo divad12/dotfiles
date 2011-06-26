@@ -1,5 +1,4 @@
 set vb t_vb="
-colorscheme xoria256
 
 " Maximize
 set lines=100 columns=400
