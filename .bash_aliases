@@ -19,8 +19,10 @@ fi
 
 alias dserver='python manage.py runserver 9999'
 
-alias s3cmd='s3cmd -c /home/david/code/ura-2011-spring/websearch-experiment/dedup/third_party/s3cmd/.s3cfg'
-alias elastic-mapreduce='$HOME/bin/elastic-mapreduce-ruby/elastic-mapreduce'
+#alias s3cmd='s3cmd -c /home/david/code/ura-2011-spring/websearch-experiment/dedup/third_party/s3cmd/.s3cfg'
+alias s3cmd='$HOME/code/ura2b/smucker_websearch/dedup/third_party/s3cmd/s3cmd -c $HOME/code/ura2b/smucker_websearch/dedup/third_party/s3cmd/.s3cfg'
+#alias elastic-mapreduce='$HOME/bin/elastic-mapreduce-ruby/elastic-mapreduce'
+alias elastic-mapreduce='$HOME/code/ura2b/smucker_websearch/dedup/third_party/elastic-mapreduce-ruby/elastic-mapreduce'
 
 function jsdoc() {
     JSDOCDIR=$HOME/bin/jsdoc-toolkit

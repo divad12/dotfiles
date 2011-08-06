@@ -122,13 +122,6 @@ export EDITOR=vim
 # see http://www.catonmat.net/blog/bash-vi-editing-mode-cheat-sheet/
 set -o vi
 
-# enable programmable completion features (you don't need to enable
-# this, if it's already enabled in /etc/bash.bashrc and /etc/profile
-# sources /etc/bash.bashrc).
-if [ -f /etc/bash_completion ]; then
-    . /etc/bash_completion
-fi
-
 # export WORKON_HOME=/home/david/.virtualenvs
 # source /usr/local/bin/virtualenvwrapper_bashrc
 
@@ -137,7 +130,7 @@ source /etc/profile
 export CDPATH='$HOME/cdpath'
 
 #export PATH="$PATH:/usr/share/pk2:/home/david/.virtualenvs/pinax-env/lib/python2.6/site-packages/django/bin/:$HOME/bin:/home/david/qtsdk-2010.05/qt/bin:/home/david/.cabal/bin"
-export PATH="$PATH:$HOME/bin"
+export PATH="$PATH:$HOME/bin:/usr/local/sbin"
 
 shopt -s histappend
 
@@ -164,7 +157,7 @@ screen*)
     # Set the hardstatus to the working directory, which will display on GNU
     # screen's caption as well as xterm's title bar. Now our prompt can be a short
     # and sweet $.
-    export PS1="\[\e]2;\w\a\e[32;40m\] \$\[\e[0m\] "
+    export PS1="\[\e]2;\w\a\e[32;40m\]\t \[\e[32;1m\][ \W ]\[\e[0m\] "
     ;;
 *)
     ;;
