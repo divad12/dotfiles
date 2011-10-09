@@ -104,7 +104,7 @@ alias grep='grep --color=always -n' # Alias instead of env var so as not to brea
 
 # Less syntax higlighting - from http://linux-tips.org/article/78/syntax-highlighting-in-less
 export LESSOPEN="| /usr/local/bin/src-hilite-lesspipe.sh %s"
-export LESS=' -R '
+export LESS=' -RF'
 
 # some more ls aliases
 alias ll='ls -l'
@@ -130,7 +130,7 @@ source /etc/profile
 export CDPATH='$HOME/cdpath'
 
 #export PATH="$PATH:/usr/share/pk2:/home/david/.virtualenvs/pinax-env/lib/python2.6/site-packages/django/bin/:$HOME/bin:/home/david/qtsdk-2010.05/qt/bin:/home/david/.cabal/bin"
-export PATH="$PATH:$HOME/bin:/usr/local/sbin"
+export PATH="$PATH:$HOME/bin:/usr/local/sbin:$HOME/.gem/ruby/1.8/bin:/usr/local/Cellar/ruby/1.9.2-p180/bin"
 
 shopt -s histappend
 
@@ -162,6 +162,8 @@ screen*)
 *)
     ;;
 esac
+
+export PAGER=less
 
 # Less pager colouring (useful for man)
 export LESS_TERMCAP_mb=$'\E[01;31m'
@@ -206,3 +208,19 @@ if [[ ! $PROMPT_COMMAND =~ autojump ]]; then
 fi
 alias jumpstat="autojump --stat"
 function j { new_path="$(autojump $@)";if [ -n "$new_path" ]; then echo -e "\\033[31m${new_path}\\033[0m"; cd "$new_path";else false; fi }
+
+
+# enable programmable completion features (you don't need to enable
+# this, if it's already enabled in /etc/bash.bashrc and /etc/profile
+# sources /etc/bash.bashrc).
+if [ -f /etc/bash_completion ]; then
+    . /etc/bash_completion
+fi
+
+if [ -f `brew --prefix`/etc/bash_completion ]; then
+  . `brew --prefix`/etc/bash_completion
+fi
+
+if [ -f `brew --prefix`/etc/bash_completion.d/hg-completion ]; then
+  . `brew --prefix`/etc/bash_completion.d/hg-completion
+fi

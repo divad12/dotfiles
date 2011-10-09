@@ -2,26 +2,30 @@
 # TODO: http://stackoverflow.com/questions/267761/what-does-your-gitconfig-contain
 
 [core]
-    editor = /usr/bin/vim  # http://tooky.github.com/2010/04/08/there-was-a-problem-with-the-editor-vi-git-on-mac-os-x.html
-    whitespace = trailing-space,space-before-tab  # http://stackoverflow.com/questions/591923/make-git-automatically-remove-trailing-whitespace-before-committing
+  editor = /usr/bin/vim  # http://tooky.github.com/2010/04/08/there-was-a-problem-with-the-editor-vi-git-on-mac-os-x.html
+  whitespace = trailing-space,space-before-tab  # http://stackoverflow.com/questions/591923/make-git-automatically-remove-trailing-whitespace-before-committing
 
 [user]
-	name = David Hu
-    email = davidhu91@gmail.com
+  name = David Hu
+  email = davidhu91@gmail.com
 
 [color]
-    status = auto
-    branch = auto
-    diff = auto
-    interactive = auto
+  status = auto
+  branch = auto
+  diff = auto
+  interactive = auto
 
 [alias]
-    co = checkout
-    graph = log --graph --decorate --oneline --all --full-history
-    full = log --graph --decorate --oneline --pretty=format:"%h%x20%Cgreen%d%x20%Cred%an%x20%Cblue%ad%x20%Creset%s" --all --full-history --date=short
+  co = checkout
+  graph = log --graph --decorate --oneline --all --full-history
+  full = log --graph --decorate --oneline --pretty=format:"%h%x20%Cgreen%d%x20%Cred%an%x20%Cblue%ad%x20%Creset%s" --all --full-history --date=short
+  st = status
+  ci = commit
+  br = branch
+  df = diff
 
 [apply]
-    whitespace = fix  # http://stackoverflow.com/questions/591923/make-git-automatically-remove-trailing-whitespace-before-committing
+  whitespace = fix  # http://stackoverflow.com/questions/591923/make-git-automatically-remove-trailing-whitespace-before-committing
 
 [merge]
-    tool = vimdiff
+  tool = vimdiff

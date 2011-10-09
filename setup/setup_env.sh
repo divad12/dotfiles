@@ -38,6 +38,14 @@
 # homebrew - package manager
 # edit /etc/paths and /etc/manpaths to put /usr/local/ first, so brew-installed apps take precedence
 # - iterm2
+# increase key delay rate: http://hints.macworld.com/article.php?story=20090823193018149
+# reduce text smoothing
+# Animated Gif QuickLook plugin - http://www.quicklookplugins.com/
+# brew install bash-completion
+# osxfuse and Macfusion for ssh drive mounting
+
 
 # Hardware setup
 # - printer and scanner drivers
+
+# ssh -f -L 3000:pandora.com:80 david-hu.com -N -l dhu # then browse to localhost:3000

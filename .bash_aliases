@@ -20,7 +20,7 @@ fi
 alias dserver='python manage.py runserver 9999'
 
 #alias s3cmd='s3cmd -c /home/david/code/ura-2011-spring/websearch-experiment/dedup/third_party/s3cmd/.s3cfg'
-alias s3cmd='$HOME/code/ura2b/smucker_websearch/dedup/third_party/s3cmd/s3cmd -c $HOME/code/ura2b/smucker_websearch/dedup/third_party/s3cmd/.s3cfg'
+#alias s3cmd='$HOME/code/ura2b/smucker_websearch/dedup/third_party/s3cmd/s3cmd -c $HOME/code/ura2b/smucker_websearch/dedup/third_party/s3cmd/.s3cfg'
 #alias elastic-mapreduce='$HOME/bin/elastic-mapreduce-ruby/elastic-mapreduce'
 alias elastic-mapreduce='$HOME/code/ura2b/smucker_websearch/dedup/third_party/elastic-mapreduce-ruby/elastic-mapreduce'
 
@@ -38,10 +38,13 @@ alias oldHome='cd /media/disk/Users/David/'
 alias g='gvim'
 alias docs='google docs edit --title'
 function mr() {
-    echo "$1/$(ls --color=no -t $1 | head -n 1)";
+    echo "$1/$('ls' -t $1 | head -n 1)";
 }
 function wiki() {
     dig +short txt "$*".wp.dg.cx
+}
+function mans() {
+  man $1 | less -p "^ +$2";
 }
 
 # ------------------------------------------------------------------------------

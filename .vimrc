@@ -41,6 +41,8 @@ Bundle 'repeat.vim'
 Bundle 'pyflakes'
 Bundle 'Gundo'
 Bundle 'Syntastic'
+Bundle 'css_color.vim'
+Bundle 'repeat.vim'
 "Bundle 'Javascript-syntax-with-Ajax-Support'
 
 " Color schemes
@@ -100,13 +102,13 @@ if has("persistent_undo")
   set undoreload=10000
 endif
 
+" Incremental search when /
+set incsearch
+
 " Highlight search results and map <Space> to turn off
 set hlsearch
 nnoremap <silent> <Space> :nohlsearch<cr><ESC>
 "nnoremap <silent> <space> :set hls!<cr>  "Toggles, but is not automatically set on when searching again
-
-" Smart '>' & '<' indentation! With 3 spaces, press '>', insert 1 space, not 4.
-set shiftround
 
 " Improve autocomplete menu behaviour:
 " - Still display autocomplete menu if there's only one match
@@ -145,38 +147,38 @@ set title
 " Allow mouse to be used. Works on Ubuntu gvim AND terminal vim; not on Mac
 set mouse=a
 
-" auto indent
-set autoindent
-
-" c-indentation
-set cindent
-
-" Expand tabs to spaces
-set expandtab
-
-" Disable auto-wrapping when you type
-set textwidth=0
-
+" Indentation
 " TODO: detect file and use different options. filetype indent?
+set autoindent
+set cindent
+set expandtab  " Expand tabs to spaces
+set copyindent " Copy previous line's indent style
 set tabstop=2
 set shiftwidth=2
 set softtabstop=2
 
+" Smart '>' & '<' indentation! With 3 spaces, press '>', insert 1 space, not 4.
+set shiftround
+
+" Disable auto-wrapping when you type
+set textwidth=0
+
+" Show current mode (insert, visual, normal, etc.)
+set showmode
+
+" Show matching paren. This sometimes causes lag.
+set showmatch
+
+" Show line and column number
+set ruler
+
+" Show last command in status line
+set showcmd
+
 " Automatically change directories when switching windows
-if has("autochdir")
+if has("netbeans_intg") || has("sun_workshop")
   set autochdir
 endif
-
-" Incremental search when /
-set incsearch
-
-" Set out tab characters, trailing whitespace and invisible spaces visually
-" From http://nvie.com/posts/how-i-boosted-my-vim/
-" TODO: highlight instead
-"set list
-"set listchars=trail:.,extends:#,nbsp:.
-"" but disable tab special chars in certain files
-"autocmd filetype html,xml,Makefile set listchars-=tab:>.
 
 " Disable console vim from attepting to connect to the X display, which may
 " slow things down for a few seconds
@@ -204,6 +206,12 @@ set backspace=2
 " Let fugitive display current git branch
 set statusline=%<%f\ %h%m%r%{fugitive#statusline()}%=%-14.(%l,%c%V%)\ %P
 
+" Hide buffers instead of unloading them
+set hidden
+
+" I don't use modula2 nearly as much as markdown
+au BufRead,BufNewFile *.md		set filetype=markdown
+
 
 " ------------------------------------------------------------------------------
 " Vim Mappings
@@ -229,10 +237,10 @@ vnoremap < <gv
 vnoremap > >gv
 
 " Paste with respect to current line's indent. Will be overriden by Yankring.
-"nnoremap P [p
-"nnoremap p ]p
-"nnoremap [p P
-"nnoremap ]p P
+nnoremap P [p
+nnoremap p ]p
+nnoremap [p P
+nnoremap ]p P
 
 " Scroll down/up in insert mode without displacing cursor
 inoremap <C-y> <C-o><C-y>
@@ -246,8 +254,10 @@ inoremap <C-y> <C-o><C-y>
 "vnoremap <C-k> :m'<-2<cr>gv
 
 " Shortcuts for system clipboard access: works in Ubuntu gvim, terminal vim, macvim.
-noremap gp "+]p
-noremap gP "+[P
+nnoremap gp "+]p
+nnoremap gP "+[P
+vnoremap gp d"+]p
+vnoremap gP d"+[P
 vnoremap gy "+y
 vnoremap gY "+Y
 
@@ -285,6 +295,10 @@ nnoremap k gk
 nnoremap j gj
 nnoremap gk k
 nnoremap gj j
+
+" ^K is a very annoying mapping that brings up the man page of the cursor
+" under the word. Times I've needed it: 0. Remap to opposite of ^J: insert new line
+nnoremap K mzo<Esc>`z
 
 " Set undo-points at newlines created in insert mode, to reduce undo step size
 " TODO: For some reason this creates two newlines instead of one
@@ -377,6 +391,7 @@ nnoremap <leader>gd :GundoToggle<CR>
 " ----- Syntastic -----
 let g:syntastic_enable_signs=1
 let g:syntastic_auto_loc_list=0
+let g:syntastic_disabled_filetypes = ['ruby', 'php', 'javascript', 'html']
 
 " ----- JavaScript Syntax File -----
 let javascript_enable_domhtmlcss=1
@@ -394,6 +409,7 @@ let javascript_enable_domhtmlcss=1
 " ----- NERDTree -----
 " \nt Toggles NERDTree file browser sidebar
 noremap <silent> <Leader>nt	:NERDTreeToggle<CR>
+let NERDTreeIgnore=['\.o$', '\~$', '\.pyc$']
 
 " ----- ragtag -----
 let g:ragtag_global_maps = 1
@@ -417,6 +433,28 @@ function! StripTrailingWhitespace()
  let @/ = saved_search
 endfunction
 "au BufWritePre * call StripTrailingWhitespace()
+
+" Set out tab characters, trailing whitespace and invisible spaces visually
+" From http://nvie.com/posts/how-i-boosted-my-vim/
+"set list
+"set listchars=trail:.,extends:#,nbsp:.
+"" but disable tab special chars in certain files
+"autocmd filetype html,xml,Makefile set listchars-=tab:>.
+
+" Highlight trailing whitespace - http://vim.wikia.com/wiki/Highlight_unwanted_spaces
+" TODO: why doesn't this work?
+highlight ExtraWhitespace ctermbg=red guibg=red
+match ExtraWhitespace /\s\+$/
+autocmd BufWinEnter * match ExtraWhitespace /\s\+$/
+autocmd InsertEnter * match ExtraWhitespace /\s\+\%#\@<!$/
+autocmd InsertLeave * match ExtraWhitespace /\s\+$/
+autocmd BufWinLeave * call clearmatches()
+
+let c_space_errors = 1
+let java_space_errors = 1
+let cpp_space_errors = 1
+let python_space_errors = 1
+let ruby_space_errors = 1
 
 
 " ----- Hex Editing -----
@@ -596,10 +634,6 @@ au Filetype tex call EnterTex()
 " imap <TAB> <C-V><TAB>
 
 " Nice helper stuff:
-set showmode
-set showmatch
-set ruler
-set showcmd
 "set hlsearch        " Highlight previous search results
 
 " Tab-complete filenames to longest unambiguous match and present menu:
