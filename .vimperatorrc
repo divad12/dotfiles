@@ -1,0 +1,7 @@
+nnoremap x d
+nnoremap d <c-d>
+nnoremap u <c-u>
+nnoremap J gt
+nnoremap K gT
+nnoremap j 2j
+nnoremap k 2k
