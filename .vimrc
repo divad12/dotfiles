@@ -32,7 +32,7 @@ Bundle 'scrooloose/nerdtree'
 Bundle 'a.vim'
 Bundle 'ctags.vim'
 Bundle 'Command-T'
-Bundle 'taglist.vim'
+Bundle 'taglist-plus'
 Bundle 'SuperTab-continued.'
 Bundle 'matchit.zip'
 Bundle 'ragtag.vim'
@@ -43,6 +43,7 @@ Bundle 'Gundo'
 Bundle 'Syntastic'
 Bundle 'css_color.vim'
 Bundle 'repeat.vim'
+Bundle 'HTML5-Syntax-File'
 "Bundle 'Javascript-syntax-with-Ajax-Support'
 
 " Color schemes
@@ -358,12 +359,12 @@ noremap <silent> <Leader>tl	:TlistToggle<CR>
 " Taglist window options
 "let Tlist_Auto_Open = 1
 let Tlist_Use_Right_Window = 1
-let Tlist_WinWidth = 30
+"let Tlist_WinWidth = 30
 let Tlist_Exit_OnlyWindow = 1
 let Tlist_Show_One_File = 1
 
 " Show functions, methods, classes, and global variables in JavaScript
-let tlist_javascript_settings = 'javascript;f:function;m:method;c:constructor;v:variable'
+"let tlist_javascript_settings = 'javascript;f:function;m:method;c:constructor;v:variable'
 
 " ----- SuperTab -----
 " Default completion type is <c-p>
@@ -571,7 +572,7 @@ endfunction
 "endfunction
 
 " Vimdfiff
-au FilterWritePre * if &diff | syntax off | endif
+"au FilterWritePre * if &diff | syntax off | endif
 "highlight DiffAdd cterm=none ctermfg=bg ctermbg=green gui=none guifg=bg guibg=Green
 "highlight DiffDelete cterm=none ctermfg=bg ctermbg=Red gui=none guifg=bg guibg=Red
 "highlight DiffChange cterm=none ctermfg=bg ctermbg=Yellow gui=none guifg=bg guibg=Yellow
