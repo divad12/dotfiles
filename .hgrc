@@ -1,6 +1,6 @@
 [pager]
 pager = LESS='FSRX' less
-attend = annotate, cat, diff, export, glog, log, qdiff, slog, dlog, gslog, sglog, df
+attend = annotate, cat, diff, export, glog, log, qdiff, slog, dlog, gslog, sglog, df, nlog
 # note: this can be temporarily disabled with --pager=off
 
 [ui]
@@ -33,10 +33,11 @@ hgext.collapse = ~/.hgext/collapse.py
 
 [alias]
 #show = log --color=always -pr
-slog = log --template '{rev}:{node|short} {desc|firstline}\n'
-sglog = glog --template 'changeset:   {rev}:{node|short} {tags}\nsummary:     {desc|firstline|fill68|tabindent|tabindent}\n\n'
+slog = log --style=$HOME/dotfiles/mercurial-cli-templates/map-cmdline.slog
+nlog = log --style=$HOME/dotfiles/mercurial-cli-templates/map-cmdline.nlog
+sglog = glog --style=$HOME/dotfiles/mercurial-cli-templates/map-cmdline.sglog
 gslog = sglog
-dlog = log --template '{date|localdate|shortdate} {node|short} {desc|firstline}\n'
+dlog = log --style=$HOME/dotfiles/mercurial-cli-templates/map-cmdline.dlog
 st = st -S
 df = diff
 
