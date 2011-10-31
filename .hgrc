@@ -40,6 +40,7 @@ gslog = sglog
 dlog = log --style=$HOME/dotfiles/mercurial-cli-templates/map-cmdline.dlog
 st = st -S
 df = diff
+nudge = push --rev .
 
 [diff]
 git = True
@@ -51,3 +52,4 @@ kiln.username=david@khanacademy.org
 [paths]
 stable = https://khanacademy.kilnhg.com/Repo/Website/Group/stable
 david = https://khanacademy.kilnhg.com/Repo/Website/Group/david
+accuracy = https://khanacademy.kilnhg.com/Repo/Website/Group/accuracy-model

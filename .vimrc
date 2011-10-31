@@ -31,7 +31,6 @@ Bundle 'divad12/sparkup', {'rtp': 'vim/'}
 Bundle 'scrooloose/nerdtree'
 Bundle 'a.vim'
 Bundle 'ctags.vim'
-Bundle 'Command-T'
 Bundle 'taglist-plus'
 Bundle 'SuperTab-continued.'
 Bundle 'matchit.zip'
@@ -44,6 +43,7 @@ Bundle 'Syntastic'
 Bundle 'css_color.vim'
 Bundle 'repeat.vim'
 Bundle 'HTML5-Syntax-File'
+Bundle 'kien/ctrlp.vim'
 "Bundle 'Javascript-syntax-with-Ajax-Support'
 
 " Color schemes
@@ -213,6 +213,12 @@ set hidden
 " I don't use modula2 nearly as much as markdown
 au BufRead,BufNewFile *.md		set filetype=markdown
 
+" Add "-" to be a keyword character for autocomplete and * and # searches
+" (useful for html IDs for example)
+"au InsertEnter * set isk+=-
+"au InsertLeave * set isk-=-
+set iskeyword+=-
+
 
 " ------------------------------------------------------------------------------
 " Vim Mappings
@@ -379,10 +385,6 @@ let g:SuperTabLongestHighlight = 1
 nmap gc <leader>c<space>
 vmap gc <leader>c<space>
 
-" ----- Command-T -----
-nnoremap <silent> <C-f> :CommandT<CR>
-nnoremap <silent> <C-b> :CommandTBuffer<CR>
-
 " ----- Pyflakes -----
 autocmd FileType python map <buffer> <F3> :call Pyflakes()<CR
 
@@ -420,6 +422,12 @@ let g:ragtag_global_maps = 1
 
 " Open NERDTree sidebar upon Vim startup
 "au VimEnter * NERDTree
+
+" ----- ctrlp.vim -----
+let g:ctrlp_map = '<c-p>'
+let g:ctrlp_mru_files = 1
+set wildignore+=*/.git/*,*/.hg/*,*/.svn/*,*/.vim_backups/*   " for Linux/MacOSX
+"let g:ctrlp_working_path_mode = 1
 
 " ---- C-support ----
 let g:C_Styles = { '*.c,*.h' : 'default', '*.cc,*.cpp,*.hh' : 'CPP' }
