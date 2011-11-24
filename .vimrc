@@ -423,10 +423,12 @@ let g:ragtag_global_maps = 1
 "au VimEnter * NERDTree
 
 " ----- ctrlp.vim -----
-let g:ctrlp_map = '<c-p>'
 let g:ctrlp_mru_files = 1
 set wildignore+=*/.git/*,*/.hg/*,*/.svn/*,*/.vim_backups/*   " for Linux/MacOSX
-"let g:ctrlp_working_path_mode = 1
+
+" Custom mappings
+let g:ctrlp_map = '<c-p>'
+nnoremap <leader>b :CtrlPBuffer<CR>
 
 " ---- C-support ----
 let g:C_Styles = { '*.c,*.h' : 'default', '*.cc,*.cpp,*.hh' : 'CPP' }
