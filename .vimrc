@@ -25,7 +25,6 @@ call vundle#rc()
 Bundle 'gmarik/vundle'
 Bundle 'tpope/vim-fugitive'
 Bundle 'The-NERD-Commenter'
-Bundle 'EasyMotion'
 " Bundle 'rstacruz/sparkup', {'rtp': 'vim/'}
 Bundle 'divad12/sparkup', {'rtp': 'vim/'}
 Bundle 'scrooloose/nerdtree'
