@@ -4,6 +4,7 @@
 " TODO: get latex plugins
 " TODO: turn off matchparen for certain files for faster scrolling
 " TODO: remap window-navigation keys to CTRL
+" TODO: Move file-specific stuff near the bottom to .vim/ftplugin
 
 
 " ------------------------------------------------------------------------------
