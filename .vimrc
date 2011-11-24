@@ -43,6 +43,7 @@ Bundle 'css_color.vim'
 Bundle 'repeat.vim'
 Bundle 'HTML5-Syntax-File'
 Bundle 'kien/ctrlp.vim'
+Bundle 'nathanaelkane/vim-indent-guides'
 "Bundle 'Javascript-syntax-with-Ajax-Support'
 
 " Color schemes
@@ -429,6 +430,11 @@ set wildignore+=*/.git/*,*/.hg/*,*/.svn/*,*/.vim_backups/*   " for Linux/MacOSX
 " Custom mappings
 let g:ctrlp_map = '<c-p>'
 nnoremap <leader>b :CtrlPBuffer<CR>
+
+" ----- Indent Guides -----
+let g:indent_guides_enable_on_vim_startup = 1
+let g:indent_guides_color_change_percent = 5
+nnoremap <leader>i :IndentGuidesToggle<CR>
 
 " ---- C-support ----
 let g:C_Styles = { '*.c,*.h' : 'default', '*.cc,*.cpp,*.hh' : 'CPP' }
