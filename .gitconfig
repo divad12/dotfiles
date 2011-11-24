@@ -18,11 +18,12 @@
 [alias]
   co = checkout
   graph = log --graph --decorate --oneline --all --full-history
-  full = log --graph --decorate --oneline --pretty=format:"%h%x20%Cgreen%d%x20%Cred%an%x20%Cblue%ad%x20%Creset%s" --all --full-history --date=short
+  glog = log --graph --decorate --oneline --pretty=format:"%h%x20%Cgreen%d%x20%Cred%an%x20%Cblue%ad%x20%Creset%s" --all --full-history --date=short
   st = status
   ci = commit
   br = branch
   df = diff
+  dfs = diff --staged
 
 [apply]
   whitespace = fix  # http://stackoverflow.com/questions/591923/make-git-automatically-remove-trailing-whitespace-before-committing
