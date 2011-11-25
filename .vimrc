@@ -428,6 +428,9 @@ let g:ragtag_global_maps = 1
 let g:ctrlp_mru_files = 1
 set wildignore+=*/.git/*,*/.hg/*,*/.svn/*,*/.vim_backups/*   " for Linux/MacOSX
 
+" This will jump to a file that is already in an opened buffer if it is in another tab.
+let g:ctrlp_jump_to_buffer = 2
+
 " Custom mappings
 let g:ctrlp_map = '<c-p>'
 nnoremap <leader>b :CtrlPBuffer<CR>
