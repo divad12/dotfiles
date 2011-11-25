@@ -162,8 +162,8 @@ set softtabstop=2
 " Smart '>' & '<' indentation! With 3 spaces, press '>', insert 1 space, not 4.
 set shiftround
 
-" Disable auto-wrapping when you type
-set textwidth=0
+" Wrap comments at 80
+set textwidth=80
 
 " Show current mode (insert, visual, normal, etc.)
 set showmode
@@ -205,9 +205,6 @@ set laststatus=2
 " Allow backspacing over indent, eol, and start of insert
 set backspace=2
 
-" Let fugitive display current git branch
-set statusline=%<%f\ %h%m%r%{fugitive#statusline()}%=%-14.(%l,%c%V%)\ %P
-
 " Hide buffers instead of unloading them
 set hidden
 
@@ -220,14 +217,76 @@ au BufRead,BufNewFile *.md		set filetype=markdown
 "au InsertLeave * set isk-=-
 set iskeyword+=-
 
+" From :h encoding: For MacVim and GTK+ 2 it is highly recommended to set 'encoding' to "utf-8".
+set encoding=utf-8
+
+" Custom invisible character characters
+set listchars=tab:▸\ ,eol:¬,extends:❯,precedes:❮,trail:.
+
+" :h lazyredraw: the screen will not be redrawn while executing macros.... Also, updating the window title is postponed.
+set lazyredraw
+
+" Tenths of seconds matching paren is blink-highlighted (default is 5)
+set matchtime=3
+
+" String to put at the start of lines that have been wrapped.
+set showbreak=↪
+
+" Tab-complete filenames to longest unambiguous match and present menu
+set wildmenu wildmode=longest:full
+set wildignore+=*/.git/*,*/.hg/*,*/.svn/*,*/.vim_backups/*
+set wildignore+=*.aux,*.out,*.toc                " LaTeX intermediate files
+set wildignore+=*.jpg,*.bmp,*.gif,*.png,*.jpeg   " binary images
+set wildignore+=*.o,*.obj,*.exe,*.dll,*.manifest " compiled object files
+set wildignore+=*.spl                            " compiled spelling word lists
+set wildignore+=*.sw?                            " Vim swap files
+set wildignore+=*.DS_Store                       " OSX bullshit
+set wildignore+=*.pyc                            " Python byte code
+
+" Wrap comments at textwidth (but not code), recognize numbered lists, and other formatting options
+set formatoptions=crqn1
+
+" Highlight the forbidden column
+set colorcolumn=+1
+
+" Use 'g' flag by default for substitutes (adding g flag will toggle this off)
+set gdefault
+
+" Custom statusline, from https://bitbucket.org/sjl/dotfiles/src/tip/vim/.vimrc
+set statusline=%f\   " Path.
+set statusline+=%m   " Modified flag.
+set statusline+=%r   " Readonly flag.
+set statusline+=%w   " Preview window flag.
+set statusline+=%{fugitive#statusline()} " Fugitive displays git branch
+
+set statusline+=\    " Space.
+
+set statusline+=%#redbar#                " Highlight the following as a warning.
+set statusline+=%{SyntasticStatuslineFlag()} " Syntastic errors.
+set statusline+=%*                           " Reset highlighting.
+
+set statusline+=%=   " Right align.
+
+" File format, encoding and type.  Ex: "[unix|utf-8|python]"
+set statusline+=[
+"set statusline+=%{&ff}                        " Format (unix/DOS).
+"set statusline+=\|
+"set statusline+=%{strlen(&fenc)?&fenc:&enc}   " Encoding (utf-8).
+"set statusline+=\|
+set statusline+=%{&ft}                        " Type (python).
+set statusline+=]
+
+" Line and column position and counts.
+set statusline+=\ (line\ %l\/%L,\ col\ %03c)
+
 
 " ------------------------------------------------------------------------------
 " Vim Mappings
 " ------------------------------------------------------------------------------
 
-" Use comma for custom key-mapping first-character
-"let mapleader=","
-"let g:mapleader=","
+" Use comma for first key of some custom mappings
+let mapleader=","
+let maplocalleader=","
 
 " When just learning Vim, disable operation of arrow keys to forcibly adjust to
 " using hjkl + normal mode
@@ -350,7 +409,14 @@ onoremap s normal:k][[[kV][j<CR>
 cnoremap w!! w !sudo tee % >/dev/null
 
 " Format an XML doc. From http://uucode.com/blog/2005/06/15/indenting-xml-in-vim/
-map <leader>x <Esc>:1,$!xmllint --format -<CR>
+nnoremap <leader>x <Esc>:1,$!xmllint --format -<CR>
+
+" Keep search matches in the middle of the window
+nnoremap n nzz
+nnoremap N Nzz
+
+" Open a Quickfix window for the last search.
+nnoremap <silent> <leader>/ :execute 'vimgrep /'.@/.'/g %'<CR>:copen<CR>
 
 
 " ------------------------------------------------------------------------------
@@ -429,7 +495,6 @@ let g:ragtag_global_maps = 1
 
 " ----- ctrlp.vim -----
 let g:ctrlp_mru_files = 1
-set wildignore+=*/.git/*,*/.hg/*,*/.svn/*,*/.vim_backups/*   " for Linux/MacOSX
 
 " This will jump to a file that is already in an opened buffer if it is in another tab.
 let g:ctrlp_jump_to_buffer = 2
@@ -653,15 +718,6 @@ au Filetype tex call EnterTex()
 " ------------------------------------------------------------------------------
 
 "set cinoptions=l1,g0.5s,h0.5s,i2s,+2s,(0,W2s
-" Make sure that the tab key actually inserts a tab.
-" imap <TAB> <C-V><TAB>
-
-" Nice helper stuff:
-"set hlsearch        " Highlight previous search results
-
-" Tab-complete filenames to longest unambiguous match and present menu:
-set wildmenu wildmode=longest:full
-
 
 " Jump to last location when re-opening file
 :au BufReadPost * if line("'\"") > 0 && line("'\"") <= line("$") | exe "normal g'\"" | endif
@@ -669,7 +725,6 @@ set wildmenu wildmode=longest:full
 
 " Some nice shortcuts:
 " Reformat lines.
-map Q gq
 " Enter/leave paste mode.
 "map gp :set invpaste<CR>:set paste?<CR>
 " Edit alternate file.
