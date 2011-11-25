@@ -4,6 +4,7 @@
 [core]
   editor = /usr/bin/vim  # http://tooky.github.com/2010/04/08/there-was-a-problem-with-the-editor-vi-git-on-mac-os-x.html
   whitespace = trailing-space,space-before-tab  # http://stackoverflow.com/questions/591923/make-git-automatically-remove-trailing-whitespace-before-committing
+  excludesfile = ~/.gitignore_global
 
 [user]
   name = David Hu
