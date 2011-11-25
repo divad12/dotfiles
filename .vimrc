@@ -415,6 +415,9 @@ let javascript_enable_domhtmlcss=1
 noremap <silent> <Leader>nt	:NERDTreeToggle<CR>
 let NERDTreeIgnore=['\.o$', '\~$', '\.pyc$']
 
+" Use arrows instead of the `+` and `~`, and '|' characters
+let g:NERDTreeDirArrows=1
+
 " ----- ragtag -----
 let g:ragtag_global_maps = 1
 
