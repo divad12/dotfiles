@@ -32,11 +32,11 @@ function jsdoc() {
 alias lt='ls -trlhu'
 alias ll='ls -l'
 alias vm='vim `ls --color=none -t | head -n 1`'
-alias rs='resize -s 900 900'
-alias cindent='~/cindent.bash'
-alias oldHome='cd /media/disk/Users/David/'
-alias g='gvim'
-alias docs='google docs edit --title'
+
+alias m='mvim'
+alias g='git'
+alias h='hg'
+
 function mr() {
     echo "$1/$('ls' -t $1 | head -n 1)";
 }
