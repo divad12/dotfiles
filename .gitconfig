@@ -25,6 +25,7 @@
   br = branch
   df = diff
   dfs = diff --staged
+  ls-ignored = ls-files --exclude-standard --ignored --others
 
 [apply]
   whitespace = fix  # http://stackoverflow.com/questions/591923/make-git-automatically-remove-trailing-whitespace-before-committing
