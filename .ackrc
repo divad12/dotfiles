@@ -3,3 +3,14 @@
 
 # Always use color
 --color
+
+# Case-insensitive if query is lower case, other wise it's case sensitive
+--smart-case
+
+# Show context of search hit
+--context
+
+# Filetypes that do not ship with ack
+--type-set=haml=.haml
+--type-set=sass=.sass
+--type-set=coffee=.coffee
