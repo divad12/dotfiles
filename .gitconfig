@@ -30,3 +30,17 @@
 
 [merge]
   tool = vimdiff
+
+  # Always show a diffstat at the end of a merge
+	stat = true
+
+[diff]
+  # Use mnemonic prefixes (index, work tree, commit, object) instead of the standard a and b notation
+	mnemonicprefix = true
+
+  # Detect renames as well as copies
+	renames = copies
+
+[push]
+  # Push the current branch to its upstream branch if no refspec given, instead of all branches (the default)
+	default = upstream
