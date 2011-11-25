@@ -505,7 +505,7 @@ nnoremap <leader>b :CtrlPBuffer<CR>
 
 " ----- Indent Guides -----
 let g:indent_guides_enable_on_vim_startup = 1
-let g:indent_guides_color_change_percent = 5
+let g:indent_guides_color_change_percent = 3
 nnoremap <leader>i :IndentGuidesToggle<CR>
 
 " ---- C-support ----
@@ -522,21 +522,15 @@ function! StripTrailingWhitespace()
 endfunction
 "au BufWritePre * call StripTrailingWhitespace()
 
-" Set out tab characters, trailing whitespace and invisible spaces visually
-" From http://nvie.com/posts/how-i-boosted-my-vim/
-"set list
-"set listchars=trail:.,extends:#,nbsp:.
 "" but disable tab special chars in certain files
 "autocmd filetype html,xml,Makefile set listchars-=tab:>.
 
 " Highlight trailing whitespace - http://vim.wikia.com/wiki/Highlight_unwanted_spaces
-" TODO: why doesn't this work?
 highlight ExtraWhitespace ctermbg=red guibg=red
-match ExtraWhitespace /\s\+$/
-autocmd BufWinEnter * match ExtraWhitespace /\s\+$/
-autocmd InsertEnter * match ExtraWhitespace /\s\+\%#\@<!$/
-autocmd InsertLeave * match ExtraWhitespace /\s\+$/
-autocmd BufWinLeave * call clearmatches()
+au ColorScheme * highlight ExtraWhitespace guibg=red
+au BufEnter * match ExtraWhitespace /\s\+$/
+au InsertEnter * match ExtraWhitespace /\s\+\%#\@<!$/
+au InsertLeave * match ExtraWhiteSpace /\s\+$/
 
 let c_space_errors = 1
 let java_space_errors = 1
@@ -592,7 +586,29 @@ function! ToggleHex()
 "  let &modifiable=l:oldmodifiable
 endfunction
 
+" ----- Hg Blame -----
+" From https://bitbucket.org/sjl/dotfiles/src/tip/vim/.vimrc
+function! s:HgBlame()
+    let fn = expand('%:p')
 
+    wincmd v
+    wincmd h
+    edit __hgblame__
+    vertical resize 28
+
+    setlocal scrollbind winfixwidth nolist nowrap nonumber buftype=nofile ft=none
+
+    normal ggdG
+    execute "silent r!hg blame -undq " . fn
+    normal ggdd
+    execute ':%s/\v:.*$//'
+
+    wincmd l
+    setlocal scrollbind
+    syncbind
+endf
+command! -nargs=0 HgBlame call s:HgBlame()
+nnoremap <leader>hb :HgBlame<cr>
 
 " ----- Automatic Session Saving -----
 " From http://vim.wikia.com/wiki/Go_away_and_come_back
