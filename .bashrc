@@ -217,10 +217,22 @@ if [ -f /etc/bash_completion ]; then
     . /etc/bash_completion
 fi
 
-if [ -f `brew --prefix`/etc/bash_completion ]; then
-  . `brew --prefix`/etc/bash_completion
-fi
+# "Feature detection" of OS X homebrew
+if command -v brew > /dev/null; then
 
-if [ -f `brew --prefix`/etc/bash_completion.d/hg-completion ]; then
-  . `brew --prefix`/etc/bash_completion.d/hg-completion
+    brew_prefix=`brew --prefix`
+
+    # GNU Coreutils >= 7.5 has option sort -h: sort by human-readable size
+    if [ -f "$brew_prefix"/bin/gsort ]; then
+        alias sort=`brew --prefix`/bin/gsort
+    fi
+
+    if [ -f "$brew_prefix"/etc/bash_completion ]; then
+      . "$brew_prefix"/etc/bash_completion
+    fi
+
+    if [ -f "$brew_prefix"/etc/bash_completion.d/hg-completion ]; then
+      . "$brew_prefix"/etc/bash_completion.d/hg-completion
+    fi
+
 fi
