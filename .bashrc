@@ -132,6 +132,8 @@ export CDPATH='$HOME/cdpath'
 #export PATH="$PATH:/usr/share/pk2:/home/david/.virtualenvs/pinax-env/lib/python2.6/site-packages/django/bin/:$HOME/bin:/home/david/qtsdk-2010.05/qt/bin:/home/david/.cabal/bin"
 export PATH="$PATH:$HOME/bin:/usr/local/sbin:$HOME/.gem/ruby/1.8/bin:/usr/local/Cellar/ruby/1.9.2-p180/bin"
 
+export NODE_PATH="$NODE_PATH:/usr/local/lib/node"
+
 shopt -s histappend
 
 
@@ -157,7 +159,7 @@ screen*)
     # Set the hardstatus to the working directory, which will display on GNU
     # screen's caption as well as xterm's title bar. Now our prompt can be a short
     # and sweet $.
-    export PS1="\[\e]2;\w\a\e[32;40m\]\t \[\e[32;1m\][ \W ]\[\e[0m\] "
+    export PS1="\[\e]2;\w\a\e[36;40m\]\t \[\e[32;1m\][ \W ] \[\e[0;33m\](╯°□°)╯ ︵ ┻━┻ \[\e[0m\] "
     ;;
 *)
     ;;
