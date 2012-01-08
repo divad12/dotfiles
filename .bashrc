@@ -20,8 +20,8 @@ shopt -s histappend
 # for setting history length see HISTSIZE and HISTFILESIZE in bash(1)
 # Erase duplicates in history
 export HISTCONTROL=erasedups
-# Store 10k history entries
-export HISTSIZE=10000
+# Store lots of history entries
+export HISTSIZE=20000
 # Append to the history file when exiting instead of overwriting it
 shopt -s histappend
 

@@ -1,6 +1,6 @@
 [pager]
 pager = LESS='FSRX' less
-attend = annotate, cat, diff, export, glog, log, qdiff, slog, dlog, gslog, sglog, df, nlog
+attend = annotate, cat, diff, export, glog, log, qdiff, slog, dlog, gslog, sglog, df, nlog, outgoing
 # note: this can be temporarily disabled with --pager=off
 
 [ui]

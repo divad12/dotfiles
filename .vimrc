@@ -501,7 +501,8 @@ let g:ctrlp_jump_to_buffer = 2
 
 " Custom mappings
 let g:ctrlp_map = '<c-p>'
-nnoremap <leader>b :CtrlPBuffer<CR>
+nnoremap <silent> <leader>b :CtrlPBuffer<CR>
+nnoremap <silent> <leader>m :CtrlPMRUFiles<CR>
 
 " ----- Indent Guides -----
 let g:indent_guides_enable_on_vim_startup = 1
