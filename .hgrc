@@ -53,3 +53,4 @@ kiln.username=david@khanacademy.org
 stable = https://khanacademy.kilnhg.com/Repo/Website/Group/stable
 david = https://khanacademy.kilnhg.com/Repo/Website/Group/david
 accuracy = https://khanacademy.kilnhg.com/Repo/Website/Group/accuracy-model
+review = https://khanacademy.kilnhg.com/Repo/Website/Group/review
