@@ -155,10 +155,10 @@ xterm*)
     ;;
 screen*)
     # Set the screen window name to the basename of the working directory
-    PROMPT_COMMAND='bpwd=$(basename `pwd`); echo -ne "\033]0;\007\033k$bpwd\033\\"'
+    PROMPT_COMMAND='bpwd=$(basename `pwd`); hname=$(hostname | head -c 2); echo -ne "\033]0;\007\033k${hname}@${bpwd}\033\\"'
     # Set the hardstatus to the working directory, which will display on GNU
-    # screen's caption as well as xterm's title bar. Now our prompt can be a short
-    # and sweet $.
+    # screen's caption as well as xterm's title bar. Now our prompt does not
+    # need to show the full directory path.
     export PS1="\[\e]2;\w\a\e[36;40m\]\t \[\e[32;1m\][ \W ] \[\e[0;33m\](╯°□°)╯ ︵ ┻━┻ \[\e[0m\] "
     ;;
 *)
