@@ -247,7 +247,9 @@ set wildignore+=*.pyc                            " Python byte code
 set formatoptions=crqn1
 
 " Highlight the forbidden column
-set colorcolumn=+1
+if exists("+colorcolumn")
+  set colorcolumn=+1
+endif
 
 " Use 'g' flag by default for substitutes (adding g flag will toggle this off)
 set gdefault
