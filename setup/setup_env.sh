@@ -49,3 +49,7 @@
 # - printer and scanner drivers
 
 # ssh -f -L 3000:pandora.com:80 david-hu.com -N -l dhu # then browse to localhost:3000
+
+# nginx: http://library.linode.com/web-servers/nginx/configuration/basic
+
+# pandora outside of US: http://proxydns.co/
