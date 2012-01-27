@@ -45,7 +45,7 @@ Bundle 'repeat.vim'
 Bundle 'HTML5-Syntax-File'
 Bundle 'kien/ctrlp.vim'
 Bundle 'nathanaelkane/vim-indent-guides'
-"Bundle 'Javascript-syntax-with-Ajax-Support'
+Bundle 'Lokaltog/vim-powerline'
 
 " Color schemes
 Bundle 'Solarized'
@@ -254,38 +254,6 @@ endif
 " Show the corresponding unicode characters of some TeX markup for fancy display
 set conceallevel=2
 let g:tex_conceal="admg"
-
-" Use 'g' flag by default for substitutes (adding g flag will toggle this off)
-" Nah, does not save much typing regularly at all and is a very dangerous
-" muscle-memory to develop when using other computers (fails silently)
-"set gdefault
-
-" Custom statusline, from https://bitbucket.org/sjl/dotfiles/src/tip/vim/.vimrc
-set statusline=%f\   " Path.
-set statusline+=%m   " Modified flag.
-set statusline+=%r   " Readonly flag.
-set statusline+=%w   " Preview window flag.
-set statusline+=%{fugitive#statusline()} " Fugitive displays git branch
-
-set statusline+=\    " Space.
-
-set statusline+=%#redbar#                " Highlight the following as a warning.
-set statusline+=%{SyntasticStatuslineFlag()} " Syntastic errors.
-set statusline+=%*                           " Reset highlighting.
-
-set statusline+=%=   " Right align.
-
-" File format, encoding and type.  Ex: "[unix|utf-8|python]"
-set statusline+=[
-"set statusline+=%{&ff}                        " Format (unix/DOS).
-"set statusline+=\|
-"set statusline+=%{strlen(&fenc)?&fenc:&enc}   " Encoding (utf-8).
-"set statusline+=\|
-set statusline+=%{&ft}                        " Type (python).
-set statusline+=]
-
-" Line and column position and counts.
-set statusline+=\ (line\ %l\/%L,\ col\ %03c)
 
 
 " ------------------------------------------------------------------------------
@@ -516,6 +484,11 @@ nnoremap <silent> <leader>m :CtrlPMRUFiles<CR>
 let g:indent_guides_enable_on_vim_startup = 1
 let g:indent_guides_color_change_percent = 3
 nnoremap <leader>i :IndentGuidesToggle<CR>
+
+" ----- Powerline -----
+if has("unix") && system("uname") == "Darwin\n"
+  let g:Powerline_symbols = 'fancy'
+endif
 
 " ---- C-support ----
 let g:C_Styles = { '*.c,*.h' : 'default', '*.cc,*.cpp,*.hh' : 'CPP' }

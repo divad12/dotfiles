@@ -53,3 +53,4 @@
 # nginx: http://library.linode.com/web-servers/nginx/configuration/basic
 
 # pandora outside of US: http://proxydns.co/
+# Get font Bitstream Vera Sans Mono, then patch Powerline

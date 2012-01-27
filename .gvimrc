@@ -10,6 +10,7 @@ if has("unix")
     if system("uname") == "Darwin\n"
         "set guifont=Menlo:h12
         set guifont=Bitstream\ Vera\ Sans\ Mono:h13
+        set guifont=Bitstream\ Vera\ Sans\ Mono\ for\ Powerline:h13
     endif
 endif
 
