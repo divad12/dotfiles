@@ -46,6 +46,7 @@ Bundle 'HTML5-Syntax-File'
 Bundle 'kien/ctrlp.vim'
 Bundle 'nathanaelkane/vim-indent-guides'
 Bundle 'Lokaltog/vim-powerline'
+Bundle 'delimitMate.vim'
 
 " Color schemes
 Bundle 'Solarized'
