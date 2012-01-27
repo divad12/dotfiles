@@ -237,7 +237,7 @@ set wildmenu wildmode=longest:full
 set wildignore+=*/.git/*,*/.hg/*,*/.svn/*,*/.vim_backups/*
 set wildignore+=*.aux,*.out,*.toc                " LaTeX intermediate files
 set wildignore+=*.jpg,*.bmp,*.gif,*.png,*.jpeg   " binary images
-set wildignore+=*.o,*.obj,*.exe,*.dll,*.manifest " compiled object files
+set wildignore+=*.o,*.d,*.obj,*.exe,*.dll,*.manifest " compiled object files
 set wildignore+=*.spl                            " compiled spelling word lists
 set wildignore+=*.sw?                            " Vim swap files
 set wildignore+=*.DS_Store                       " OSX bullshit
@@ -251,8 +251,14 @@ if exists("+colorcolumn")
   set colorcolumn=+1
 endif
 
+" Show the corresponding unicode characters of some TeX markup for fancy display
+set conceallevel=2
+let g:tex_conceal="admg"
+
 " Use 'g' flag by default for substitutes (adding g flag will toggle this off)
-set gdefault
+" Nah, does not save much typing regularly at all and is a very dangerous
+" muscle-memory to develop when using other computers (fails silently)
+"set gdefault
 
 " Custom statusline, from https://bitbucket.org/sjl/dotfiles/src/tip/vim/.vimrc
 set statusline=%f\   " Path.
