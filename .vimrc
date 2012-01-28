@@ -47,6 +47,7 @@ Bundle 'kien/ctrlp.vim'
 Bundle 'nathanaelkane/vim-indent-guides'
 Bundle 'Lokaltog/vim-powerline'
 Bundle 'delimitMate.vim'
+Bundle 'TaskList.vim'
 
 " Color schemes
 Bundle 'Solarized'
