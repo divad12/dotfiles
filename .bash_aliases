@@ -37,6 +37,7 @@ alias m='mvim'
 alias g='git'
 alias h='hg'
 alias pyserve='python -m SimpleHTTPServer'
+alias latexpdf='latexmk -pdf -pvc'
 
 function mr() {
     echo "$1/$('ls' -t $1 | head -n 1)";
