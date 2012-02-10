@@ -266,10 +266,9 @@ let g:tex_conceal="admg"
 let mapleader=","
 let maplocalleader=","
 
-" When just learning Vim, disable operation of arrow keys to forcibly adjust to
-" using hjkl + normal mode
-"noremap <Left>	<Nop>
-"noremap <Right>	<Nop>
+" Arrow keys for tab switching
+noremap <Left> gt
+noremap <Right>	gT
 "noremap <Up>	<Nop>
 "noremap <Down> <Nop>
 
@@ -307,8 +306,8 @@ vnoremap gy "+y
 vnoremap gY "+Y
 
 " Ctrl-tab to switch next/prev tab, like in FireFox, Chrome, etc.
-nnoremap <silent><C-S-Tab> :tabp<CR>
-nnoremap <silent><C-Tab> :tabn<CR>
+nnoremap <silent><C-S-Tab> gT
+nnoremap <silent><C-Tab> gt
 
 " Ctrl-s for save all changed buffers.
 nnoremap <silent><C-s> :wa<Cr>
@@ -396,6 +395,10 @@ nnoremap N Nzz
 " Open a Quickfix window for the last search.
 nnoremap <silent> <leader>/ :execute 'vimgrep /'.@/.'/g %'<CR>:copen<CR>
 
+" 'Inside-line' operator-pending-mode mapping (new text object)
+onoremap <silent> il :<C-U>normal! ^v$h<CR>
+onoremap <silent> iL :<C-U>normal! 0v$h<CR>
+
 
 " ------------------------------------------------------------------------------
 " Plugin Settings and Mappings
@@ -439,7 +442,7 @@ nnoremap <leader>gd :GundoToggle<CR>
 " ----- Syntastic -----
 let g:syntastic_enable_signs=1
 let g:syntastic_auto_loc_list=0
-let g:syntastic_disabled_filetypes = ['ruby', 'php', 'javascript', 'html']
+let g:syntastic_disabled_filetypes = ['ruby', 'php', 'javascript', 'html', 'tex']
 
 " ----- JavaScript Syntax File -----
 let javascript_enable_domhtmlcss=1
