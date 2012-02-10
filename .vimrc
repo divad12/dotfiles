@@ -1,9 +1,7 @@
 
-" TODO: Organize Andrew's stuff from bottom of file
 " TODO: mappings for alt+hjkl for movement in insert mode
 " TODO: get latex plugins
 " TODO: turn off matchparen for certain files for faster scrolling
-" TODO: remap window-navigation keys to CTRL
 " TODO: Move file-specific stuff near the bottom to .vim/ftplugin
 
 
@@ -266,12 +264,6 @@ let g:tex_conceal="admg"
 let mapleader=","
 let maplocalleader=","
 
-" Arrow keys for tab switching
-noremap <Left> gt
-noremap <Right>	gT
-"noremap <Up>	<Nop>
-"noremap <Down> <Nop>
-
 " Use semicolon instead of colon to enter command mode.
 noremap ; :
 noremap : ;
@@ -290,13 +282,6 @@ nnoremap ]p P
 inoremap <C-y> <C-o><C-y>
 "inoremap <C-e> <C-o><C-e>  " Conflicts with sparkup
 
-" Move a line of text using ctrl+[jk]
-" TODO: think of better shortcut keys. ctrl-j is too easily mistakenly pressed
-"nnoremap <C-j> mz:m+<cr>`z
-"nnoremap <C-k> mz:m-2<cr>`z
-"vnoremap <C-j> :m'>+<cr>gv
-"vnoremap <C-k> :m'<-2<cr>gv
-
 " Shortcuts for system clipboard access: works in Ubuntu gvim, terminal vim, macvim.
 nnoremap gp "+]p
 nnoremap gP "+[P
@@ -304,10 +289,6 @@ vnoremap gp d"+]p
 vnoremap gP d"+[P
 vnoremap gy "+y
 vnoremap gY "+Y
-
-" Ctrl-tab to switch next/prev tab, like in FireFox, Chrome, etc.
-nnoremap <silent><C-S-Tab> gT
-nnoremap <silent><C-Tab> gt
 
 " Ctrl-s for save all changed buffers.
 nnoremap <silent><C-s> :wa<Cr>
@@ -348,36 +329,13 @@ nnoremap K mzo<Esc>`z
 " TODO: For some reason this creates two newlines instead of one
 "inoremap <Cr> <C-g>u<Cr>
 
-" Key mappings for window switching. To map the alt key (aka meta key) in some
-" TODO: Detect what vim is running on, and conditionally map keys.
-
-" ----- Mac Terminal Vim -----
-
-" Use alt+hjkl to navigate between split windows
-"nnoremap ∆  <C-w>j
-"nnoremap ˚  <C-w>k
-"nnoremap ˙  <C-w>h
-"nnoremap ¬  <C-w>l
-"
-"" Use alt+<>-= to resize split windows
-"nnoremap ≤  <C-w><
-"nnoremap ≥  <C-w>>
-"nnoremap ≠  <C-w>+
-"nnoremap –  <C-w>-
-
-" ----- Ubuntu Terminal Vim -----
-
-" Use alt+hjkl to navigate between split windows
-nnoremap j  <C-w>j
-nnoremap k  <C-w>k
-nnoremap h  <C-w>h
-nnoremap l  <C-w>l
-
-" Use alt+<>-= to resize split windows
-nnoremap ,  <C-w><
-nnoremap .  <C-w>>
-nnoremap =  <C-w>+
-nnoremap -  <C-w>-
+" Use ctrl+hjklnp to navigate between split windows and tabs
+nnoremap <C-j>  <C-w>j
+nnoremap <C-k>  <C-w>k
+nnoremap <C-h>  <C-w>h
+nnoremap <C-l>  <C-w>l
+nnoremap <C-n>  gt
+nnoremap <C-p>  gT
 
 " Use s as a d,y,c modifier to grab a brace-delimited class
 onoremap s normal:k][[[kV][j<CR>
@@ -434,7 +392,7 @@ nmap gc <leader>c<space>
 vmap gc <leader>c<space>
 
 " ----- Pyflakes -----
-autocmd FileType python map <buffer> <F3> :call Pyflakes()<CR
+autocmd FileType python map <buffer> <F3> :call Pyflakes()<CR>
 
 " ----- Gundo -----
 nnoremap <leader>gd :GundoToggle<CR>
@@ -481,7 +439,7 @@ let g:ctrlp_mru_files = 1
 let g:ctrlp_jump_to_buffer = 2
 
 " Custom mappings
-let g:ctrlp_map = '<c-p>'
+let g:ctrlp_map = '<leader>f'
 nnoremap <silent> <leader>b :CtrlPBuffer<CR>
 nnoremap <silent> <leader>m :CtrlPMRUFiles<CR>
 
@@ -508,6 +466,7 @@ function! StripTrailingWhitespace()
  let @/ = saved_search
 endfunction
 "au BufWritePre * call StripTrailingWhitespace()
+nnoremap <silent><leader>tw :call StripTrailingWhitespace()<Cr>
 
 "" but disable tab special chars in certain files
 "autocmd filetype html,xml,Makefile set listchars-=tab:>.
@@ -630,8 +589,17 @@ nnoremap <leader>hb :HgBlame<cr>
 "au VimLeave * call MakeSession()
 
 " ------------------------------------------------------------------------------
-" Filetype Handling
+" Autocommands / Filetype Handling
 " ------------------------------------------------------------------------------
+
+" Jump to last location when re-opening file
+au BufReadPost * if line("'\"") > 0 && line("'\"") <= line("$") | exe "normal g'\"" | endif
+
+" Autoload commands:
+if has("autocmd")
+  " When editing a file, always jump to the last cursor position
+  autocmd BufReadPost * if line("'\"") | exe "'\"" | endif
+endif
 
 " ----- JavaScript -----
 "function! EnterJavaScript()
@@ -714,32 +682,3 @@ au Filetype tex call EnterTex()
 "                \       endif                         |
 "                \   endif
 "endif
-
-
-" ------------------------------------------------------------------------------
-" Andrew's vimrc + Google
-" ------------------------------------------------------------------------------
-
-"set cinoptions=l1,g0.5s,h0.5s,i2s,+2s,(0,W2s
-
-" Jump to last location when re-opening file
-:au BufReadPost * if line("'\"") > 0 && line("'\"") <= line("$") | exe "normal g'\"" | endif
-
-
-" Some nice shortcuts:
-" Reformat lines.
-" Enter/leave paste mode.
-"map gp :set invpaste<CR>:set paste?<CR>
-" Edit alternate file.
-"map gg :e#<CR>
-" Turn on word-wrapping.
-"map gw :se tw=75<CR>
-" Get rid of trailing whitespace.
-map gw :%s/[ <Tab>]\+$//<CR>
-
-
-" Autoload commands:
-if has("autocmd")
-  " When editing a file, always jump to the last cursor position
-  autocmd BufReadPost * if line("'\"") | exe "'\"" | endif
-endif

@@ -14,18 +14,6 @@ if has("unix")
     endif
 endif
 
-" Use alt+hjkl to navigate between split windows
-nnoremap ∆  <C-w>j
-nnoremap ˚  <C-w>k
-nnoremap ˙  <C-w>h
-nnoremap ¬  <C-w>l
-
-" Use alt+<>-= to resize split windows
-nnoremap ≤  <C-w><
-nnoremap ≥  <C-w>>
-nnoremap ≠  <C-w>+
-nnoremap –  <C-w>-
-
 " Use alt+# to switch to a certain numbered tab
 " TODO use some number wildcard or for-loop instead of repeating mapping 9 times
 nnoremap ¡ 1gt
