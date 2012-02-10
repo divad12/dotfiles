@@ -1,5 +1,5 @@
 # Use case-insensitive less as the pager. -r is so we get color escape codes
---pager=less -Ir
+--pager=less -ix4SRFX
 
 # Always use color
 --color
@@ -15,3 +15,4 @@
 --type-set=sass=.sass
 --type-set=coffee=.coffee
 --type-set=handlebars=.handlebars
+--type-add=html=.handlebars,.tmpl
