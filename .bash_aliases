@@ -37,7 +37,7 @@ alias m='mvim'
 alias g='git'
 alias h='hg'
 alias pyserve='python -m SimpleHTTPServer'
-alias latexpdf='latexmk -pdf -pvc'
+alias pdfserve='latexmk -pdf -pvc'
 
 function mr() {
     echo "$1/$('ls' -t $1 | head -n 1)";
@@ -49,21 +49,26 @@ function mans() {
   man $1 | less -p "^ +$2";
 }
 
+# Copy absolute filenames to a temporary file
+# Modified from http://www.khattam.info/howto-command-line-copypaste-filesdirectories-in-linux-2010-10-27.html
+function fcopy () {
+  rm -f /tmp/fclipboard;
+  dirlist=("$@")
+  for file in "${dirlist[@]}"; do
+    abspath "$file" >> /tmp/fclipboard;
+  done;
+}
+
+# Paste filenames from temporary file to current directory
+function fpaste() {
+  while read line
+    do cp -R "$line" ./
+  done < /tmp/fclipboard
+}
+
 # ------------------------------------------------------------------------------
 # directory navigation shortcuts
 # ------------------------------------------------------------------------------
-pushd()
-{
-    builtin pushd "$@" > /dev/null
-}
-#alias cd='pushd '
-alias pu='pushd'
-alias po='popd'
-alias cd-='popd'
-alias cd--='popd -2'
-alias cd---='popd -3'
-alias d='dirs -v'
-alias b='pushd +1'
 
 # from http://daniele.livejournal.com/76011.html
 function up()
@@ -100,19 +105,6 @@ function down() {
     fi
     dir=$(locate -n 1 -r $PWD.*/$1$)
     cd "$dir";
-}
-
-# cdd someglobaldir
-#
-# quickly change to a directory anywhere that matches the word you typed.
-# best if your locatedb is in good shape
-function cdd() {
-dir=""
-if [ -z "$1" ]; then
-dir=.
-fi
-dir=$(locate -n 1 -r $1$)
-cd "$dir";
 }
 
 # make directory and cd to it
