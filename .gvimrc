@@ -1,5 +1,8 @@
 set vb t_vb="
 
+" TODO: Figure out an easy way to switch color lightness modes.
+" :set background=light does not always work in vim
+set background=light
 colorscheme solarized
 
 " Maximize

@@ -25,7 +25,7 @@ Bundle 'gmarik/vundle'
 Bundle 'tpope/vim-fugitive'
 Bundle 'The-NERD-Commenter'
 " Bundle 'rstacruz/sparkup', {'rtp': 'vim/'}
-Bundle 'divad12/sparkup', {'rtp': 'vim/'}
+"Bundle 'divad12/sparkup', {'rtp': 'vim/'}
 Bundle 'scrooloose/nerdtree'
 Bundle 'a.vim'
 Bundle 'ctags.vim'
@@ -46,6 +46,7 @@ Bundle 'nathanaelkane/vim-indent-guides'
 Bundle 'Lokaltog/vim-powerline'
 Bundle 'delimitMate.vim'
 Bundle 'TaskList.vim'
+Bundle 'felixge/vim-nodejs-errorformat'
 
 " Color schemes
 Bundle 'Solarized'
@@ -237,7 +238,7 @@ set wildmenu wildmode=longest:full
 set wildignore+=*/.git/*,*/.hg/*,*/.svn/*,*/.vim_backups/*
 set wildignore+=*.aux,*.out,*.toc                " LaTeX intermediate files
 set wildignore+=*.jpg,*.bmp,*.gif,*.png,*.jpeg   " binary images
-set wildignore+=*.o,*.d,*.obj,*.exe,*.dll,*.manifest " compiled object files
+set wildignore+=*.o,*.d,*.obj,*.exe,*.dll,*.manifest,*.class " compiled object files
 set wildignore+=*.spl                            " compiled spelling word lists
 set wildignore+=*.sw?                            " Vim swap files
 set wildignore+=*.DS_Store                       " OSX bullshit
@@ -310,9 +311,9 @@ noremap Y y$
 " Closing brace auto-inserted upon pressing { in insert mode
 " TODO: This should be more sophisticated, preferrably scripted instead of
 " simple mapping
-inoremap {<CR> {<CR>}<Left><CR><Up><Tab>
+"inoremap {<CR> {<CR>}<Left><CR><Up><Tab>
 "inoremap {<Space> {<Space><Space>};<Left><Left><Left>
-inoremap {;<CR> {<Esc>o};<Esc>O
+"inoremap {;<CR> {<Esc>o};<Esc>O
 
 " let [jk] go down and up by display lines instead of real lines. Let g[jk]
 " do what [jk] normally does
@@ -357,6 +358,9 @@ nnoremap <silent> <leader>/ :execute 'vimgrep /'.@/.'/g %'<CR>:copen<CR>
 onoremap <silent> il :<C-U>normal! ^v$h<CR>
 onoremap <silent> iL :<C-U>normal! 0v$h<CR>
 
+" save, make, and show quickfix window on error
+nnoremap <Leader><Leader> :w<CR>:make! \| botright cwindow<CR>
+
 
 " ------------------------------------------------------------------------------
 " Plugin Settings and Mappings
@@ -380,7 +384,9 @@ let Tlist_Show_One_File = 1
 
 " ----- SuperTab -----
 " Default completion type is <c-p>
-let g:SuperTabDefaultCompletionType = '<c-n>'
+"let g:SuperTabDefaultCompletionType = '<c-n>'
+"let g:SuperTabDefaultCompletionType = '<c-x><c-u>'
+let g:SuperTabDefaultCompletionType = 'context'
 let g:SuperTabLongestHighlight = 1
 
 " ----- NERD Commenter -----
@@ -438,6 +444,12 @@ let g:ctrlp_mru_files = 1
 " This will jump to a file that is already in an opened buffer if it is in another tab.
 let g:ctrlp_jump_to_buffer = 2
 
+" Always use regex search instead of fuzzy string matching
+let g:ctrlp_regexp_search = 1
+
+" Search by filename, not full path
+let g:ctrlp_by_filename = 1
+
 " Custom mappings
 let g:ctrlp_map = '<leader>f'
 nnoremap <silent> <leader>b :CtrlPBuffer<CR>
@@ -452,6 +464,10 @@ nnoremap <leader>i :IndentGuidesToggle<CR>
 if has("unix") && system("uname") == "Darwin\n"
   let g:Powerline_symbols = 'fancy'
 endif
+
+" ----- Eclim -----
+" Don't show todo markers in margin
+let g:EclimSignLevel = 2
 
 " ---- C-support ----
 let g:C_Styles = { '*.c,*.h' : 'default', '*.cc,*.cpp,*.hh' : 'CPP' }
