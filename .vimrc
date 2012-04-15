@@ -47,6 +47,9 @@ Bundle 'Lokaltog/vim-powerline'
 Bundle 'delimitMate.vim'
 Bundle 'TaskList.vim'
 Bundle 'felixge/vim-nodejs-errorformat'
+Bundle 'EasyGrep'
+Bundle 'gregsexton/MatchTag'
+Bundle 'tpope/vim-abolish'
 
 " Color schemes
 Bundle 'Solarized'
