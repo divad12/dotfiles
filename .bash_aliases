@@ -62,7 +62,7 @@ function fcopy () {
 # Paste filenames from temporary file to current directory
 function fpaste() {
   while read line
-    do cp -R "$line" ./
+    do cp -R "$line" ./ && echo "Pasted ${line}"
   done < /tmp/fclipboard
 }
 

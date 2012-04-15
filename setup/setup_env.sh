@@ -2,6 +2,8 @@
 
 # TODO: Actually write this script
 # TODO: script to rsync (in case machine doesn't have git): https://github.com/rtomayko/dotfiles/blob/rtomayko/bin/sync-home
+# TODO: Keep a list of all articles I find useful for setting stuff up from now
+# on
 
 # To install (absolute must):
 # - run :BundleInstall in vim to install plugins
@@ -54,3 +56,10 @@
 
 # pandora outside of US: http://proxydns.co/
 # Get font Bitstream Vera Sans Mono, then patch Powerline
+
+# ssh password logins on EC2: edit /etc/ssh/sshd_config and enable password
+# logins: http://thekeesh.com/2011/05/setting-up-user-accounts-password-authentication-and-ssh-keys-on-a-new-ec2-instance/
+
+# node + nginx deployment on EC2: http://cuppster.com/2011/05/12/diy-node-js-server-on-amazon-ec2/
+  # using upstart -- http://cuppster.com/2011/05/18/using-supervisor-with-upstart/
+# adding a deamon to run on start-up in linux: http://linuxhelp.blogspot.com/2006/04/enabling-and-disabling-services-during_01.html
