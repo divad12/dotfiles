@@ -26,7 +26,9 @@ hgext.collapse = ~/.hgext/collapse.py
 # other extensions that might be good
 # transplant?
 # hgk =
-# kilnauth = ~/src/kilnauth.py
+dummy = $HOME/code/khan/devtools/kiln-review/review.py
+rdiff = $HOME/code/khan/devtools/mercurial-extensions-rdiff/rdiff.py
+kilnauth = $HOME/code/khan/devtools/kilnauth.py
 
 #[extdiff]
 #cmd.opendiff = fmdiff
@@ -46,7 +48,7 @@ nudge = push --rev .
 git = True
 
 [auth]
-kiln.prefix=khanacademy.kilnhg.com
+kiln.prefix=https://khanacademy.kilnhg.com
 kiln.username=david@khanacademy.org
 
 [paths]
@@ -54,3 +56,9 @@ stable = https://khanacademy.kilnhg.com/Repo/Website/Group/stable
 david = https://khanacademy.kilnhg.com/Repo/Website/Group/david
 accuracy = https://khanacademy.kilnhg.com/Repo/Website/Group/accuracy-model
 review = https://khanacademy.kilnhg.com/Repo/Website/Group/review
+
+[hooks]
+pretxncommit.khanlint = $HOME/code/khan/devtools/khan-linter/khanlint.py
+
+[hostfingerprints]
+khanacademy.kilnhg.com = fe:ab:65:89:7c:6f:1a:21:a8:39:54:6c:2a:cb:ca:ae:e9:e5:f0:01

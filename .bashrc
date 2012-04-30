@@ -169,3 +169,7 @@ if command -v brew > /dev/null; then
     fi
 
 fi
+
+# Khan Academy stuff
+source ~/.virtualenv/khan25/bin/activate
+export PATH="$PATH:$HOME/code/khan/rbtools/bin"
