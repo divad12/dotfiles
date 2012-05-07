@@ -4,7 +4,7 @@
 # Always use color
 --color
 
-# Case-insensitive if query is lower case, other wise it's case sensitive
+# Case-insensitive if query is lower case, otherwise it's case sensitive
 --smart-case
 
 # Show context of search hit
@@ -12,7 +12,13 @@
 
 # Filetypes that do not ship with ack
 --type-set=haml=.haml
+--type-set=erb=.erb
 --type-set=sass=.sass
+--type-set=scss=.scss
 --type-set=coffee=.coffee
 --type-set=handlebars=.handlebars
 --type-add=html=.handlebars,.tmpl
+--type-set=jst=.jst
+
+# Khan Academy specific
+-G^(?!mapreduce/|offline/|third_party/)
