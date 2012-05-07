@@ -50,6 +50,8 @@ Bundle 'felixge/vim-nodejs-errorformat'
 Bundle 'EasyGrep'
 Bundle 'gregsexton/MatchTag'
 Bundle 'tpope/vim-abolish'
+Bundle 'Shougo/neocomplcache'
+Bundle 'python_match.vim'
 
 " Color schemes
 Bundle 'Solarized'
@@ -471,6 +473,21 @@ endif
 " ----- Eclim -----
 " Don't show todo markers in margin
 let g:EclimSignLevel = 2
+
+" ----- neocomplcache -----
+" Disable AutoComplPop.
+let g:acp_enableAtStartup = 0
+" Use neocomplcache.
+let g:neocomplcache_enable_at_startup = 1
+" Use smartcase.
+let g:neocomplcache_enable_smart_case = 1
+" Use camel case completion.
+let g:neocomplcache_enable_camel_case_completion = 1
+" Use underbar completion.
+let g:neocomplcache_enable_underbar_completion = 1
+" Set minimum syntax keyword length.
+let g:neocomplcache_min_syntax_length = 3
+"let g:neocomplcache_lock_buffer_name_pattern = '\*ku\*'
 
 " ---- C-support ----
 let g:C_Styles = { '*.c,*.h' : 'default', '*.cc,*.cpp,*.hh' : 'CPP' }
