@@ -15,6 +15,7 @@
   branch = auto
   diff = auto
   interactive = auto
+  autosetupmerge = always
 
 [alias]
   co = checkout
