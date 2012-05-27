@@ -21,4 +21,4 @@
 --type-set=jst=.jst
 
 # Khan Academy specific
--G^(?!mapreduce/|offline/|third_party/)
+-G^(?!mapreduce/|offline/|third_party/|diff/)
