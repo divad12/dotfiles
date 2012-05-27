@@ -5,6 +5,7 @@ attend = annotate, cat, diff, export, glog, log, qdiff, slog, dlog, gslog, sglog
 
 [ui]
 username = David Hu <david@khanacademy.org>
+ignore = ~/dotfiles/.hgignore_global
 
 [web]
 cacerts = ~/hg-dummy-cert.pem
@@ -64,4 +65,3 @@ pretxncommit.khanlint = $HOME/code/khan/devtools/khan-linter/khanlint.py
 [hostfingerprints]
 khanacademy.kilnhg.com = fe:ab:65:89:7c:6f:1a:21:a8:39:54:6c:2a:cb:ca:ae:e9:e5:f0:01
 bitbucket.org = 24:9c:45:8b:9c:aa:ba:55:4e:01:6d:58:ff:e4:28:7d:2a:14:ae:3b
-code.google.com = 97:1a:9f:06:54:23:96:b8:fa:3f:d8:78:c1:bf:84:34:4b:5e:cb:30
