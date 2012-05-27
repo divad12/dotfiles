@@ -39,7 +39,6 @@ Bundle 'pyflakes'
 Bundle 'Gundo'
 Bundle 'Syntastic'
 Bundle 'css_color.vim'
-Bundle 'repeat.vim'
 Bundle 'HTML5-Syntax-File'
 Bundle 'kien/ctrlp.vim'
 Bundle 'nathanaelkane/vim-indent-guides'
@@ -488,6 +487,8 @@ let g:neocomplcache_enable_underbar_completion = 1
 " Set minimum syntax keyword length.
 let g:neocomplcache_min_syntax_length = 3
 "let g:neocomplcache_lock_buffer_name_pattern = '\*ku\*'
+" Force use neocomplcache's completion functions
+let g:neocomplcache_force_overwrite_completefunc = 1
 
 " ---- C-support ----
 let g:C_Styles = { '*.c,*.h' : 'default', '*.cc,*.cpp,*.hh' : 'CPP' }
