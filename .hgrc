@@ -1,6 +1,6 @@
 [pager]
 pager = LESS='FSRX' less
-attend = annotate, cat, diff, export, glog, log, qdiff, slog, dlog, gslog, sglog, df, nlog, outgoing
+attend = annotate, cat, diff, export, glog, log, qdiff, slog, dlog, gslog, sglog, df, nlog, outgoing, lg, lga
 # note: this can be temporarily disabled with --pager=off
 
 [ui]
@@ -41,9 +41,12 @@ nlog = log --style=$HOME/dotfiles/mercurial-cli-templates/map-cmdline.nlog
 sglog = glog --style=$HOME/dotfiles/mercurial-cli-templates/map-cmdline.sglog
 gslog = sglog
 dlog = log --style=$HOME/dotfiles/mercurial-cli-templates/map-cmdline.dlog
+lga = glog --style=$HOME/dotfiles/mercurial-cli-templates/map-cmdline.lg
+lg = lga --rev 'ancestors(.)'
 st = st -S
 df = diff
 nudge = push --rev .
+today = !hg log --template '{rev} {desc|firstline|strip}\n' -r "sort(user('$(hg showconfig ui.username | sed 's/.*<\(.*\)>/\1/')') and date(-1), -date)"
 
 [diff]
 git = True
