@@ -15,12 +15,14 @@
   branch = auto
   diff = auto
   interactive = auto
+
+[branch]
+  # auto-adds the --track flag to git branch. Helps out arc (for Phabricator).
   autosetupmerge = always
 
 [alias]
   co = checkout
-  graph = log --graph --decorate --oneline --all --full-history
-  glog = log --graph --decorate --oneline --pretty=format:"%h%x20%Cgreen%d%x20%Cred%an%x20%Cblue%ad%x20%Creset%s" --all --full-history --date=short
+  graph = log --graph --decorate --oneline --pretty=format:"%h%x20%Cgreen%d%x20%Cred%an%x20%Cblue%ad%x20%Creset%s" --all --full-history --date=short
   st = status
   ci = commit
   br = branch
