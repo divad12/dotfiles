@@ -1,10 +1,14 @@
 [pager]
 pager = LESS='FSRX' less
+
+# Pipe to less the output of the following commands.
+# Can be temporarily disabled with --pager=off
 attend = annotate, cat, diff, export, glog, log, qdiff, slog, dlog, gslog, sglog, df, nlog, outgoing, lg, lga
-# note: this can be temporarily disabled with --pager=off
 
 [ui]
 username = David Hu <david@khanacademy.org>
+
+# Global .hgignore file
 ignore = ~/dotfiles/.hgignore_global
 
 [web]
@@ -17,25 +21,26 @@ hgext.mq =
 color =
 graphlog =
 hgext.churn =
-#histedit = ~/src/histedit/hg_histedit.py
 rebase =
 pager =
 progress =
 hgext.purge =
 hgext.shelve = ~/.hgext/hgshelve.py
 hgext.collapse = ~/.hgext/collapse.py
-# other extensions that might be good
-# transplant?
-# hgk =
 dummy = $HOME/code/khan/devtools/kiln-review/review.py
 rdiff = $HOME/code/khan/devtools/mercurial-extensions-rdiff/rdiff.py
 kilnauth = $HOME/code/khan/devtools/kilnauth.py
 
-#[extdiff]
-#cmd.opendiff = fmdiff
-
 [alias]
+# Takes a revision argument and shows the diff: hg show 1337
 show = log --color=always -pr
+
+# Push the current branch only (don't push any other named branches)
+nudge = push --rev .
+
+# What did I do today?
+today = !hg log --template '{rev} {desc|firstline|strip}\n' -r "sort(user('$(hg showconfig ui.username | sed 's/.*<\(.*\)>/\1/')') and date(-1), -date)"
+
 slog = log --style=$HOME/dotfiles/mercurial-cli-templates/map-cmdline.slog
 nlog = log --style=$HOME/dotfiles/mercurial-cli-templates/map-cmdline.nlog
 sglog = glog --style=$HOME/dotfiles/mercurial-cli-templates/map-cmdline.sglog
@@ -45,8 +50,6 @@ lga = glog --style=$HOME/dotfiles/mercurial-cli-templates/map-cmdline.lg
 lg = lga --rev 'ancestors(.)'
 st = st -S
 df = diff
-nudge = push --rev .
-today = !hg log --template '{rev} {desc|firstline|strip}\n' -r "sort(user('$(hg showconfig ui.username | sed 's/.*<\(.*\)>/\1/')') and date(-1), -date)"
 
 [diff]
 git = True
@@ -63,6 +66,7 @@ review = https://khanacademy.kilnhg.com/Code/Website/Group/review
 analytics = https://khanacademy.kilnhg.com/Code/Private/Group/backup-and-analytics
 
 [hooks]
+# JavaScript Google Closure linter
 pretxncommit.khanlint = $HOME/code/khan/devtools/khan-linter/khanlint.py
 
 [hostfingerprints]
