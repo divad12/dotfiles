@@ -15,10 +15,21 @@
 --type-set=erb=.erb
 --type-set=sass=.sass
 --type-set=scss=.scss
+--type-set=less=.less
 --type-set=coffee=.coffee
 --type-set=handlebars=.handlebars
 --type-add=html=.handlebars,.tmpl
 --type-set=jst=.jst
 
+################################################################################
 # Khan Academy specific
--G^(?!mapreduce/|offline/|third_party/|diff/)
+
+# Ignore files matching the following regex
+--invert-file-match
+-G(hashed-\w+.(js|css)|combined\.(js|css)|compressed\.(js|css))
+
+# Directories to ignore at any level
+--ignore-dir=third_party
+--ignore-dir=exercises-packed
+--ignore-dir=compiled_templates
+--ignore-dir=deploy/node_modules
