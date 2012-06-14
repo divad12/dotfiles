@@ -16,6 +16,7 @@
 --type-set=sass=.sass
 --type-set=scss=.scss
 --type-set=less=.less
+--type-set=sql=.q
 --type-set=coffee=.coffee
 --type-set=handlebars=.handlebars
 --type-add=html=.handlebars,.tmpl

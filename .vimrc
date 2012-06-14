@@ -216,6 +216,9 @@ set hidden
 " I don't use modula2 nearly as much as markdown
 au BufRead,BufNewFile *.md		set filetype=markdown
 
+" Add HiveQL script extension
+au BufRead,BufNewFile *.q set filetype=sql
+
 " Add "-" to be a keyword character for autocomplete and * and # searches
 " (useful for html IDs for example)
 "au InsertEnter * set isk+=-
