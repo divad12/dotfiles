@@ -66,8 +66,7 @@ review = https://khanacademy.kilnhg.com/Code/Website/Group/review
 analytics = https://khanacademy.kilnhg.com/Code/Private/Group/backup-and-analytics
 
 [hooks]
-# JavaScript Google Closure linter
-pretxncommit.khanlint = $HOME/code/khan/devtools/khan-linter/khanlint.py
+pretxncommit.khanlint = $HOME/code/khan/devtools/khan-linter/hghook.py
 
 [hostfingerprints]
 khanacademy.kilnhg.com = fe:ab:65:89:7c:6f:1a:21:a8:39:54:6c:2a:cb:ca:ae:e9:e5:f0:01

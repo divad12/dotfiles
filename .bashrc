@@ -167,5 +167,5 @@ if command -v brew > /dev/null; then
 fi
 
 # Khan Academy stuff
-source ~/.virtualenv/khan25/bin/activate
-export PATH="$PATH:$HOME/code/khan/rbtools/bin"
+export PATH="$HOME/code/khan/devtools/arcanist/khan-bin:$HOME/code/khan/rbtools/bin:$PATH"
+source ~/.virtualenv/khan27/bin/activate
