@@ -27,7 +27,7 @@
 
 # Ignore files matching the following regex
 --invert-file-match
--G(hashed-\w+.(js|css)|combined\.(js|css)|compressed\.(js|css))
+-G(hashed-\w+.(js|css)|combined\.(js|css)|compressed\.(js|css)|\.handlebars\.js$)
 
 # Directories to ignore at any level
 --ignore-dir=third_party
