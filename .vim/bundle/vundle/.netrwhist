@@ -1,0 +1,5 @@
+let g:netrw_dirhistmax  =10
+let g:netrw_dirhist_cnt =3
+let g:netrw_dirhist_1='/Users/david/dotfiles'
+let g:netrw_dirhist_2='/Users/david/code/khan/khanacademy-stable/khan-exercises'
+let g:netrw_dirhist_3='/Applications/Portal 2 Mac/Steam 4 Portal 2.app/Contents/MacOS/steam'

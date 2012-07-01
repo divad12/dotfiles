@@ -2,12 +2,14 @@
 
 [Vundle] is short for **V**imb**undle** and is a [Vim] plugin manager.
 
+![Vundle-installer](https://lh3.googleusercontent.com/-4EnLqLpEZlk/TlqXWpgWxOI/AAAAAAAAHRw/oBAl6s1hj7U/vundle-install2.png)
+
 ## Quick start
 
 1. Setup [Vundle]:
 
      ```
-     $ git clone http://github.com/gmarik/vundle.git ~/.vim/bundle/vundle
+     $ git clone https://github.com/gmarik/vundle.git ~/.vim/bundle/vundle
      ```
 
 2. Configure bundles:
@@ -29,42 +31,42 @@
      "
      " original repos on github
      Bundle 'tpope/vim-fugitive'
-     Bundle 'lokaltog/vim-easymotion'
+     Bundle 'Lokaltog/vim-easymotion'
      Bundle 'rstacruz/sparkup', {'rtp': 'vim/'}
+     Bundle 'tpope/vim-rails.git'
      " vim-scripts repos
      Bundle 'L9'
      Bundle 'FuzzyFinder'
-     Bundle 'rails.vim'
      " non github repos
      Bundle 'git://git.wincent.com/command-t.git'
      " ...
 
-     filetype plugin indent on     " required! 
+     filetype plugin indent on     " required!
      "
      " Brief help
+     " :BundleList          - list configured bundles
+     " :BundleInstall(!)    - install(update) bundles
+     " :BundleSearch(!) foo - search(or refresh cache first) for foo
+     " :BundleClean(!)      - confirm(or auto-approve) removal of unused bundles
      "
-     " :BundleInstall  - install bundles (won't update installed)
-     " :BundleInstall! - update if installed
-     "
-     " :Bundles foo    - search for foo
-     " :Bundles! foo   - refresh cached list and search for foo
-     "
-     " :BundleClean    - confirm removal of unused bundles
-     " :BundleClean!   - remove without confirmation
-     "
-     " see :h vundle for more details
-     " or wiki for FAQ
-     " Note: comments after Bundle command are not allowed..
+     " see :h vundle for more details or wiki for FAQ
+     " NOTE: comments after Bundle command are not allowed..
 
      ```
 
 3. Install configured bundles:
 
-     Launch `vim`, run `:BundleInstall`. 
+     Launch `vim`, run `:BundleInstall` 
+     (or `vim +BundleInstall +qall` for CLI lovers)
 
      *Windows users* see [Vundle for Windows](https://github.com/gmarik/vundle/wiki/Vundle-for-Windows)
 
      Installing requires [Git] and triggers [Git clone](http://gitref.org/creating/#clone) for each configured repo to `~/.vim/bundle/`.
+
+4. Consider [donating](https://www.paypal.com/cgi-bin/webscr?cmd=_s-xclick&hosted_button_id=T44EJZX8RBUWY)
+
+[*Thank you*](http://j.mp/rSbm01) for supporting this project! )
+
 
 ## Why Vundle
 
@@ -80,15 +82,17 @@
 Also [Vundle]:
 
 - manages runtime path of your installed scripts
-- regenerates helptag atomatically
+- regenerates helptag automatically
 
 ## Docs
 
 see [`:h vundle`](vundle/blob/master/doc/vundle.txt#L1) vimdoc for more details.
 
-## Examples
+## People Using Vundle
 
-   See [gmarik's vimrc](https://github.com/gmarik/vimfiles/blob/1f4f26d42f54443f1158e0009746a56b9a28b053/vimrc#L136) for working example.
+   * [gmarik's vimrc](https://github.com/gmarik/vimfiles/blob/1f4f26d42f54443f1158e0009746a56b9a28b053/vimrc#L136)
+   * [mutewinter's Vim Config of Champions](https://github.com/mutewinter/dot_vim)
+   * [vimified - Ultimate, kick-ass VIM configuration on top of Vundle](https://github.com/zaiste/vimified)
 
    If you have an interesting example, feel free to send a pull request with link to your config. Thx!
 
@@ -126,12 +130,11 @@ see [wiki](/gmarik/vundle/wiki)
 * √ vim documentation
 * √ put vundle to bundles/ too(will fix vundle help)
 * √ tests
-* improve error handling
-* handle dependencies
+* √ improve error handling
 * allow specify revision/version?
-* search by description as well
+* handle dependencies
 * show description in search results
-* instead sourcing .vimrc before installation come up with another solution
+* search by description as well
 * make it rock!
 
 [Vundle]:http://github.com/gmarik/vundle
@@ -142,7 +145,7 @@ see [wiki](/gmarik/vundle/wiki)
 [all available vim scripts]:http://vim-scripts.org/vim/scripts.html
 
 [install]:https://github.com/gmarik/vundle/blob/master/doc/vundle.txt#L110-124
-[update]:https://github.com/gmarik/vundle/blob/master/doc/vundle.txt#L126-131
-[search]:https://github.com/gmarik/vundle/blob/master/doc/vundle.txt#L133-155
-[clean]:https://github.com/gmarik/vundle/blob/master/doc/vundle.txt#L157-169
-[interactive mode]:https://github.com/gmarik/vundle/blob/master/doc/vundle.txt#L172-205
+[update]:https://github.com/gmarik/vundle/blob/master/doc/vundle.txt#L128-134
+[search]:https://github.com/gmarik/vundle/blob/master/doc/vundle.txt#L136-158
+[clean]:https://github.com/gmarik/vundle/blob/master/doc/vundle.txt#L168-180
+[interactive mode]:https://github.com/gmarik/vundle/blob/master/doc/vundle.txt#L184-210
