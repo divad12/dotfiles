@@ -71,12 +71,8 @@ set -o vi
 # export WORKON_HOME=/home/david/.virtualenvs
 # source /usr/local/bin/virtualenvwrapper_bashrc
 
-export CDPATH='$HOME/cdpath'
-export PATH="$PATH:$HOME/bin:/usr/local/sbin:$HOME/.gem/ruby/1.8/bin:/usr/local/Cellar/ruby/1.9.2-p180/bin"
-export NODE_PATH="$NODE_PATH:/usr/local/lib/node"
-
-# from http://www.ibm.com/developerworks/linux/library/l-tip-prompt/
-#export PS1="\[\e]2;\u@\H \w\a\e[32;1m\]>\[\e[0m\] "
+export PATH="$PATH:$HOME/bin:/usr/local/sbin:$HOME/.gem/ruby/1.8/bin:/usr/local/Cellar/ruby/1.9.2-p180/bin:$HOME/code/elastic-mapreduce"
+export NODE_PATH="$NODE_PATH:/usr/local/lib/node:/usr/local/lib/node_modules"
 
 case $TERM in
 xterm*)
@@ -90,7 +86,7 @@ screen*)
     # Set the hardstatus to the working directory, which will display on GNU
     # screen's caption as well as xterm's title bar. Now our prompt does not
     # need to show the full directory path.
-    export PS1="\[\e]2;\w\a\e[36;40m\]\t \[\e[0;33m\]\h @ \[\e[32;1m\][ \W ]\[\e[0m\] "
+    export PS1=' \[\e]2;\w\a\e[0;36m\]\t \[\e[0;33m\]\h \[\e[0;34m\]@ \[\e[32;1m\][ \W ]\[\e[0;35m\]`__git_ps1`\[\e[0m\] '
     ;;
 *)
     ;;
