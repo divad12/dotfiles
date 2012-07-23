@@ -29,3 +29,6 @@ defaults write com.apple.LaunchServices LSQuarantine -bool false
 
 # Display full POSIX path as Finder window title
 defaults write com.apple.finder _FXShowPosixPathInTitle -bool true
+
+# Change default screenshot location from Desktop to ...
+defaults write com.apple.screencapture location ~/screenshots/
