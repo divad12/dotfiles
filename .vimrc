@@ -51,6 +51,8 @@ Bundle 'gregsexton/MatchTag'
 Bundle 'tpope/vim-abolish'
 Bundle 'Shougo/neocomplcache'
 Bundle 'python_match.vim'
+Bundle 'nono/vim-handlebars'
+Bundle 'IndexedSearch'
 
 " Color schemes
 Bundle 'Solarized'
