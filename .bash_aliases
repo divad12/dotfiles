@@ -33,6 +33,7 @@ alias g='git'
 alias h='hg'
 alias pyserve='python -m SimpleHTTPServer'
 alias pdfserve='latexmk -pdf -pvc'
+alias myip="curl icanhazip.com"
 
 function mr() {
     echo "$1/$('ls' -t $1 | head -n 1)";
