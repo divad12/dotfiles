@@ -1,0 +1,13 @@
+# Options for GNU Readline.
+
+# Do not ring the bell ever
+set bell-style none
+
+# Case insensitive completion
+set completion-ignore-case On
+
+# Tab does completion
+tab: complete
+
+# Setup Vi mode
+set editing-mode vi
