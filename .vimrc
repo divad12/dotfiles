@@ -53,6 +53,8 @@ Bundle 'Shougo/neocomplcache'
 Bundle 'python_match.vim'
 Bundle 'nono/vim-handlebars'
 Bundle 'IndexedSearch'
+Bundle 'phleet/vim-arcanist'
+Bundle 'flxf/uCpp.vim'
 
 " Color schemes
 Bundle 'Solarized'
@@ -60,6 +62,7 @@ Bundle 'xoria256.vim'
 Bundle 'Mustang2'
 Bundle 'molokai'
 Bundle 'Wombat'
+Bundle 'chriskempson/tomorrow-theme', {'rtp': 'vim/'}
 
 
 " Syntax highlighting
@@ -415,7 +418,7 @@ nnoremap <leader>gd :GundoToggle<CR>
 " ----- Syntastic -----
 let g:syntastic_enable_signs=1
 let g:syntastic_auto_loc_list=0
-let g:syntastic_disabled_filetypes = ['ruby', 'php', 'javascript', 'html', 'tex']
+let g:syntastic_javascript_checker = "jshint"
 
 " ----- JavaScript Syntax File -----
 let javascript_enable_domhtmlcss=1
