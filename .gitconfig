@@ -43,6 +43,10 @@
   # Always show a diffstat at the end of a merge
 	stat = true
 
+[rebase]
+  # Always show a diffstat at the end of a rebase
+  stat = true
+
 [diff]
   # Use mnemonic prefixes (index, work tree, commit, object) instead of the standard a and b notation
 	mnemonicprefix = true
