@@ -24,7 +24,7 @@ function jsdoc() {
     java -Djsdoc.dir=$JSDOCDIR -jar "$JSDOCDIR"/jsrun.jar "$JSDOCDIR"/app/run.js -t="$JSDOCDIR"/templates/jsdoc -d=doc/ $@
 }
 
-alias lt='ls -trlhu'
+alias lt='ls -lthr'
 alias ll='ls -l'
 alias vm='vim `ls --color=none -t | head -n 1`'
 
