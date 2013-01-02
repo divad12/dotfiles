@@ -255,6 +255,7 @@ set wildignore+=*.spl                            " compiled spelling word lists
 set wildignore+=*.sw?                            " Vim swap files
 set wildignore+=*.DS_Store                       " OSX bullshit
 set wildignore+=*.pyc                            " Python byte code
+set wildignore+=*/.sass-cache/*
 
 " Wrap comments at textwidth (but not code), recognize numbered lists, and other formatting options
 set formatoptions=crqn1
@@ -458,12 +459,6 @@ let g:ctrlp_mru_files = 1
 
 " This will jump to a file that is already in an opened buffer if it is in another tab.
 let g:ctrlp_jump_to_buffer = 2
-
-" Always use regex search instead of fuzzy string matching
-let g:ctrlp_regexp_search = 1
-
-" Search by filename, not full path
-let g:ctrlp_by_filename = 1
 
 " Custom mappings
 let g:ctrlp_map = '<leader>f'
