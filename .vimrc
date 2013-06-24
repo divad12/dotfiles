@@ -24,13 +24,11 @@ call vundle#rc()
 Bundle 'gmarik/vundle'
 Bundle 'tpope/vim-fugitive'
 Bundle 'The-NERD-Commenter'
-" Bundle 'rstacruz/sparkup', {'rtp': 'vim/'}
 "Bundle 'divad12/sparkup', {'rtp': 'vim/'}
 Bundle 'scrooloose/nerdtree'
 Bundle 'a.vim'
 Bundle 'ctags.vim'
 Bundle 'taglist-plus'
-Bundle 'SuperTab-continued.'
 Bundle 'matchit.zip'
 Bundle 'ragtag.vim'
 Bundle 'surround.vim'
@@ -49,12 +47,16 @@ Bundle 'felixge/vim-nodejs-errorformat'
 Bundle 'EasyGrep'
 Bundle 'gregsexton/MatchTag'
 Bundle 'tpope/vim-abolish'
-Bundle 'Shougo/neocomplcache'
 Bundle 'python_match.vim'
 Bundle 'nono/vim-handlebars'
 Bundle 'IndexedSearch'
 Bundle 'phleet/vim-arcanist'
 Bundle 'flxf/uCpp.vim'
+Bundle 'Valloric/YouCompleteMe'
+Bundle 'airblade/vim-gitgutter'
+Bundle 'terryma/vim-multiple-cursors'
+Bundle 'kien/rainbow_parentheses.vim'
+Bundle 'dln/avro-vim'
 
 " Color schemes
 Bundle 'Solarized'
@@ -71,7 +73,7 @@ syntax on
 " Set colour scheme. Wombat is a third-party colorscheme. Also good: ir_black
 " molokai, xoria256, desert (comes by default). For some reason, solarized
 " doesn't work well in normal terminal vim...
-set background=dark
+set background=light
 set t_Co=256
 colorscheme xoria256
 
@@ -99,8 +101,8 @@ set number
 
 " Store temporary files in a central spot
 " Check if the backup directory exists; if it doesn't, create it
-set backupdir=~/.vim_backups//
 silent execute '!mkdir -p ~/.vim_backups'
+set backupdir=~/.vim_backups//
 set directory=~/.vim_backups//
 
 " Remember more history
@@ -188,9 +190,10 @@ set ruler
 set showcmd
 
 " Automatically change directories when switching windows
-if has("netbeans_intg") || has("sun_workshop")
-  set autochdir
-endif
+" TODO(david): Figure out why this breaks fugitive
+"if has("netbeans_intg") || has("sun_workshop")
+"  set autochdir
+"endif
 
 " Disable console vim from attepting to connect to the X display, which may
 " slow things down for a few seconds
@@ -374,6 +377,10 @@ onoremap <silent> iL :<C-U>normal! 0v$h<CR>
 " save, make, and show quickfix window on error
 nnoremap <Leader><Leader> :w<CR>:make! \| botright cwindow<CR>
 
+" Save and load session
+nnoremap <Leader>ms :mksession! ~/vim_session <cr>
+nnoremap <Leader>rs :source ~/vim_session <cr>
+
 
 " ------------------------------------------------------------------------------
 " Plugin Settings and Mappings
@@ -481,25 +488,20 @@ endif
 " Don't show todo markers in margin
 let g:EclimSignLevel = 2
 
-" ----- neocomplcache -----
-" Disable AutoComplPop.
-let g:acp_enableAtStartup = 0
-" Use neocomplcache.
-let g:neocomplcache_enable_at_startup = 1
-" Use smartcase.
-let g:neocomplcache_enable_smart_case = 1
-" Use camel case completion.
-let g:neocomplcache_enable_camel_case_completion = 1
-" Use underbar completion.
-let g:neocomplcache_enable_underbar_completion = 1
-" Set minimum syntax keyword length.
-let g:neocomplcache_min_syntax_length = 3
-"let g:neocomplcache_lock_buffer_name_pattern = '\*ku\*'
-" Force use neocomplcache's completion functions
-let g:neocomplcache_force_overwrite_completefunc = 1
-
 " ---- C-support ----
 let g:C_Styles = { '*.c,*.h' : 'default', '*.cc,*.cpp,*.hh' : 'CPP' }
+
+" ----- Fugitive -----
+nnoremap <leader>gs :Gstatus<CR><C-w>20+
+
+" ----- Rainbow Parentheses -----
+au VimEnter * RainbowParenthesesToggle
+au Syntax * RainbowParenthesesLoadRound
+au Syntax * RainbowParenthesesLoadSquare
+au Syntax * RainbowParenthesesLoadBraces
+
+" ----- avro-vim -----
+au BufRead,BufNewFile *.avdl setlocal filetype=avro-idl
 
 " ----- Trailing Whitespace -----
 " Remove trailing whitespace on save
