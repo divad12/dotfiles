@@ -27,12 +27,14 @@
   ci = commit
   br = branch
   df = diff
+  pr = pull --rebase
   dfs = diff --staged
   ls-ignored = ls-files --exclude-standard --ignored --others
   lp = log -p
   bw = blame -w  # Ignore whitespace changes
   outgoing = log origin/master..HEAD
   incoming = "!git fetch $1; git log HEAD..$1/master"
+  ack = grep --break --heading --context 3  --ignore-case
 
 [apply]
   whitespace = fix  # http://stackoverflow.com/questions/591923/make-git-automatically-remove-trailing-whitespace-before-committing
@@ -55,5 +57,8 @@
 	renames = copies
 
 [push]
-  # Push the current branch to its upstream branch if no refspec given, instead of all branches (the default)
-	default = upstream
+  # when pushing without specifying a branch, only current branch will be pushed to the one git pull would normally get code from
+	default = simple
+
+[grep]
+  linenumber = true
