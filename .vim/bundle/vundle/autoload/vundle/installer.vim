@@ -106,7 +106,10 @@ func! vundle#installer#install(bang, name) abort
 endf
 
 func! vundle#installer#docs() abort
-  call vundle#installer#helptags(g:bundles)
+  let error_count = vundle#installer#helptags(g:bundles)
+  if error_count > 0
+      return 'error'
+  endif
   return 'helptags'
 endf
 
@@ -117,11 +120,12 @@ func! vundle#installer#helptags(bundles) abort
   call s:log('')
   call s:log('Helptags:')
 
-  call map(copy(help_dirs), 's:helptags(v:val)')
+  let statuses = map(copy(help_dirs), 's:helptags(v:val)')
+  let errors = filter(statuses, 'v:val == 0')
 
   call s:log('Helptags: '.len(help_dirs).' bundles processed')
 
-  return help_dirs
+  return len(errors)
 endf
 
 func! vundle#installer#list(bang) abort
@@ -134,7 +138,9 @@ endf
 
 func! vundle#installer#clean(bang) abort
   let bundle_dirs = map(copy(g:bundles), 'v:val.path()') 
-  let all_dirs = v:version >= 702 ? split(globpath(g:bundle_dir, '*', 1), "\n") : split(globpath(g:bundle_dir, '*'), "\n")
+  let all_dirs = (v:version > 702 || (v:version == 702 && has("patch51")))
+  \   ? split(globpath(g:bundle_dir, '*', 1), "\n")
+  \   : split(globpath(g:bundle_dir, '*'), "\n")
   let x_dirs = filter(all_dirs, '0 > index(bundle_dirs, v:val)')
 
   if empty(x_dirs)
@@ -163,12 +169,12 @@ endf
 
 func! vundle#installer#delete(bang, dir_name) abort
 
-  let cmd = (has('win32') || has('win64')) ?
+  let cmd = ((has('win32') || has('win64')) && empty(matchstr(&shell, 'sh'))) ?
   \           'rmdir /S /Q' :
   \           'rm -rf'
 
   let bundle = vundle#config#init_bundle(a:dir_name, {})
-  let cmd .= ' '.shellescape(bundle.path())
+  let cmd .= ' '.vundle#installer#shellesc(bundle.path())
 
   let out = s:system(cmd)
 
@@ -187,7 +193,7 @@ endf
 func! s:has_doc(rtp) abort
   return isdirectory(a:rtp.'/doc')
   \   && (!filereadable(a:rtp.'/doc/tags') || filewritable(a:rtp.'/doc/tags'))
-  \   && v:version >= 702
+  \   && (v:version > 702 || (v:version == 702 && has("patch51")))
   \     ? !(empty(glob(a:rtp.'/doc/*.txt', 1)) && empty(glob(a:rtp.'/doc/*.??x', 1)))
   \     : !(empty(glob(a:rtp.'/doc/*.txt')) && empty(glob(a:rtp.'/doc/*.??x')))
 endf
@@ -196,27 +202,27 @@ func! s:helptags(rtp) abort
   let doc_path = a:rtp.'/doc/'
   call s:log(':helptags '.doc_path)
   try
-    helptags `=doc_path`
+    execute 'helptags ' . resolve(doc_path)
   catch
     call s:log("> Error running :helptags ".doc_path)
+    return 0
   endtry
+  return 1
 endf
 
 func! s:sync(bang, bundle) abort
   let git_dir = expand(a:bundle.path().'/.git/', 1)
-  if isdirectory(git_dir)
+  if isdirectory(git_dir) || filereadable(expand(a:bundle.path().'/.git', 1))
     if !(a:bang) | return 'todate' | endif
-    let cmd = 'cd '.shellescape(a:bundle.path()).' && git pull'
+    let cmd = 'cd '.vundle#installer#shellesc(a:bundle.path()).' && git pull && git submodule update --init --recursive'
 
-    if (has('win32') || has('win64'))
-      let cmd = substitute(cmd, '^cd ','cd /d ','')  " add /d switch to change drives
-      let cmd = '"'.cmd.'"'                          " enclose in quotes
-    endif
+    let cmd = g:shellesc_cd(cmd)
 
-    let get_current_sha = 'cd '.shellescape(a:bundle.path()).' && git rev-parse HEAD'
+    let get_current_sha = 'cd '.vundle#installer#shellesc(a:bundle.path()).' && git rev-parse HEAD'
+    let get_current_sha = g:shellesc_cd(get_current_sha)
     let initial_sha = s:system(get_current_sha)[0:15]
   else
-    let cmd = 'git clone '.a:bundle.uri.' '.shellescape(a:bundle.path())
+    let cmd = 'git clone --recursive '.vundle#installer#shellesc(a:bundle.uri).' '.vundle#installer#shellesc(a:bundle.path())
     let initial_sha = ''
   endif
 
@@ -242,6 +248,22 @@ func! s:sync(bang, bundle) abort
 
   call add(g:updated_bundles, [initial_sha, updated_sha, a:bundle])
   return 'updated'
+endf
+
+func! vundle#installer#shellesc(cmd) abort
+  if ((has('win32') || has('win64')) && empty(matchstr(&shell, 'sh')))
+    return '"' . substitute(a:cmd, '"', '\\"', 'g') . '"'
+  endif
+  return shellescape(a:cmd)
+endf
+
+func! g:shellesc_cd(cmd) abort
+  if ((has('win32') || has('win64')) && empty(matchstr(&shell, 'sh')))
+    let cmd = substitute(a:cmd, '^cd ','cd /d ','')  " add /d switch to change drives
+    return cmd
+  else
+    return a:cmd
+  endif
 endf
 
 func! s:system(cmd) abort

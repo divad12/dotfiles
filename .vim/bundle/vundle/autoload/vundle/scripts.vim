@@ -28,7 +28,7 @@ func! s:view_log()
   endif
 
   call writefile(g:vundle_log, g:vundle_log_file)
-  silent pedit `=g:vundle_log_file`
+  execute 'silent pedit ' . g:vundle_log_file
 
   wincmd P | wincmd H
 endf
@@ -39,14 +39,11 @@ func! s:create_changelog() abort
     let updated_sha = bundle_data[1]
     let bundle      = bundle_data[2]
 
-    let cmd = 'cd '.shellescape(bundle.path()).
+    let cmd = 'cd '.vundle#installer#shellesc(bundle.path()).
           \              ' && git log --pretty=format:"%s   %an, %ar" --graph '.
           \               initial_sha.'..'.updated_sha
 
-    if (has('win32') || has('win64'))
-      let cmd = substitute(cmd, '^cd ','cd /d ','')  " add /d switch to change drives
-      let cmd = '"'.cmd.'"'                          " enclose in quotes
-    endif
+    let cmd = g:shellesc_cd(cmd)
 
     let updates = system(cmd)
 
@@ -72,7 +69,7 @@ func! s:view_changelog()
   endif
 
   call writefile(g:vundle_changelog, g:vundle_changelog_file)
-  silent pedit `=g:vundle_changelog_file`
+  execute 'silent pedit ' . g:vundle_changelog_file
 
   wincmd P | wincmd H
 endf
@@ -158,13 +155,13 @@ func! s:fetch_scripts(to)
 
   let l:vim_scripts_json = 'http://vim-scripts.org/api/scripts.json'
   if executable("curl")
-    let cmd = 'curl --fail -s -o '.shellescape(a:to).' '.l:vim_scripts_json
+    let cmd = 'curl --fail -s -o '.vundle#installer#shellesc(a:to).' '.l:vim_scripts_json
   elseif executable("wget")
-    let temp = shellescape(tempname())
-    let cmd = 'wget -q -O '.temp.' '.l:vim_scripts_json. ' && mv -f '.temp.' '.shellescape(a:to)
+    let temp = vundle#installer#shellesc(tempname())
+    let cmd = 'wget -q -O '.temp.' '.l:vim_scripts_json. ' && mv -f '.temp.' '.vundle#installer#shellesc(a:to)
     if (has('win32') || has('win64')) 
-      let cmd = substitute(cmd, 'mv -f ', 'mv /Y ') " change force flag
-      let cmd = '"'.cmd.'"'                         " enclose in quotes so && joined cmds work
+      let cmd = substitute(cmd, 'mv -f ', 'move /Y ', '') " change force flag
+      let cmd = vundle#installer#shellesc(cmd)
     end
   else
     echoerr 'Error curl or wget is not available!'

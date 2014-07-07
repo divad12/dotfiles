@@ -1,5 +1,9 @@
 let g:netrw_dirhistmax  =10
-let g:netrw_dirhist_cnt =3
+let g:netrw_dirhist_cnt =7
 let g:netrw_dirhist_1='/Users/david/dotfiles'
 let g:netrw_dirhist_2='/Users/david/code/khan/khanacademy-stable/khan-exercises'
 let g:netrw_dirhist_3='/Applications/Portal 2 Mac/Steam 4 Portal 2.app/Contents/MacOS/steam'
+let g:netrw_dirhist_4='/Library/org.pqrs/PCKeyboardHack/scripts'
+let g:netrw_dirhist_5='/Users/david/redccnt/code/projects/rmc/server'
+let g:netrw_dirhist_6='/Users/david/redccnt/code/rmc/server'
+let g:netrw_dirhist_7='/Users/david/.rvm/gems/ruby-1.9.3-p362/gems/actionpack-3.2.13/lib/action_view'
