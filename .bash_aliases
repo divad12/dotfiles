@@ -24,7 +24,6 @@ function jsdoc() {
     java -Djsdoc.dir=$JSDOCDIR -jar "$JSDOCDIR"/jsrun.jar "$JSDOCDIR"/app/run.js -t="$JSDOCDIR"/templates/jsdoc -d=doc/ $@
 }
 
-alias lt='ls -lthr'
 alias ll='ls -l'
 alias vm='vim `ls --color=none -t | head -n 1`'
 
@@ -76,6 +75,11 @@ function notify {
 
   return $status
 }
+
+# Stolen from http://cfenollosa.com/misc/tricks.txt
+function psgrep() { ps aux | grep -v grep | grep "$@" -i --color=auto; }
+function lt() { ls -ltrsa "$@" | tail; }
+function fname() { find . -iname "*$@*"; }
 
 # ------------------------------------------------------------------------------
 # directory navigation shortcuts
