@@ -36,12 +36,12 @@ Bundle 'repeat.vim'
 Bundle 'pyflakes'
 Bundle 'Gundo'
 Bundle 'Syntastic'
-Bundle 'css_color.vim'
+Bundle 'ap/vim-css-color'
 Bundle 'HTML5-Syntax-File'
 Bundle 'kien/ctrlp.vim'
 Bundle 'nathanaelkane/vim-indent-guides'
 Bundle 'Lokaltog/vim-powerline'
-Bundle 'delimitMate.vim'
+Bundle 'Raimondi/delimitMate'
 Bundle 'TaskList.vim'
 Bundle 'felixge/vim-nodejs-errorformat'
 Bundle 'EasyGrep'
@@ -52,11 +52,24 @@ Bundle 'nono/vim-handlebars'
 Bundle 'IndexedSearch'
 Bundle 'phleet/vim-arcanist'
 Bundle 'flxf/uCpp.vim'
-Bundle 'Valloric/YouCompleteMe'
 Bundle 'airblade/vim-gitgutter'
 Bundle 'terryma/vim-multiple-cursors'
 Bundle 'kien/rainbow_parentheses.vim'
 Bundle 'dln/avro-vim'
+Bundle 'mattn/zencoding-vim'
+Bundle 'pangloss/vim-javascript'
+Bundle 'tpope/vim-endwise'
+Bundle 'groenewege/vim-less'
+Bundle 'mileszs/ack.vim'
+Bundle 'mxw/vim-jsx'
+Bundle 'editorconfig/editorconfig-vim'
+Bundle 'Shougo/neocomplete.vim'
+
+if v:version >= 703 && has('patch584')
+  " TODO: Get this to not crash vim. Getting Fatal Python error:
+  " PyThreadState_Get: no current thread due to multiple Python installations.
+  "Bundle 'Valloric/YouCompleteMe'
+endif
 
 " Color schemes
 Bundle 'Solarized'
@@ -191,9 +204,9 @@ set showcmd
 
 " Automatically change directories when switching windows
 " TODO(david): Figure out why this breaks fugitive
-"if has("netbeans_intg") || has("sun_workshop")
-"  set autochdir
-"endif
+if has("netbeans_intg") || has("sun_workshop")
+ set autochdir
+endif
 
 " Disable console vim from attepting to connect to the X display, which may
 " slow things down for a few seconds
@@ -427,6 +440,7 @@ nnoremap <leader>gd :GundoToggle<CR>
 let g:syntastic_enable_signs=1
 let g:syntastic_auto_loc_list=0
 let g:syntastic_javascript_checker = "jshint"
+let g:syntastic_python_checkers = ['flake8']
 let g:syntastic_mode_map = { 'mode': 'active',
                            \ 'active_filetypes': [],
                            \ 'passive_filetypes': ['sass', 'scss'] }
@@ -499,6 +513,41 @@ au VimEnter * RainbowParenthesesToggle
 au Syntax * RainbowParenthesesLoadRound
 au Syntax * RainbowParenthesesLoadSquare
 au Syntax * RainbowParenthesesLoadBraces
+
+" ----- YouCompleteMe -----
+function! DisableYcm()
+  let &l:ycm_min_num_of_chars_for_completion = 9999
+endfunction
+au Filetype tex call DisableYcm()
+
+" ----- NeoComplete -----
+" Use NeoComplete
+let g:neocomplete#enable_at_startup = 1
+
+" Use smartcase.
+let g:neocomplete#enable_smart_case = 1
+
+" Set minimum syntax keyword length.
+let g:neocomplete#sources#syntax#min_keyword_length = 3
+let g:neocomplete#lock_buffer_name_pattern = '\*ku\*'
+
+" Choose candidate on <tab>
+inoremap <expr><TAB>  pumvisible() ? "\<C-n>" : "\<TAB>"
+
+" <CR>: close popup and save indent.
+inoremap <silent> <CR> <C-r>=<SID>my_cr_function()<CR>
+function! s:my_cr_function()
+  "return neocomplete#close_popup() . "\<CR>"
+  return pumvisible() ? neocomplete#close_popup() : "\<CR>"
+endfunction
+
+" <C-h>, <BS>: close popup and delete backword char.
+inoremap <expr><C-h> neocomplete#smart_close_popup()."\<C-h>"
+inoremap <expr><BS> neocomplete#smart_close_popup()."\<C-h>"
+inoremap <expr><C-y>  neocomplete#close_popup()
+inoremap <expr><C-e>  neocomplete#cancel_popup()
+
+" TODO: Get this to work with Jedi-vim.
 
 " ----- avro-vim -----
 au BufRead,BufNewFile *.avdl setlocal filetype=avro-idl
