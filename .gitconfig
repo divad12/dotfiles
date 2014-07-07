@@ -1,6 +1,9 @@
 # TODO: https://github.com/rtomayko/dotfiles/blob/rtomayko/.gitconfig
 # TODO: http://stackoverflow.com/questions/267761/what-does-your-gitconfig-contain
 
+[include]
+  path = .gitconfig.khan
+
 [core]
   editor = /usr/bin/vim  # http://tooky.github.com/2010/04/08/there-was-a-problem-with-the-editor-vi-git-on-mac-os-x.html
   whitespace = trailing-space,space-before-tab  # http://stackoverflow.com/questions/591923/make-git-automatically-remove-trailing-whitespace-before-committing
@@ -21,7 +24,7 @@
   autosetupmerge = always
 
 [alias]
-  co = checkout
+  ;co = checkout
   graph = log --graph --decorate --oneline --pretty=format:"%h%x20%Cgreen%d%x20%Cred%an%x20%Cblue%ad%x20%Creset%s" --all --full-history --date=short
   st = status
   ci = commit
@@ -34,13 +37,13 @@
   bw = blame -w  # Ignore whitespace changes
   outgoing = log origin/master..HEAD
   incoming = "!git fetch $1; git log HEAD..$1/master"
-  ack = grep --break --heading --context 3  --ignore-case
+  ack = grep --break --heading --context 3 --ignore-case --line-number
 
 [apply]
   whitespace = fix  # http://stackoverflow.com/questions/591923/make-git-automatically-remove-trailing-whitespace-before-committing
 
 [merge]
-  tool = vimdiff
+  tool = opendiff
 
   # Always show a diffstat at the end of a merge
 	stat = true
@@ -59,6 +62,3 @@
 [push]
   # when pushing without specifying a branch, only current branch will be pushed to the one git pull would normally get code from
 	default = simple
-
-[grep]
-  linenumber = true
