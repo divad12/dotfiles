@@ -62,6 +62,21 @@ function fpaste() {
   done < /tmp/fclipboard
 }
 
+# Announces result of last run command.
+# eg. `some_long_command; notify`
+function notify {
+  status=$?
+  if [ $status -eq 0 ]; then
+    echo -e "\033[1;32m[ DONE ]\033[0m"
+    ( say -v Cellos `printf "%0.s done" {1..26}` & )
+  elif [ $status -ne 130 ]; then  # Ignore exit with Ctrl-C
+    echo -e "\033[1;31m[ ERROR $status ]\033[0m"
+    ( say "Oh noes, exit code $status" & )
+  fi
+
+  return $status
+}
+
 # ------------------------------------------------------------------------------
 # directory navigation shortcuts
 # ------------------------------------------------------------------------------
