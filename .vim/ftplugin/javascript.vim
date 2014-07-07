@@ -1,3 +1,1 @@
-" Khan Academy style guidelines: 4-space indents
-" https://sites.google.com/a/khanacademy.org/forge/for-developers/styleguide/javascript
-setlocal expandtab sts=4 sw=4 ts=4
+setlocal expandtab sts=2 sw=2 ts=2
