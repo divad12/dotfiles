@@ -64,6 +64,7 @@ Bundle 'mileszs/ack.vim'
 Bundle 'mxw/vim-jsx'
 Bundle 'editorconfig/editorconfig-vim'
 Bundle 'Shougo/neocomplete.vim'
+Bundle 'AndrewRadev/splitjoin.vim'
 
 if v:version >= 703 && has('patch584')
   " TODO: Get this to not crash vim. Getting Fatal Python error:
