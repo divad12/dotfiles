@@ -29,10 +29,15 @@ alias vm='vim `ls --color=none -t | head -n 1`'
 
 alias m='mvim'
 alias g='git'
+alias gti='git'
 alias h='hg'
 alias pyserve='python -m SimpleHTTPServer'
 alias pdfserve='latexmk -pdf -pvc'
 alias myip="curl icanhazip.com"
+alias ad="arc diff"
+alias adv="arc diff --verbatim"
+alias gac="git ack"
+alias rni="react-native run-ios"
 
 function mr() {
     echo "$1/$('ls' -t $1 | head -n 1)";
@@ -81,6 +86,15 @@ function psgrep() { ps aux | grep -v grep | grep "$@" -i --color=auto; }
 function lt() { ls -ltrsa "$@" | tail; }
 function fname() { find . -iname "*$@*"; }
 
+function git-reference() {
+    git branch --set-upstream-to="$1"
+    git rebase -i "$1"
+}
+
+function git-reference-master() {
+    git-reference "master"
+}
+
 # ------------------------------------------------------------------------------
 # directory navigation shortcuts
 # ------------------------------------------------------------------------------
@@ -125,4 +139,11 @@ function down() {
 # make directory and cd to it
 function md() {
     mkdir -p $1 && cd $1
+}
+
+# Schedule sleep in X minutes, use like: sleep-in 60
+function sleep-in() {
+  local minutes=$1
+  local datetime=`date -v+${minutes}M +"%m/%d/%y %H:%M:%S"`
+  sudo pmset schedule sleep "$datetime"
 }
