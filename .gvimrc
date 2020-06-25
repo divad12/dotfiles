@@ -11,9 +11,9 @@ set lines=100 columns=400
 " Font on Mac
 if has("unix")
     if system("uname") == "Darwin\n"
-        "set guifont=Menlo:h12
-        set guifont=Bitstream\ Vera\ Sans\ Mono:h12
-        set guifont=Bitstream\ Vera\ Sans\ Mono\ for\ Powerline:h12
+        set guifont=Menlo:h14
+        "set guifont=Bitstream\ Vera\ Sans\ Mono:h14
+        "set guifont=Bitstream\ Vera\ Sans\ Mono\ for\ Powerline:h14
     endif
 endif
 
