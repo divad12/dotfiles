@@ -3,6 +3,8 @@
 # for examples
 
 # TODO: Clean up all this mess. Place into different sections, and merge in .bash_aliases
+# TODO: Move this stuff to bash profile so we don't run all this stuff on each
+# shell
 
 source /etc/profile
 
@@ -50,7 +52,7 @@ alias grep='grep --color=always -n' # Alias instead of env var so as not to brea
 
 # Less syntax higlighting - from http://linux-tips.org/article/78/syntax-highlighting-in-less
 export LESSOPEN="| /usr/local/bin/src-hilite-lesspipe.sh %s"
-export LESS=' -RF'
+export LESS=' -R'
 
 # some more ls aliases
 alias ll='ls -l'
@@ -146,6 +148,16 @@ if [ -f /etc/bash_completion ]; then
     . /etc/bash_completion
 fi
 
+if [ -f ~/bin/source/git-completion.bash ]; then
+    . ~/bin/source/git-completion.bash
+fi
+
+if [ -f ~/bin/source/git-prompt.bash ]; then
+    . ~/bin/source/git-prompt.bash
+fi
+
+source ~/bin/source/*
+
 # "Feature detection" of OS X homebrew
 if command -v brew > /dev/null; then
 
@@ -166,4 +178,20 @@ if command -v brew > /dev/null; then
 
 fi
 
-source ~/bin/git-prompt.sh
+# Khan Academy stuff
+if [ -s ~/.bashrc.khan ]; then
+    source ~/.bashrc.khan
+fi
+
+PATH=$PATH:$HOME/.rvm/bin # Add RVM to PATH for scripting
+
+# From http://stackoverflow.com/questions/8663936
+[[ -s "$HOME/.rvm/scripts/rvm" ]] && . "$HOME/.rvm/scripts/rvm"
+
+# Add npm package bin path
+PATH="$PATH:/usr/local/share/npm/bin"
+
+# Have homebrew bins take precendence (in particular, use homebrew-managed git)
+PATH="/usr/local/bin:$PATH"
+
+export PATH="$PATH:$HOME/android-sdks/platform-tools/:$HOME/android-sdks/tools/"

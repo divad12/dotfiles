@@ -45,7 +45,7 @@ Bundle 'Raimondi/delimitMate'
 Bundle 'TaskList.vim'
 Bundle 'felixge/vim-nodejs-errorformat'
 Bundle 'EasyGrep'
-Bundle 'gregsexton/MatchTag'
+"Bundle 'gregsexton/MatchTag'
 Bundle 'tpope/vim-abolish'
 Bundle 'python_match.vim'
 Bundle 'nono/vim-handlebars'
@@ -56,21 +56,24 @@ Bundle 'airblade/vim-gitgutter'
 Bundle 'terryma/vim-multiple-cursors'
 Bundle 'kien/rainbow_parentheses.vim'
 Bundle 'dln/avro-vim'
-Bundle 'mattn/zencoding-vim'
+"Bundle 'mattn/zencoding-vim'
 Bundle 'pangloss/vim-javascript'
 Bundle 'tpope/vim-endwise'
 Bundle 'groenewege/vim-less'
 Bundle 'mileszs/ack.vim'
 Bundle 'mxw/vim-jsx'
 Bundle 'editorconfig/editorconfig-vim'
-Bundle 'Shougo/neocomplete.vim'
 Bundle 'AndrewRadev/splitjoin.vim'
+Bundle 'othree/javascript-libraries-syntax.vim'
+Bundle 'posva/vim-vue'
+Bundle 'leafgarland/typescript-vim'
+Bundle 'peitalin/vim-jsx-typescript'
 
-if v:version >= 703 && has('patch584')
-  " TODO: Get this to not crash vim. Getting Fatal Python error:
-  " PyThreadState_Get: no current thread due to multiple Python installations.
-  "Bundle 'Valloric/YouCompleteMe'
-endif
+"if v:version >= 704
+"  " TODO: Get this to not crash vim. Getting Fatal Python error:
+"  " PyThreadState_Get: no current thread due to multiple Python installations.
+"  Bundle 'Valloric/YouCompleteMe'
+"endif
 
 " Color schemes
 Bundle 'Solarized'
@@ -551,34 +554,7 @@ function! DisableYcm()
 endfunction
 au Filetype tex call DisableYcm()
 
-" ----- NeoComplete -----
-" Use NeoComplete
-let g:neocomplete#enable_at_startup = 1
-
-" Use smartcase.
-let g:neocomplete#enable_smart_case = 1
-
-" Set minimum syntax keyword length.
-let g:neocomplete#sources#syntax#min_keyword_length = 3
-let g:neocomplete#lock_buffer_name_pattern = '\*ku\*'
-
-" Choose candidate on <tab>
-inoremap <expr><TAB>  pumvisible() ? "\<C-n>" : "\<TAB>"
-
-" <CR>: close popup and save indent.
-inoremap <silent> <CR> <C-r>=<SID>my_cr_function()<CR>
-function! s:my_cr_function()
-  "return neocomplete#close_popup() . "\<CR>"
-  return pumvisible() ? neocomplete#close_popup() : "\<CR>"
-endfunction
-
-" <C-h>, <BS>: close popup and delete backword char.
-inoremap <expr><C-h> neocomplete#smart_close_popup()."\<C-h>"
-inoremap <expr><BS> neocomplete#smart_close_popup()."\<C-h>"
-inoremap <expr><C-y>  neocomplete#close_popup()
-inoremap <expr><C-e>  neocomplete#cancel_popup()
-
-" TODO: Get this to work with Jedi-vim.
+let g:ycm_autoclose_preview_window_after_completion = 1
 
 " ----- avro-vim -----
 au BufRead,BufNewFile *.avdl setlocal filetype=avro-idl

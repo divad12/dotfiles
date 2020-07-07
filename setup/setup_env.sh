@@ -63,3 +63,8 @@
 # node + nginx deployment on EC2: http://cuppster.com/2011/05/12/diy-node-js-server-on-amazon-ec2/
   # using upstart -- http://cuppster.com/2011/05/18/using-supervisor-with-upstart/
 # adding a deamon to run on start-up in linux: http://linuxhelp.blogspot.com/2006/04/enabling-and-disabling-services-during_01.html
+
+# Install matcher for vim: https://github.com/burke/matcher.git
+
+# Set up YouCompleteMe vim plugin:
+cmake -G 'Unix Makefiles' . ~/.vim/bundle/YouCompleteMe/cpp

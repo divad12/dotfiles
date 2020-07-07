@@ -26,11 +26,16 @@
 [alias]
   ;co = checkout
   graph = log --graph --decorate --oneline --pretty=format:"%h%x20%Cgreen%d%x20%Cred%an%x20%Cblue%ad%x20%Creset%s" --all --full-history --date=short
+  slog = log --oneline --pretty=format:"%h%x20%x20%Cred%an%x20%Cblue%ad%x20%Creset%s" --date=short
   st = status
   ci = commit
+  co = checkout
   br = branch
   df = diff
   pr = pull --rebase
+  cam = commit -a --amend -C HEAD
+  p = pull
+  m = merge
   dfs = diff --staged
   ls-ignored = ls-files --exclude-standard --ignored --others
   lp = log -p
@@ -62,3 +67,7 @@
 [push]
   # when pushing without specifying a branch, only current branch will be pushed to the one git pull would normally get code from
 	default = simple
+[init]
+	templatedir = /Users/david/.git-templates
+[kaclone]
+	email = david@khanacademy.org

@@ -115,6 +115,10 @@ bind ^\
 bind \\
 bind ^h
 bind h
+bind d
+bind D
+bind ^d
+bind ^D
 #make them better
 bind 'K' kill
 #bind 'I' login on

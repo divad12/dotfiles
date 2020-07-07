@@ -22,6 +22,8 @@
 --type-add=html=.handlebars,.tmpl
 --type-set=jst=.jst
 --type-set=json=.json
+--type-set=less=.less
+--type-set=jsx=.jsx
 
 ################################################################################
 # Khan Academy specific
