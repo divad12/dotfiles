@@ -9,17 +9,19 @@ Maintain a PROGRESS.md file at the project root to track work across sessions.
 
 ### At the end of each session (or when asked to "save progress"):
 
-Update PROGRESS.md with this format:
+Update PROGRESS.md in place (don't append per-session sections). Replace transient sections (Current State, Next Steps, Blockers) with latest info. Accumulate entries in Decisions and Problems & Solutions.
+
+Template:
 ```
 # Project Progress
 
 ## Last Updated
-[Date/time]
+[Date]
 
 ## Completed
-- [ ] Feature 1
-- [x] Feature 2 (done)
-- etc.
+- [x] Feature 2
+- [x] Feature 1
+- etc. (most recent first)
 
 ## Current State
 What's working, what's broken, where we left off.
@@ -27,14 +29,27 @@ What's working, what's broken, where we left off.
 ## Next Steps
 1. Immediate next task
 2. Following tasks
-3. etc.
 
 ## Blockers / Open Questions
 Anything unresolved.
 
-## Recent Decisions
-Any architecture or design choices made this session.
+## Key Files
+Files Claude should read first to understand the project.
+- `path/to/important/file` — why it matters
+
+## Decisions
+Cumulative log of architecture and design choices. Keep these — they prevent re-debating.
+- [Date] Decision description and rationale
+- [Date] Another decision
+
+## Problems & Solutions
+Cumulative log of non-obvious problems and how they were solved. Prevents re-debugging.
+- [Date] **Problem**: description. **Fix**: what resolved it.
 ```
+
+### Housekeeping:
+- If a decision is reversed, update or remove the old entry
+- Remove Problems & Solutions entries that are no longer relevant (e.g. the tech was replaced)
 
 ### When starting a new session:
 
