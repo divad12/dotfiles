@@ -1,6 +1,6 @@
 ---
 name: deep-review
-description: "Run a thorough four-way code review: Claude's own diff analysis, a simplification/code-quality pass, Codex review, and a UI usability review (if frontend changes are present) - all in parallel. Consolidates findings, auto-fixes must-fix and easy-win items, runs a verification round, then presents remaining suggestions. Use when the user says 'deep review', 'thorough review', 'full review', 'triple review', or 'ultra review'."
+description: "Run a thorough five-way code review: collateral change audit, Claude's own diff analysis, a simplification/code-quality pass, Codex review, and a UI usability review (if frontend changes are present) - all in parallel. Consolidates findings, auto-fixes must-fix and easy-win items, flags collateral changes for user decision, runs a verification round, then presents remaining suggestions. Use when the user says 'deep review', 'thorough review', 'full review', 'triple review', or 'ultra review'."
 user-invocable: true
 ---
 
@@ -12,12 +12,13 @@ The value of multi-agent review is that each reviewer has a different perspectiv
 
 ## Overview
 
-This skill orchestrates a comprehensive review by combining up to four perspectives:
+This skill orchestrates a comprehensive review by combining up to five perspectives:
 
-1. **Claude review** - diff analysis, correctness, conventions, code quality
-2. **Simplify pass** - code reuse opportunities, unnecessary complexity, efficiency, dead code
-3. **Codex review** - independent AI review with fresh eyes (no shared context with the coding agent)
-4. **UI review** - usability, accessibility, and design quality (only when frontend files are changed)
+1. **Collateral change audit** - flag changes to existing behavior that aren't required by the feature
+2. **Claude review** - diff analysis, correctness, conventions, code quality
+3. **Simplify pass** - code reuse opportunities, unnecessary complexity, efficiency, dead code
+4. **Codex review** - independent AI review with fresh eyes (no shared context with the coding agent)
+5. **UI review** - usability, accessibility, and design quality (only when frontend files are changed)
 
 After all reviews complete, findings are consolidated, deduplicated, and categorized for action.
 
@@ -44,6 +45,20 @@ Also check whether frontend files are in the diff (`.tsx`, `.jsx`, `.css`, `.scs
 ### 2. Launch all reviews in parallel
 
 Run these simultaneously. Do NOT wait for one to finish before starting the next.
+
+#### Review 0: Collateral change audit (run inline, in parallel with other reviews)
+
+Examine every changed file in the diff and ask: "Is this change strictly required for the feature being reviewed, or does it modify existing working behavior?"
+
+For each hunk in pre-existing files, check:
+- **Styling changes** - colors, spacing, borders, fonts that aren't part of the feature
+- **Logic changes** - conditionals, data flow, API calls that aren't needed for the feature
+- **Removed code** - imports, props, state, functions removed but not replaced by the feature
+- **Renamed/restructured code** - refactors bundled into feature work
+- **Config/docs changes** - CLAUDE.md, package.json, tsconfig changes unrelated to the feature
+- **Leaked worktree changes** - modifications from other branches that got picked up
+
+Flag each collateral change with the file path and a brief explanation of what it changes and why it's unrelated to the feature. These go into a dedicated **Collateral Changes** section in the consolidated review (not auto-fixed - always presented for user decision on whether to keep or revert).
 
 #### Review 1: Claude's own review (run inline)
 
@@ -135,9 +150,12 @@ Once all reviews are complete, merge the results:
    ```
    ## Deep Review Summary
 
-   Reviewed by: Claude (diff + simplify), Codex[, UI review]
+   Reviewed by: Claude (diff + simplify + collateral audit), Codex[, UI review]
    Scope: [uncommitted changes / branch diff against main]
    Files changed: [count] ([N] frontend)
+
+   ### Collateral Changes (for your decision)
+   - [ ] file:line - what changed and why it's unrelated to the feature
 
    ### Must Fix (auto-fixing)
    - [ ] Issue description - file:line - what's wrong and how it's being fixed
@@ -190,7 +208,7 @@ After auto-fixes and verification are complete, present the "Suggestions" catego
 ## Rules
 
 - **Never commit during a review.** All fixes are left as uncommitted changes.
-- **Never auto-fix suggestions.** Only must-fix and easy-win items get auto-fixed.
+- **Never auto-fix suggestions or collateral changes.** Only must-fix and easy-win items get auto-fixed. Collateral changes are always presented for user decision (keep or revert).
 - **If Codex is unavailable or fails**, proceed with the Claude-side reviews. Note that Codex was skipped in the summary.
 - **If no frontend files changed**, skip the UI review entirely. Don't mention it in the summary.
 - **Respect project conventions.** Check CLAUDE.md for project-specific rules and flag violations.
