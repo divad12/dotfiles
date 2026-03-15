@@ -194,4 +194,6 @@ PATH="$PATH:/usr/local/share/npm/bin"
 # Have homebrew bins take precendence (in particular, use homebrew-managed git)
 PATH="/usr/local/bin:$PATH"
 
+PATH="$HOME/Library/Python/3.6/bin:$PATH"
+
 export PATH="$PATH:$HOME/android-sdks/platform-tools/:$HOME/android-sdks/tools/"

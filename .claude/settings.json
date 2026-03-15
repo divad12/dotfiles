@@ -3,5 +3,16 @@
     "commit": "",
     "pr": ""
   },
-  "skipDangerousModePermissionPrompt": true
+  "extraKnownMarketplaces": {
+    "hamel-review": {
+      "source": {
+        "source": "github",
+        "repo": "hamelsmu/claude-review-loop"
+      }
+    }
+  },
+  "skipDangerousModePermissionPrompt": true,
+  "enabledPlugins": {
+    "review-loop@hamel-review": true
+  }
 }
