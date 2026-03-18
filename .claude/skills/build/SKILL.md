@@ -43,13 +43,16 @@ This skill is meant to run many times in parallel. Every step should justify its
 
 ### 1. Set up the workspace
 
-Run the `/new-session` skill to set up the worktree, env files, symlinked node_modules, and a unique port.
+Run the `/new-session` skill to set up the worktree, env files, symlinked node_modules, and a unique port. **Remember the assigned port number** - you must use it for the dev server, all localhost URLs, and every `AskUserQuestion` prompt throughout the entire session.
 
 ### 2. Understand the task
 
 Read the task description. Before writing any code:
 
-- **Check for embedded skill references.** If the task description mentions another skill (e.g. `/spec-interview`, `/frontend-design`), read that skill's SKILL.md file and follow its process inline as a pre-step before implementing. For example, `/build /spec-interview draggable pinned times` means: read the spec-interview skill, follow its interview/spec process to clarify requirements, then implement the result. Note: skills can't invoke other skills via the Skill tool, so read the file directly and execute the steps yourself.
+- **Check for embedded skill references.** If the task description mentions `/spec-interview`, run the spec interview process (below) before implementing. If it mentions another skill (e.g. `/frontend-design`), read that skill's SKILL.md and follow its process inline. Note: skills can't invoke other skills via the Skill tool, so read the file directly and execute the steps yourself.
+
+  **Spec interview process** (when `/spec-interview` is in the task description):
+  Use `AskUserQuestion` to interview the user about the feature. Start with hard questions (UI/UX decisions, edge cases, error states, tradeoffs). Cover: core user flow, data model changes, API surface, component hierarchy, loading/empty/error states, integration with existing features, and what's out of scope. Each round: 1-4 focused questions, option-based when alternatives are clear. Keep going until no ambiguity remains. Then write `SPEC.md` at project root (Overview, User Flow, UI Design, Data Model, API, Edge Cases, Out of Scope, Open Questions) and display it for review before implementing.
 - Read CLAUDE.md and PROGRESS.md for project context and conventions
 - Identify which parts of the codebase are relevant (explore files, read existing patterns)
 - Figure out if there are critical tradeoffs or ambiguities
@@ -58,21 +61,9 @@ Read the task description. Before writing any code:
 
 ### 2b. Clarify (only if needed)
 
-After understanding the task, if there are genuinely ambiguous questions where the answer would meaningfully change your implementation, use `AskUserQuestion` to ask them before building. This is NOT a requirements interview. The bar is high:
+After understanding the task, if you have useful questions that would help you build a better first pass, use `AskUserQuestion` to ask them before building. Keep it to 2-3 focused questions max, bundled in a single prompt. Include what you'd do by default for each question, so the user can just say "go with your defaults" and you proceed immediately.
 
-**Ask when:**
-- The task description is ambiguous in a way that leads to two very different implementations
-- A hard-to-reverse decision (schema, new dependency) depends on user intent that isn't clear
-- The scope is unclear enough that you might build the wrong thing entirely
-
-**Don't ask when:**
-- You can make a reasonable guess and note the decision (most cases)
-- The question is about a reversible choice (layout, naming, styling)
-- You'd be asking just to feel thorough. Bias toward action.
-
-If you do ask, keep it to 2-3 focused questions max. Bundle them in a single `AskUserQuestion` prompt. Include what you'd do by default if they don't answer, so they can just say "go with your defaults" and you proceed immediately.
-
-Most tasks won't need this step. Skip it and go straight to implementing.
+Skip this step if the task is clear enough to just start building.
 
 ### 3. Implement
 
@@ -99,7 +90,7 @@ Include the critique summary (what was acted on, skipped, and could still improv
 
 ### 5. Quick review
 
-Run two things in parallel:
+Run three things in parallel:
 
 **Inline checks** (yourself):
 - Type errors (`npx tsc --noEmit`)
@@ -107,12 +98,17 @@ Run two things in parallel:
 - Obvious bugs, missing error handling, security issues
 - Convention violations from CLAUDE.md
 
-**Codex review** (background, cheap):
+**Codex code review** (background, cheap):
 ```bash
 codex review --uncommitted
 ```
 
-Fix anything either finds. Codex is a separate API and costs very little, but catches things you might miss since it reviews with fresh eyes and no shared context from the implementation.
+**Codex UI review** (background, cheap - only if task has frontend changes):
+```bash
+codex review --uncommitted "Review this as a UI/UX expert. Focus on: visual hierarchy and layout quality, spacing/alignment consistency, interactive states (hover, focus, disabled, loading, empty, error), form UX (required field markers, inline validation, submit button text, Enter key support), accessibility (contrast, keyboard nav, screen reader), responsive behavior, and overall polish. Flag anything that looks generic, unfinished, or inconsistent with a polished SaaS product. Be specific - reference exact components and elements."
+```
+
+Fix anything the reviews find. Codex is a separate API and costs very little, but catches things you might miss since it reviews with fresh eyes and no shared context from the implementation.
 
 ### 6. Present and prompt
 
@@ -145,28 +141,48 @@ URL: http://localhost:<PORT>/[relevant-path]
 - [Polish opportunities, alternative approaches considered]
 ```
 
-Then **always** use `AskUserQuestion` to prompt for next steps. This triggers the blue dot so the user knows this session needs attention. Present options that make sense for the current state, with your recommended next step first (append "(Recommended)" to its label):
+Then **always** use `AskUserQuestion` to prompt for next steps. This triggers the blue dot so the user knows this session needs attention.
 
-Options to choose from (include the ones that make sense):
-- **Run UI critique** - "Run another round of UI/UX critique and polish"
-- **Review** - "Quick review: inline checks + Codex"
+**Critical: the `AskUserQuestion` dialog covers the conversation text behind it.** The user may not be able to read the text summary above. So the prompt text inside `AskUserQuestion` must be self-contained. Include:
+- The **test URL** (so they can click it directly from the dialog)
+- A **brief summary** of what was built and key decisions
+- What to test
+
+Example prompt text:
+```
+Build complete. Test at http://localhost:3001/events/123/guests
+
+What I built: Guest assignment UI with drag-and-drop between legs, bulk import from CSV, and inline editing. Decisions: used dnd-kit for drag (already in deps), CSV parsing with papaparse (new dep).
+
+Key things to test: drag guests between legs, import a CSV, edit a guest inline, try with empty state.
+```
+
+Present options that make sense for the current state. Track internally whether a review has been run (the quick review in step 5 counts, or any user-requested review/deep-review).
+
+**HARD RULE: Never include "Ship" or "Done" as options until at least one review has been run.** Before any review, the options should be review-oriented. After a review passes, Ship/Done can appear.
+
+**Before any review has run** - use these options (pick 3-4 that fit):
+- **Give feedback** - "I have specific changes or concerns"
+- **Review (Recommended)** - "Quick review: inline checks + Codex code review"
 - **Deep review** - "Full 5-way deep review (collateral, code, simplify, Codex, UI)"
-- **Ship** - "Commit and merge to main, keep session open"
-- **Done** - "Ship + close session (commit, merge, tear down worktree)"
-- **Give feedback** - "I have specific changes I want" (always include this as the last option)
+- **Run UI critique** - "Run another round of UI/UX critique and polish"
+- **Codex UI review** - "Get Codex's take on the UI/UX (cheap, fresh eyes)"
 
-For the initial presentation after building, recommend "Give feedback" or "Review" depending on complexity. After the user has already iterated and seems happy, recommend "Ship" or "Done".
+**After at least one review has passed** - use these options (pick 3-4 that fit):
+- **Ship (Recommended)** - "Commit and merge to main, keep session open"
+- **Done** - "Ship + close session (commit, merge, tear down worktree)"
+- **Give feedback** - "I have specific changes or concerns"
+- **Deep review** - "Full 5-way deep review (collateral, code, simplify, Codex, UI)"
 
 ### 7. Feedback loop
 
 Based on the user's selection:
 
-- **Give feedback** (or they type free text) - implement the feedback, then do a quick visual sanity check (screenshot the affected area, confirm the fix looks right, check nothing nearby broke). This is NOT a full `/critique` - just a fast inline screenshot + eyeball. After implementing, always re-prompt with `AskUserQuestion` again. Every prompt must include:
-  1. The localhost URL (so they can click straight to it)
-  2. A brief summary of what just changed and what to test now
-  3. The next-step options
+- **Give feedback** (or they type free text) - implement the feedback, then do a quick visual sanity check (screenshot the affected area, confirm the fix looks right, check nothing nearby broke). This is NOT a full `/critique` - just a fast inline screenshot + eyeball. After implementing, always re-prompt with `AskUserQuestion` again. The prompt must be self-contained (URL, what changed, what to test) since the dialog covers the conversation behind it.
 
 - **Run UI critique** - run the full `/critique` skill (all 7 sections, multi-round). This is the expensive visual review. Only when explicitly selected, re-prompt after.
+
+- **Codex UI review** - run Codex with UI/UX-focused prompt (same as the one in step 5). Cheap and fast. Fix what it finds, re-prompt.
 
 - **Review** - run Codex review + inline checks, fix findings, re-prompt.
 
@@ -189,12 +205,9 @@ The session is over.
 
 Every time you finish a chunk of work (initial build, feedback iteration, review fixes), use `AskUserQuestion` to hand control back to the user. This is the primary notification mechanism - it triggers the blue dot in Claude Code's session list.
 
-**Always include in the prompt text (before the options):**
-- The localhost URL
-- What was just done / changed
-- What to test now
+**The dialog covers the conversation behind it.** The user can't easily read your text output while the dialog is open. So the `AskUserQuestion` prompt must be **self-contained** - include the URL, a summary of what changed, and what to test. Don't rely on text you output before the dialog.
 
-**Also use `AskUserQuestion` in step 2** if you hit a hard-to-reverse tradeoff and need a decision before proceeding.
+**Also use `AskUserQuestion` in step 2b** if you have useful clarifying questions before implementing.
 
 ## Rules
 
