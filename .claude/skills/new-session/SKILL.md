@@ -99,3 +99,14 @@ For the rest of this session, whenever you start a dev server (e.g. `npm run dev
 - If all ports 3001-3010 are taken, something is probably wrong. Flag it to the user rather than going higher.
 - Port lock files live in `$MAIN_REPO/.claude/ports/` (e.g. `.claude/ports/3001` contains the branch name). Both `new-session` and `close-session` maintain these.
 - **Stale entries:** If a session crashed without running `close-session`, its lock file stays. The `lsof` check in step 5 handles this - if a claimed port has no process on it, it's safe to reuse. Delete the stale lock file and create a new one for your branch.
+
+## Test data isolation
+
+Multiple worktrees share the same database. To avoid conflicts (e.g. one worktree re-seeds while another is testing), **create worktree-specific test data** instead of relying on the shared seed.
+
+- When you need test data, create a new top-level entity (e.g. an Event in Journology) named after the branch: `"WT: fervent-goodall"` or `"WT: <branch-name>"`.
+- Build all your test data under that entity. Never modify or depend on shared seed data.
+- When testing in the browser or writing e2e tests, filter to your worktree's entity.
+- This way multiple worktrees can test concurrently without stepping on each other.
+
+**Schema migrations are the exception.** If your feature requires `prisma db push` with breaking changes, coordinate with other active sessions. Check `git worktree list` to see if other worktrees exist and warn the user before pushing schema changes.
