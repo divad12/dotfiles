@@ -99,20 +99,25 @@ Use the `run_in_background` option so it runs concurrently with your own analysi
 
 #### Review 4: UI review (run as subagent, only if frontend files changed)
 
-If the diff includes frontend files (`.tsx`, `.jsx`, `.css`, `.scss`, or component/layout/page files), launch a subagent in the background to do a UI-focused review. The subagent should:
+If the diff includes frontend files (`.tsx`, `.jsx`, `.css`, `.scss`, or component/layout/page files), launch a subagent in the background to do a UI-focused review. The subagent uses **Playwright MCP** to actually interact with the running app - not just read code. It should:
 
-1. Read the changed frontend files
-2. If a dev server is running, use `playwright-cli` to take screenshots and visually inspect the affected pages
-3. Check the browser console for errors
+1. Read the changed frontend files to understand what was modified
+2. If a dev server is running, use Playwright MCP to navigate to affected pages:
+   - `browser_navigate` to the relevant URL
+   - `browser_take_screenshot` for visual layout assessment
+   - `browser_snapshot` for accessibility tree / content verification
+3. **Interact with the UI** - click buttons, fill forms, hover over elements, tab through:
+   - `browser_click`, `browser_type`, `browser_hover`, `browser_press_key`
+   - Take snapshots/screenshots after interactions to verify behavior
 4. Review against these criteria:
    - **Visual hierarchy and layout** - spacing, alignment, clear entry points
-   - **Interactive states** - loading, empty, error, hover, focus, disabled
-   - **Accessibility** - contrast ratios (WCAG AA), keyboard navigation, screen reader support, `prefers-reduced-motion`
+   - **Interactive states** - loading, empty, error, hover, focus, disabled (actually trigger each one)
+   - **Accessibility** - contrast ratios (WCAG AA), keyboard navigation (tab through the page), screen reader support (check snapshot roles/labels), `prefers-reduced-motion`
    - **UX patterns** - are interactions intuitive? Do forms validate clearly? Are destructive actions confirmed?
    - **Component API** - are props well-named and minimal? Is the component doing too much?
 5. Be specific about findings. Reference file paths and line numbers.
 
-This is better than delegating to Codex because the subagent has direct access to the codebase, can render the actual UI, and catch visual issues that code-only review misses.
+This is better than delegating to Codex because the subagent has direct access to the codebase, can render and interact with the actual UI, and catch behavioral issues that code-only review misses.
 
 Skip this review entirely if no frontend files are in the diff.
 

@@ -92,29 +92,53 @@ Open the page and take a screenshot. Before analyzing details, answer:
 
 ## How to run
 
+Use **Playwright MCP** tools for all browser interaction. These give you a real browser you can click, type, and navigate - not just screenshots.
+
+### Tool reference
+
+| Tool | Purpose |
+|------|---------|
+| `browser_navigate` | Go to a URL |
+| `browser_snapshot` | Get accessibility tree (fast, cheap - use for structure/content checks) |
+| `browser_take_screenshot` | Get visual screenshot (use for layout/design checks) |
+| `browser_click` | Click an element (by text, role, or ref from snapshot) |
+| `browser_type` | Type into a field |
+| `browser_tab_navigate_back` | Browser back button |
+| `browser_press_key` | Press keys (Tab, Enter, Escape, etc.) |
+| `browser_hover` | Hover over an element |
+| `browser_resize` | Resize viewport |
+
+### Steps
+
 1. **Make sure the dev server is running.** Check `launch.json` for the port.
 
-2. **Navigate and screenshot.** Use `playwright-cli` to open the relevant pages:
+2. **Navigate and take a screenshot** for the visual first impression:
    ```
-   playwright-cli open http://localhost:<PORT>/relevant-path
-   playwright-cli screenshot
-   ```
-
-3. **Check console for errors:**
-   ```
-   playwright-cli console
-   ```
-   Fix any console errors before continuing the visual review.
-
-4. **Test states.** Don't just look at the happy path. Click through, tab through, try edge cases:
-   ```
-   playwright-cli snapshot          # see element refs
-   playwright-cli click e5          # interact
-   playwright-cli fill e3 "text"   # fill forms
-   playwright-cli screenshot        # capture result
+   browser_navigate → http://localhost:<PORT>/relevant-path
+   browser_take_screenshot
    ```
 
-5. **Evaluate.** For each page/view, answer two questions:
+3. **Get the accessibility snapshot** to understand page structure:
+   ```
+   browser_snapshot
+   ```
+   This returns the element tree with refs you can click/interact with. It's cheaper than screenshots for checking content and structure.
+
+4. **Actually use the UI.** This is the key difference from just looking at screenshots. Click through the real flows:
+   - Click buttons, open dialogs, submit forms
+   - Fill in form fields with test data
+   - Try the happy path end-to-end
+   - Try edge cases (empty fields, very long text, special characters)
+   - Tab through interactive elements to check focus order
+   - Hover over elements to check hover states
+   - Press Escape to dismiss dialogs
+   - Use browser back to check navigation
+
+   After each interaction, take a snapshot or screenshot to verify the result.
+
+5. **Check console for errors** after interacting. Use `browser_console_messages` or check via snapshot for error states in the UI.
+
+6. **Evaluate.** For each page/view, answer two questions:
 
    **What do I like about this?**
    Be specific. "The spacing between cards feels right" not just "looks good".
@@ -122,13 +146,13 @@ Open the page and take a screenshot. Before analyzing details, answer:
    **What could be improved?**
    Be specific. "The delete button has no hover state" not just "needs polish".
 
-6. **Produce a numbered list** of improvements. For each item, decide:
+7. **Produce a numbered list** of improvements. For each item, decide:
    - **Act on it** - clear improvement, low risk, worth doing now
    - **Skip** - subjective, high-effort, would need rethinking, or not worth the cost
 
-7. **Implement** all "act on it" items.
+8. **Implement** all "act on it" items.
 
-8. **Re-screenshot** to verify fixes didn't break anything.
+9. **Re-test interactively** to verify fixes. Don't just screenshot - click through the same flows again to confirm the fixes actually work.
 
 ## Rounds
 

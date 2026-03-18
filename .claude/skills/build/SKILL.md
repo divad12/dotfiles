@@ -17,11 +17,13 @@ Set up worktree (via /new-session)
     ↓
 Understand → Clarify (if needed) → Plan → Implement
     ↓
-Critique loop (UI/UX, uses sonnet) - what's good, what could be better
+Critique loop (Playwright MCP: click, type, test real flows)
     ↓
-Quick self-review (correctness, types, conventions)
+QA tester (browser-only subagent tests like a real user)
     ↓
-Present: URL + summary + decisions + improvements
+Quick review (tsc + lint + Codex code review + Codex UI review)
+    ↓
+Present: URL + summary + decisions + QA report
     ↓
 User tests and gives feedback → iterate
     ↓
@@ -84,9 +86,44 @@ npm run dev -- --port <PORT> &
 
 ### 4. Critique loop (UI/UX focused)
 
-If the task has frontend changes, run the `/critique` skill. It handles screenshots, evaluation, fixes, and multi-round iteration. Use `model: "sonnet"` for critique subagents to save cost - visual assessment doesn't need opus-level reasoning.
+If the task has frontend changes, run the `/critique` skill. It uses **Playwright MCP** to actually click through the UI, fill forms, test interactions - not just take screenshots. Use `model: "sonnet"` for critique subagents to save cost.
 
 Include the critique summary (what was acted on, skipped, and could still improve) in the build report.
+
+### 4b. QA tester (browser-only validation)
+
+After critique fixes, launch a **subagent that only uses Playwright MCP browser tools** to test the feature like a real user. This agent has no access to the source code - it can only see and interact with the browser, which forces it to test realistic user flows.
+
+Spawn the subagent with this prompt (fill in the URL, feature description, and test scenarios):
+```
+You are a QA tester. You can ONLY use browser tools (Playwright MCP) - you cannot read or edit code.
+
+Test the feature at: http://localhost:<PORT>/<path>
+
+Feature: [brief description of what was built]
+
+Test these scenarios:
+1. [Happy path flow]
+2. [Edge case - empty state, no data]
+3. [Edge case - invalid input, form errors]
+4. [Navigation - back button, URL changes]
+5. [Any feature-specific scenarios]
+
+For each scenario:
+- Navigate to the starting point
+- Perform the actions a real user would
+- Take a snapshot after each interaction to verify the result
+- Report: PASS (works as expected), FAIL (broken), or CONCERN (works but feels wrong)
+
+After testing, produce a structured report:
+- Scenarios tested with PASS/FAIL/CONCERN status
+- Steps to reproduce any failures
+- Screenshots of any issues found
+```
+
+Use `model: "sonnet"` for the subagent. Fix any FAILs before proceeding. CONCERNs go in the build report for the user to review.
+
+**Skip this step** for non-frontend tasks or trivial UI changes (copy updates, color tweaks).
 
 ### 5. Quick review
 
@@ -178,7 +215,7 @@ Present options that make sense for the current state. Track internally whether 
 
 Based on the user's selection:
 
-- **Give feedback** (or they type free text) - implement the feedback, then do a quick visual sanity check (screenshot the affected area, confirm the fix looks right, check nothing nearby broke). This is NOT a full `/critique` - just a fast inline screenshot + eyeball. After implementing, always re-prompt with `AskUserQuestion` again. The prompt must be self-contained (URL, what changed, what to test) since the dialog covers the conversation behind it.
+- **Give feedback** (or they type free text) - implement the feedback, then do a quick visual sanity check using Playwright MCP: navigate to the affected page, take a screenshot, and click through the changed interaction to confirm it works. This is NOT a full `/critique` - just a fast verify. After implementing, always re-prompt with `AskUserQuestion` again. The prompt must be self-contained (URL, what changed, what to test) since the dialog covers the conversation behind it.
 
 - **Run UI critique** - run the full `/critique` skill (all 7 sections, multi-round). This is the expensive visual review. Only when explicitly selected, re-prompt after.
 
