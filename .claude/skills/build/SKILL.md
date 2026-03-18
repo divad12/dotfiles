@@ -19,9 +19,9 @@ Understand → Clarify (if needed) → Plan → Implement
     ↓
 Critique loop (Playwright MCP: click, type, test real flows)
     ↓
-Compile check (tsc + lint, ~5 seconds)
+Compile check (tsc + lint) + kick off Codex review in background
     ↓
-Present: URL + summary + decisions + improvements
+Present immediately (Codex runs while user tests)
     ↓
 User tests and gives feedback → iterate
     ↓
@@ -35,7 +35,7 @@ User says "done" → /ship → /close-session
 This skill is meant to run many times in parallel. Every step should justify its token cost.
 
 - **Critique loop**: Use `model: "sonnet"` for subagents. Visual assessment doesn't need opus-level reasoning.
-- **No automatic review before presenting.** Just tsc + lint (~5 seconds). Codex review, deep review, QA test are all opt-in from the feedback loop. Present early so the user can redirect if the direction is wrong.
+- **Background Codex review.** Kicks off `codex review` in the background while presenting. By the time the user finishes testing and responds, results are usually ready. No delay to presentation, but review happens automatically. If it comes back clean, Ship/Done can appear on the first re-prompt.
 - **Thorough feedback verification.** After every feedback change, compile-check + click through the change with Playwright MCP + check blast radius on nearby pages. The user should never have to report the same issue twice.
 - **Light iterations.** Feedback rounds don't re-run full critique. Just implement, verify interactively, re-prompt.
 
@@ -88,16 +88,22 @@ If the task has frontend changes, run the `/critique` skill. It uses **Playwrigh
 
 Include the critique summary (what was acted on, skipped, and could still improve) in the build report.
 
-### 5. Compile check
+### 5. Compile check + background review
 
-Run a quick compile check before presenting. This is fast (~5 seconds) and catches obvious breakage:
+Run these in parallel:
 
+**Compile check** (blocking - must pass before presenting):
 ```bash
 npx tsc --noEmit 2>&1 | tail -30
 npm run lint 2>&1 | tail -20
 ```
+Fix any type errors or lint failures.
 
-Fix any type errors or lint failures. Do NOT run Codex or other reviews here - that delays presenting. Reviews are available as opt-in options in the feedback loop.
+**Codex code review** (background - don't wait for it):
+```bash
+codex review --uncommitted
+```
+Launch this with `run_in_background: true`. It runs while you present and while the user tests. By the time they respond, results will usually be ready. If the user picks "Review", check the background results first before re-running.
 
 ### 6. Present and prompt
 
@@ -146,9 +152,9 @@ What I built: Guest assignment UI with drag-and-drop between legs, bulk import f
 Key things to test: drag guests between legs, import a CSV, edit a guest inline, try with empty state.
 ```
 
-Present options that make sense for the current state. Track internally whether a review has been run (the quick review in step 5 counts, or any user-requested review/deep-review).
+Present options that make sense for the current state. Track internally whether a review has been run. The background Codex review from step 5 counts once its results are back and any findings are addressed - check for it before each prompt. A user-requested Review or Deep Review also counts.
 
-**HARD RULE: Never include "Ship" or "Done" as options until at least one review has been run.** Before any review, the options should be review-oriented. After a review passes, Ship/Done can appear.
+**HARD RULE: Never include "Ship" or "Done" as options until at least one review has completed and findings addressed.** Before that, the options should be review-oriented. After a review passes, Ship/Done can appear. If the background Codex review finished clean while the user was testing, that counts - you can offer Ship/Done on the first re-prompt.
 
 **Before any review has run** - use these options (pick 3-4 that fit):
 - **Give feedback** - "I have specific changes or concerns"
