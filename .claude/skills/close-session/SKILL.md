@@ -40,12 +40,16 @@ You must be inside a worktree (not the main repo). If you're in the main repo, t
    - If this succeeds (exit code 0), main already contains all the worktree's commits. Skip to step 5.
    - If it fails, the work hasn't been merged yet. Run the `/merge` skill to rebase onto main and fast-forward. Wait for it to complete before continuing.
 
-5. **Save session context.**
-   Write a summary of this session to the main repo's `.claude/sessions/` directory so the context can be picked up later if needed. The file should be named after the branch (e.g., `claude-jovial-mayer.md`).
+5. **Save session context. THIS STEP IS MANDATORY - do not skip it.**
+   This is one of the most important steps. The session file preserves context that would otherwise be lost forever. Do not rush past this to get to cleanup.
+
+   Write a summary of this session to the main repo's `.claude/sessions/` directory. The file should be named after the branch (e.g., `claude-jovial-mayer.md`).
    ```bash
    mkdir -p "$MAIN_REPO/.claude/sessions"
    ```
-   Write the file to `$MAIN_REPO/.claude/sessions/<BRANCH_SLUG>.md` (replace `/` with `-` in the branch name). Include:
+   Write the file to `$MAIN_REPO/.claude/sessions/<BRANCH_SLUG>.md` (replace `/` with `-` in the branch name) using the Write tool. **After writing, verify the file exists** with `ls -la "$MAIN_REPO/.claude/sessions/<BRANCH_SLUG>.md"`. If it doesn't exist, something went wrong - try again before proceeding.
+
+   Include:
    - **Date** - today's date
    - **Branch** - the branch name
    - **Summary** - what was worked on this session (1-3 sentences)
@@ -91,6 +95,7 @@ You must be inside a worktree (not the main repo). If you're in the main repo, t
 
 ## Rules
 
+- **Always write the session file.** Step 5 is not optional. If you reach the cleanup steps without having written the session file, STOP and go back to write it. The session file is the only record of what happened and why.
 - **Never delete unmerged work.** The merge check in step 4 is the safety gate. If merging fails or the user has uncommitted changes, stop and ask.
 - **Never use `-D` (force delete) on the branch.** Always `-d` so git validates the merge.
 - **Don't kill Prisma Studio.** Only kill the Next.js dev server on the worktree's assigned port.
