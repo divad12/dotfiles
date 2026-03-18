@@ -19,11 +19,9 @@ Understand → Clarify (if needed) → Plan → Implement
     ↓
 Critique loop (Playwright MCP: click, type, test real flows)
     ↓
-QA tester (browser-only subagent tests like a real user)
-    ↓
 Quick review (tsc + lint + Codex code review + Codex UI review)
     ↓
-Present: URL + summary + decisions + QA report
+Present: URL + summary + decisions + improvements
     ↓
 User tests and gives feedback → iterate
     ↓
@@ -89,41 +87,6 @@ npm run dev -- --port <PORT> &
 If the task has frontend changes, run the `/critique` skill. It uses **Playwright MCP** to actually click through the UI, fill forms, test interactions - not just take screenshots. Use `model: "sonnet"` for critique subagents to save cost.
 
 Include the critique summary (what was acted on, skipped, and could still improve) in the build report.
-
-### 4b. QA tester (browser-only validation)
-
-After critique fixes, launch a **subagent that only uses Playwright MCP browser tools** to test the feature like a real user. This agent has no access to the source code - it can only see and interact with the browser, which forces it to test realistic user flows.
-
-Spawn the subagent with this prompt (fill in the URL, feature description, and test scenarios):
-```
-You are a QA tester. You can ONLY use browser tools (Playwright MCP) - you cannot read or edit code.
-
-Test the feature at: http://localhost:<PORT>/<path>
-
-Feature: [brief description of what was built]
-
-Test these scenarios:
-1. [Happy path flow]
-2. [Edge case - empty state, no data]
-3. [Edge case - invalid input, form errors]
-4. [Navigation - back button, URL changes]
-5. [Any feature-specific scenarios]
-
-For each scenario:
-- Navigate to the starting point
-- Perform the actions a real user would
-- Take a snapshot after each interaction to verify the result
-- Report: PASS (works as expected), FAIL (broken), or CONCERN (works but feels wrong)
-
-After testing, produce a structured report:
-- Scenarios tested with PASS/FAIL/CONCERN status
-- Steps to reproduce any failures
-- Screenshots of any issues found
-```
-
-Use `model: "sonnet"` for the subagent. Fix any FAILs before proceeding. CONCERNs go in the build report for the user to review.
-
-**Skip this step** for non-frontend tasks or trivial UI changes (copy updates, color tweaks).
 
 ### 5. Quick review
 
@@ -204,12 +167,14 @@ Present options that make sense for the current state. Track internally whether 
 - **Deep review** - "Full 5-way deep review (collateral, code, simplify, Codex, UI)"
 - **Run UI critique** - "Run another round of UI/UX critique and polish"
 - **Codex UI review** - "Get Codex's take on the UI/UX (cheap, fresh eyes)"
+- **QA test** - "Browser-only tester clicks through all flows (for complex multi-step features)"
 
 **After at least one review has passed** - use these options (pick 3-4 that fit):
 - **Ship (Recommended)** - "Commit and merge to main, keep session open"
 - **Done** - "Ship + close session (commit, merge, tear down worktree)"
 - **Give feedback** - "I have specific changes or concerns"
 - **Deep review** - "Full 5-way deep review (collateral, code, simplify, Codex, UI)"
+- **QA test** - "Browser-only tester clicks through all flows"
 
 ### 7. Feedback loop
 
@@ -222,6 +187,8 @@ Based on the user's selection:
 - **Codex UI review** - run Codex with UI/UX-focused prompt (same as the one in step 5). Cheap and fast. Fix what it finds, re-prompt.
 
 - **Review** - run Codex review + inline checks, fix findings, re-prompt.
+
+- **QA test** - run the `/qa-test` skill. Read its SKILL.md and follow the process inline. Fix any FAILs, include CONCERNs in the re-prompt. Re-prompt after.
 
 - **Deep review** - run the full `/deep-review` skill, fix must-fix and easy-wins, re-prompt with the suggestions list.
 
