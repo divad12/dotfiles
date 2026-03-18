@@ -42,10 +42,19 @@ Once the interview is complete, write the spec to `docs/specs/<feature-name>.md`
 **Spec format:**
 
 ```markdown
-# Feature Spec: [Feature Name]
+# [Feature Name]
 
 ## Overview
 One-paragraph summary of what we're building and why.
+
+## User Stories
+- As a [role], I want [action] so that [benefit].
+- As a [role], I want [action] so that [benefit].
+
+## Acceptance Criteria
+- [ ] Testable criterion 1
+- [ ] Testable criterion 2
+- [ ] All existing tests still pass
 
 ## User Flow
 Step-by-step walkthrough of the primary user journey.
@@ -65,6 +74,11 @@ Step-by-step walkthrough of the primary user journey.
 - Request/response shapes
 - Validation rules
 
+## Constraints
+- Tech stack constraints (from CLAUDE.md and existing code)
+- Design constraints (consistency with existing UI)
+- Scope boundaries
+
 ## Edge Cases
 - Enumerate each edge case and how it's handled
 
@@ -75,6 +89,11 @@ Step-by-step walkthrough of the primary user journey.
 - Anything still unresolved (should be empty if interview was thorough)
 ```
 
+**Writing tips:**
+- User stories should cover each distinct persona/scenario, not just the happy path.
+- Acceptance criteria must be **testable** - a QA tester or e2e test should be able to verify each one with a pass/fail. Write them as checkboxes so they can be ticked off during review.
+- Constraints ground the spec in reality - pull from CLAUDE.md, existing code patterns, and what the user said during the interview.
+
 ## Phase 3: Present the Spec
 
-After writing SPEC.md, read it back and display its full contents in the chat so the user can review it inline.
+After writing the spec, read it back and display its full contents in the chat so the user can review it inline.
