@@ -175,7 +175,9 @@ Present options that make sense for the current state. Track internally whether 
 
 Based on the user's selection:
 
-- **Give feedback** (or they type free text) - implement the feedback, then **verify it actually works** using Playwright MCP. This is the most important step and the one most likely to go wrong. Don't just make the code change and hope.
+- **Give feedback** - the user selected "Give feedback" but hasn't told you what it is yet. **Do nothing. Just wait.** Don't render previews, don't run tests, don't take screenshots. Simply acknowledge and wait for the user to type their actual feedback.
+
+  Once the user provides their feedback (as a follow-up message), implement it, then **verify it actually works** using Playwright MCP. This is the most important step and the one most likely to go wrong. Don't just make the code change and hope.
 
   **Verification checklist (do all of these):**
   1. **Run tsc** - does it still compile? Fix if not.
