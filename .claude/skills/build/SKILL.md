@@ -192,16 +192,34 @@ Based on the user's selection:
 
 - **Deep review** - run the full `/deep-review` skill, fix must-fix and easy-wins, re-prompt with the suggestions list.
 
-- **Ship** - run the `/ship` skill. Re-prompt with just "Done" and "Give feedback" options.
+- **Ship** - run the `/ship` skill. Then present the **session wrap-up** (see step 8) via `AskUserQuestion` with "Done" and "Give feedback" options.
 
 - **Done** - proceed to step 8.
 
 ### 8. Ship and close
 
-When the user selects "Done":
+When the user selects "Ship" or "Done":
 
-1. Run the `/ship` skill (save progress, commit, merge to main) if not already shipped
-2. Run the `/close-session` skill (stop server, save session context, remove worktree and branch)
+1. Run the `/ship` skill (save progress, commit, merge to main) if not already shipped.
+
+2. **Before closing, present any loose ends.** Throughout the session you may have noticed issues that aren't part of the current feature - pre-existing bugs, UI problems on other pages, tech debt, or follow-up ideas. Collect these and present them in the `AskUserQuestion` prompt:
+
+   ```
+   Shipped and merged. Session ready to close.
+
+   Loose ends found during this session:
+   - [Pre-existing issue]: add-guest dialog overflows on small screens
+   - [Follow-up]: clue editor shows validation error without touched guard
+   - [Idea]: the stop reorder animation could use polish
+
+   Want me to log these anywhere (TECH_DEBT.md, a GitHub issue, etc.) before closing?
+   ```
+
+   Options: "Close session", "Log these to TECH_DEBT.md", "Give feedback"
+
+   If there are no loose ends, skip straight to confirming close.
+
+3. Run the `/close-session` skill (stop server, save session context, remove worktree and branch).
 
 The session is over.
 
@@ -220,4 +238,5 @@ Every time you finish a chunk of work (initial build, feedback iteration, review
 - **Always provide a test URL.** The whole point is the user can click and see it immediately.
 - **Don't over-iterate autonomously.** The critique loop is about getting to "good first pass" quality. The user's feedback is what takes it to "exactly what I want".
 - **Keep the dev server running.** The user needs it to test. Don't stop it until close-session.
-- **Deep review is opt-in.** Never run `/deep-review` unless the user asks for it. The quick review (inline + Codex) in step 5 is the default.
+- **Deep review is opt-in.** Never run `/deep-review` unless the user asks for it. The compile check in step 5 is the default.
+- **Track loose ends as you go.** When you notice pre-existing bugs, UI issues on other pages, tech debt, or follow-up ideas during the session, note them internally. Present them at ship time (step 8) so nothing gets lost.
