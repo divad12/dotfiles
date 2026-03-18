@@ -19,7 +19,7 @@ Understand → Clarify (if needed) → Plan → Implement
     ↓
 Critique loop (Playwright MCP: click, type, test real flows)
     ↓
-Quick review (tsc + lint + Codex code review + Codex UI review)
+Compile check (tsc + lint, ~5 seconds)
     ↓
 Present: URL + summary + decisions + improvements
     ↓
@@ -35,9 +35,9 @@ User says "done" → /ship → /close-session
 This skill is meant to run many times in parallel. Every step should justify its token cost.
 
 - **Critique loop**: Use `model: "sonnet"` for subagents. Visual assessment doesn't need opus-level reasoning.
-- **No automatic deep-review.** A quick self-review (inline + Codex) catches the obvious stuff. Full `/deep-review` (5-way parallel) only runs when the user explicitly asks for it.
-- **Present early.** Show the user the result after critique, not after a full review cycle. If the direction is wrong, you've saved an entire deep-review's worth of tokens.
-- **Light iterations.** Feedback rounds don't re-run reviews. Just implement, screenshot, confirm.
+- **No automatic review before presenting.** Just tsc + lint (~5 seconds). Codex review, deep review, QA test are all opt-in from the feedback loop. Present early so the user can redirect if the direction is wrong.
+- **Thorough feedback verification.** After every feedback change, compile-check + click through the change with Playwright MCP + check blast radius on nearby pages. The user should never have to report the same issue twice.
+- **Light iterations.** Feedback rounds don't re-run full critique. Just implement, verify interactively, re-prompt.
 
 ## Steps
 
@@ -88,27 +88,16 @@ If the task has frontend changes, run the `/critique` skill. It uses **Playwrigh
 
 Include the critique summary (what was acted on, skipped, and could still improve) in the build report.
 
-### 5. Quick review
+### 5. Compile check
 
-Run three things in parallel:
+Run a quick compile check before presenting. This is fast (~5 seconds) and catches obvious breakage:
 
-**Inline checks** (yourself):
-- Type errors (`npx tsc --noEmit`)
-- Lint (`npm run lint`)
-- Obvious bugs, missing error handling, security issues
-- Convention violations from CLAUDE.md
-
-**Codex code review** (background, cheap):
 ```bash
-codex review --uncommitted
+npx tsc --noEmit 2>&1 | tail -30
+npm run lint 2>&1 | tail -20
 ```
 
-**Codex UI review** (background, cheap - only if task has frontend changes):
-```bash
-codex review --uncommitted "Review this as a UI/UX expert. Focus on: visual hierarchy and layout quality, spacing/alignment consistency, interactive states (hover, focus, disabled, loading, empty, error), form UX (required field markers, inline validation, submit button text, Enter key support), accessibility (contrast, keyboard nav, screen reader), responsive behavior, and overall polish. Flag anything that looks generic, unfinished, or inconsistent with a polished SaaS product. Be specific - reference exact components and elements."
-```
-
-Fix anything the reviews find. Codex is a separate API and costs very little, but catches things you might miss since it reviews with fresh eyes and no shared context from the implementation.
+Fix any type errors or lint failures. Do NOT run Codex or other reviews here - that delays presenting. Reviews are available as opt-in options in the feedback loop.
 
 ### 6. Present and prompt
 
@@ -163,7 +152,7 @@ Present options that make sense for the current state. Track internally whether 
 
 **Before any review has run** - use these options (pick 3-4 that fit):
 - **Give feedback** - "I have specific changes or concerns"
-- **Review (Recommended)** - "Quick review: inline checks + Codex code review"
+- **Review (Recommended)** - "Codex code review + inline checks (tsc, lint, conventions)"
 - **Deep review** - "Full 5-way deep review (collateral, code, simplify, Codex, UI)"
 - **Run UI critique** - "Run another round of UI/UX critique and polish"
 - **Codex UI review** - "Get Codex's take on the UI/UX (cheap, fresh eyes)"
@@ -180,13 +169,24 @@ Present options that make sense for the current state. Track internally whether 
 
 Based on the user's selection:
 
-- **Give feedback** (or they type free text) - implement the feedback, then do a quick visual sanity check using Playwright MCP: navigate to the affected page, take a screenshot, and click through the changed interaction to confirm it works. This is NOT a full `/critique` - just a fast verify. After implementing, always re-prompt with `AskUserQuestion` again. The prompt must be self-contained (URL, what changed, what to test) since the dialog covers the conversation behind it.
+- **Give feedback** (or they type free text) - implement the feedback, then **verify it actually works** using Playwright MCP. This is the most important step and the one most likely to go wrong. Don't just make the code change and hope.
+
+  **Verification checklist (do all of these):**
+  1. **Run tsc** - does it still compile? Fix if not.
+  2. **Navigate to the page** with `browser_navigate` and take a snapshot.
+  3. **Click through the specific change** - if you changed a form, fill it out and submit it. If you changed a button, click it. If you changed a list, add/edit/delete items. Verify the result with a snapshot after each interaction.
+  4. **Check the blast radius** - did the change break anything nearby? Navigate to related pages or components that share code with what you changed. Take snapshots. If the feedback was "change how groups display", also check the event detail page, the designer, anywhere groups appear.
+  5. **Check the console** for new errors.
+
+  If anything fails in verification, fix it before re-prompting. The user should never have to report the same issue twice.
+
+  After verifying, re-prompt with `AskUserQuestion`. The prompt must be self-contained (URL, what changed, what you verified, what to test) since the dialog covers the conversation behind it.
 
 - **Run UI critique** - run the full `/critique` skill (all 7 sections, multi-round). This is the expensive visual review. Only when explicitly selected, re-prompt after.
 
 - **Codex UI review** - run Codex with UI/UX-focused prompt (same as the one in step 5). Cheap and fast. Fix what it finds, re-prompt.
 
-- **Review** - run Codex review + inline checks, fix findings, re-prompt.
+- **Review** - run `codex review --uncommitted` in background + your own inline checks (tsc, lint, correctness, convention violations from CLAUDE.md). Fix findings, re-prompt.
 
 - **QA test** - run the `/qa-test` skill. Read its SKILL.md and follow the process inline. Fix any FAILs, include CONCERNs in the re-prompt. Re-prompt after.
 
