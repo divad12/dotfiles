@@ -1,6 +1,6 @@
 ---
 name: spec-interview
-description: Interview the user in detail about a feature they want to build, then write a complete spec to SPEC.md
+description: Interview the user in detail about a feature they want to build, then write a complete spec to docs/specs/
 disable-model-invocation: true
 argument-hint: [brief description of what to build]
 ---
@@ -37,7 +37,7 @@ Use the AskUserQuestion tool to interview the user in detail about this feature.
 
 ## Phase 2: Write the Spec
 
-Once the interview is complete, write the full spec to `SPEC.md` at the project root.
+Once the interview is complete, write the spec to `docs/specs/<feature-name>.md` (kebab-case filename derived from the feature name). Create the `docs/specs/` directory if it doesn't exist.
 
 **Spec format:**
 
