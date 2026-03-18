@@ -246,5 +246,6 @@ Every time you finish a chunk of work (initial build, feedback iteration, review
 - **Always provide a test URL.** The whole point is the user can click and see it immediately.
 - **Don't over-iterate autonomously.** The critique loop is about getting to "good first pass" quality. The user's feedback is what takes it to "exactly what I want".
 - **Keep the dev server running.** The user needs it to test. Don't stop it until close-session.
+- **Ship is NEVER automatic.** Never run `/ship` or `/close-session` unless the user explicitly selects "Ship" or "Done" in the AskUserQuestion dialog. Not after a clean review, not after a passing critique, not after any other trigger. Only the user decides when to ship.
 - **Deep review is opt-in.** Never run `/deep-review` unless the user asks for it. The compile check in step 5 is the default.
 - **Track loose ends as you go.** When you notice pre-existing bugs, UI issues on other pages, tech debt, or follow-up ideas during the session, note them internally. Present them at ship time (step 8) so nothing gets lost.

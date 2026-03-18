@@ -31,6 +31,7 @@ Save progress, commit, and merge into main. This chains three operations in sequ
 
 ## Rules
 
+- **NEVER run automatically.** This skill must only run when the user explicitly asks to ship (by selecting "Ship" or "Done" in the AskUserQuestion dialog, or typing "ship", "ship it", etc.). Never trigger it autonomously - not after a review passes, not after a critique loop, not after a feedback iteration. The user decides when to ship.
 - **Stop on failure.** If save, commit, or merge fails, stop and tell the user what went wrong. Don't continue to the next step.
 - **Don't push.** Just like `/merge`, this only updates local branches. The user pushes when ready.
 - **Don't skip the save step.** Even if the user says "just commit and merge", run save first. PROGRESS.md should always reflect the latest state before a commit.
