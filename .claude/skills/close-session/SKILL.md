@@ -51,10 +51,13 @@ You must be inside a worktree (not the main repo). If you're in the main repo, t
    - **Summary** - what was worked on this session (1-3 sentences)
    - **Key changes** - bullet list of the main things that were added, changed, or fixed
    - **Commits** - list of commits on this branch (from `git log main..<BRANCH> --oneline`)
-   - **Decisions** - any notable decisions made during the session and why
-   - **Unfinished / follow-up** - anything that was started but not completed, or next steps that were discussed
+   - **Decisions and rationale** - every notable decision made during the session. Include what was chosen, what alternatives were considered, and why. These are the most valuable part of the session file - they prevent future sessions from re-debating resolved questions.
+   - **Discussion context** - important back-and-forth from the conversation that informed the implementation. User feedback, rejected approaches, "we tried X but it didn't work because Y", stakeholder input. This is the nuance that gets lost if you only capture the final result.
+   - **Gotchas and non-obvious things** - anything a future developer (or Claude session) touching this code would benefit from knowing. Edge cases discovered, surprising behaviors, things that look wrong but are intentional.
+   - **Unfinished / follow-up** - anything that was started but not completed, pre-existing issues discovered, next steps discussed
+   - **Files touched** - list of files added or significantly modified (from `git diff --name-only main..<BRANCH>`)
 
-   Pull this information from the conversation context and from PROGRESS.md if it exists. This doesn't need to be exhaustive - just enough for someone (or a future Claude session) to understand what happened and pick up the thread.
+   Pull this from the conversation context, git history, and PROGRESS.md. Be generous with detail in the Decisions and Discussion sections - these are the highest-value parts that make session files actually useful for future context.
 
 6. **Stop the Next.js dev server and deregister the port.**
    Read the port from `.claude/launch.json` and kill any process on it:
