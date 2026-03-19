@@ -35,16 +35,27 @@ Set up a worktree with everything needed to run the dev server - env files copie
 4. **Check if `launch.json` already exists.**
    If `.claude/launch.json` exists in the current worktree and already has a port assigned, use that port. Skip to step 7.
 
-5. **Find the next available port.**
+5. **Clean up stale port locks, then find the next available port.**
    **Port 3000 is permanently reserved for the main repo. NEVER use 3000 for a worktree session, even if it appears free.** Worktrees always start at 3001.
 
-   Check which ports are already claimed by looking for lock files:
+   First, clean up any stale lock files from crashed sessions:
    ```bash
    PORTS_DIR="$MAIN_REPO/.claude/ports"
    mkdir -p "$PORTS_DIR"
+   for lockfile in "$PORTS_DIR"/*; do
+     [ -f "$lockfile" ] || continue
+     port=$(basename "$lockfile")
+     if ! lsof -ti:$port > /dev/null 2>&1; then
+       rm "$lockfile"  # Port not in use, lock is stale
+     fi
+   done
+   ```
+
+   Then find the first available port starting from 3001:
+   ```bash
    USED_PORTS=$(ls "$PORTS_DIR" 2>/dev/null | grep -o '[0-9]*')
    ```
-   Starting from 3001, pick the first port not in `USED_PORTS` and not currently bound by a running process (`lsof -ti:<port>`).
+   Pick the first port not in `USED_PORTS` and not currently bound by a running process (`lsof -ti:<port>`).
 
 6. **Claim the port and create `.claude/launch.json`.**
    Create a lock file to claim the port. The filename is the port number, the content is the branch name. File creation is near-atomic, avoiding race conditions with parallel sessions:
