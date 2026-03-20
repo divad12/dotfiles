@@ -37,7 +37,7 @@ Use the AskUserQuestion tool to interview the user in detail about this feature.
 
 ## Phase 2: Write the Spec
 
-Once the interview is complete, write the spec to `docs/specs/<feature-name>.md` (kebab-case filename derived from the feature name). Create the `docs/specs/` directory if it doesn't exist.
+Once the interview is complete, write the spec to `docs/specs/YYYY-MM-DD-<feature-name>.md` (today's date + kebab-case filename derived from the feature name). Create the `docs/specs/` directory if it doesn't exist.
 
 **Spec format:**
 

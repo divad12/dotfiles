@@ -32,12 +32,12 @@ Figure out what to review based on the current state:
 # Check for uncommitted changes
 UNCOMMITTED=$(git status --porcelain | wc -l | tr -d ' ')
 
-# Check how many commits ahead of origin/main
-AHEAD=$(git log origin/main..HEAD --oneline 2>/dev/null | wc -l | tr -d ' ')
+# Check how many commits ahead of local main
+AHEAD=$(git log main..HEAD --oneline 2>/dev/null | wc -l | tr -d ' ')
 ```
 
 - If there are uncommitted changes, review those (the common case during development).
-- If working tree is clean but the branch has commits ahead of main, review the branch diff against main.
+- If working tree is clean but the branch has commits ahead of local main, review the branch diff against main.
 - If neither, tell the user there's nothing to review.
 
 Also check whether frontend files are in the diff (`.tsx`, `.jsx`, `.css`, `.scss`, component files, layout files). This determines whether the UI review runs.
@@ -70,7 +70,7 @@ Analyze the diff yourself. Focus on:
 - **Conventions** - naming, file structure, patterns established in CLAUDE.md
 - **Data integrity** - schema alignment, missing validations, cascade issues
 
-Use `git diff` (for uncommitted) or `git diff origin/main...HEAD` (for branch) to read the actual changes.
+Use `git diff` (for uncommitted) or `git diff main...HEAD` (for branch) to read the actual changes.
 
 #### Review 2: Simplify pass (run inline)
 
@@ -95,7 +95,7 @@ codex review --uncommitted
 codex review --base main
 ```
 
-Use the `run_in_background` option so it runs concurrently with your own analysis.
+Use the `run_in_background` option so it runs concurrently with your own analysis. **Set `timeout: 300000`** (5 minutes) - Codex reviews can take longer than the default 2 minutes on large diffs.
 
 #### Review 4: UI review (run as subagent, only if frontend files changed)
 
@@ -194,6 +194,7 @@ After applying all fixes from step 4, run one more review cycle to make sure the
    ```bash
    codex review --uncommitted
    ```
+   Use `timeout: 300000` (5 minutes) as in step 2.
 2. **Do a quick scan yourself** of the changes you just made. Look for anything the fixes might have broken or new must-fix/easy-win items that emerged.
 3. **If new must-fix or easy-win items are found**, fix them. This is not an infinite loop - just one verification round. If new suggestions surface, add them to the suggestions list.
 4. **If the verification round is clean**, note it in the summary ("Verification round: no new issues found").

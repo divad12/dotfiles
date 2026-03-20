@@ -32,21 +32,30 @@ Set up a worktree with everything needed to run the dev server - env files copie
    ```
    Don't fail if `.env` doesn't exist (`.env.local` is the important one).
 
-4. **Check if `launch.json` already exists.**
-   If `.claude/launch.json` exists in the current worktree and already has a port assigned, use that port. Skip to step 7.
+4. **Check if `launch.json` already exists with a valid port.**
+   If `.claude/launch.json` exists in the current worktree and already has a port assigned:
+   - Check that a lock file exists for that port AND contains this worktree's branch name
+   - If both match, the port is legitimately ours. Skip to step 7.
+   - If the lock file is missing, belongs to a different branch, or the port is 3000 (reserved), fall through to step 5 to claim a new port. Delete the stale `launch.json` so step 6 recreates it.
 
 5. **Clean up stale port locks, then find the next available port.**
    **Port 3000 is permanently reserved for the main repo. NEVER use 3000 for a worktree session, even if it appears free.** Worktrees always start at 3001.
 
-   First, clean up any stale lock files from crashed sessions:
+   First, get the list of active worktree branches:
    ```bash
    PORTS_DIR="$MAIN_REPO/.claude/ports"
    mkdir -p "$PORTS_DIR"
+   ACTIVE_BRANCHES=$(git worktree list | awk '{print $NF}' | tr -d '[]')
+   ```
+
+   Then clean up lock files whose branch no longer exists as a worktree. **Do NOT use `lsof` to decide staleness** - a dev server can momentarily stop listening during HMR recompilation, making `lsof` return false negatives. The worktree existing is the source of truth, not whether a process is running right now.
+   ```bash
    for lockfile in "$PORTS_DIR"/*; do
      [ -f "$lockfile" ] || continue
      port=$(basename "$lockfile")
-     if ! lsof -ti:$port > /dev/null 2>&1; then
-       rm "$lockfile"  # Port not in use, lock is stale
+     branch=$(cat "$lockfile")
+     if [ -z "$branch" ] || ! echo "$ACTIVE_BRANCHES" | grep -qF "$branch"; then
+       rm "$lockfile"  # Worktree no longer exists, lock is stale
      fi
    done
    ```
@@ -55,7 +64,7 @@ Set up a worktree with everything needed to run the dev server - env files copie
    ```bash
    USED_PORTS=$(ls "$PORTS_DIR" 2>/dev/null | grep -o '[0-9]*')
    ```
-   Pick the first port not in `USED_PORTS` and not currently bound by a running process (`lsof -ti:<port>`).
+   Pick the first port not in `USED_PORTS`.
 
 6. **Claim the port and create `.claude/launch.json`.**
    Create a lock file to claim the port. The filename is the port number, the content is the branch name. File creation is near-atomic, avoiding race conditions with parallel sessions:
@@ -109,7 +118,8 @@ For the rest of this session, whenever you start a dev server (e.g. `npm run dev
 - The main repo always owns port 3000. Never assign 3000 to a worktree.
 - If all ports 3001-3010 are taken, something is probably wrong. Flag it to the user rather than going higher.
 - Port lock files live in `$MAIN_REPO/.claude/ports/` (e.g. `.claude/ports/3001` contains the branch name). Both `new-session` and `close-session` maintain these.
-- **Stale entries:** If a session crashed without running `close-session`, its lock file stays. The `lsof` check in step 5 handles this - if a claimed port has no process on it, it's safe to reuse. Delete the stale lock file and create a new one for your branch.
+- **Lock files are the source of truth for port ownership.** Never improvise a different port because a preview server happens to be running on your assigned port. If `preview_start` fails because the port is in use by another worktree's preview server, that means the lock file system has a bug or a stale entry - fix the lock files, don't pick a random new port. If you pick a new port without going through the lock file flow, you WILL clobber another session's claim.
+- **Stale entries:** If a session crashed without running `close-session`, its lock file stays. Step 5 handles this by cross-referencing lock files against `git worktree list`. If the lock's branch no longer has a worktree, the lock is stale and gets cleaned up. Do NOT use `lsof` to decide staleness - dev servers can briefly stop listening during HMR recompilation, causing false negatives that delete valid locks.
 
 ## Test data isolation
 
