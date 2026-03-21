@@ -8,6 +8,14 @@ user-invocable: true
 
 Save progress, commit, and merge into main. This chains three operations in sequence, stopping if any step fails.
 
+## Pre-flight check
+
+Before executing ANY steps below, verify that the user EXPLICITLY requested shipping. Valid triggers:
+- User typed "ship", "ship it", "done", "wrap up", etc.
+- User selected "Ship" or "Done" from an `AskUserQuestion` dialog
+
+If you are about to run this skill because a review passed, a critique loop finished, a feedback round completed, or any other automated trigger - **STOP. Do not proceed. Re-prompt the user instead.**
+
 ## Steps
 
 1. **Run the `/save` skill.**
