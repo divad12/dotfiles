@@ -29,8 +29,9 @@ Set up a worktree with everything needed to run the dev server - env files copie
    ```bash
    cp "$MAIN_REPO/.env" ./ 2>/dev/null
    cp "$MAIN_REPO/.env.local" ./ 2>/dev/null
+   cp "$MAIN_REPO/.env.production.local" ./ 2>/dev/null
    ```
-   Don't fail if `.env` doesn't exist (`.env.local` is the important one).
+   Don't fail if any file doesn't exist (`.env.local` is the important one, `.env.production.local` has prod database credentials).
 
 4. **Check if `launch.json` already exists with a valid port.**
    If `.claude/launch.json` exists in the current worktree and already has a port assigned:

@@ -46,7 +46,12 @@ If this fails (exit code non-zero), run the `/merge` skill first. Wait for it to
 
 ### 3. Write the session file (MANDATORY)
 
-This is the most important step. Use the **Write tool** to create `$MAIN_REPO/.claude/sessions/<BRANCH_SLUG>.md` (replace `/` with `-` in branch name).
+This is the most important step. Use the **Write tool** to create a session file at `$MAIN_REPO/.claude/sessions/<descriptive-name>.md`.
+
+**File naming:** Name the file based on what the session actually did, NOT the branch name. Use kebab-case. Examples:
+- `horizontal-designer-gantt-bars.md` (not `claude-objective-kilby.md`)
+- `venue-duration-override-feature-flag.md` (not `claude-keen-darwin.md`)
+- `fix-cascade-timing-on-delete.md` (not `claude-amazing-turing.md`)
 
 Include:
 - **Date** - today's date
@@ -77,6 +82,8 @@ BRANCH="<branch name>" && \
 PORT="<port number>" && \
 (lsof -ti:$PORT 2>/dev/null | xargs kill 2>/dev/null; true) && \
 rm -f "$MAIN_REPO/.claude/ports/$PORT" && \
+rm -rf "$WORKTREE_PATH/.playwright-mcp" && \
+find "$WORKTREE_PATH" -maxdepth 1 -name '*.png' -delete 2>/dev/null; \
 cd "$MAIN_REPO" && \
 git worktree remove "$WORKTREE_PATH" --force && \
 git branch -d "$BRANCH" 2>/dev/null; \

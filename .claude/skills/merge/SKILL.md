@@ -23,6 +23,7 @@ Rebase the current branch onto main and fast-forward main to include the new com
    ```
    All operations use the **local** main branch, not `origin/main`. Do not fetch from origin.
    - If there are conflicts, resolve them file by file, then `git add <file>` and `git rebase --continue`.
+   - **CRITICAL: During rebase, `--ours` and `--theirs` are SWAPPED compared to merge.** `--ours` = main (the branch you're rebasing onto). `--theirs` = your feature branch. So to keep main's version: `git checkout --ours <file>`. To keep your branch's version: `git checkout --theirs <file>`. This is counterintuitive — double-check every time.
    - Never use `git merge`. Always rebase.
 
 3. **Fast-forward main** to the current branch tip:

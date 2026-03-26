@@ -143,12 +143,18 @@ Once all reviews are complete, merge the results:
    - Convention violations (project-specific rules from CLAUDE.md)
    - Minor UI polish (missing hover states, inconsistent spacing)
 
-   **Suggestions** (present for user decision)
-   - Architectural changes (restructuring, new abstractions)
-   - Subjective improvements (alternative approaches, style preferences)
-   - Performance optimizations that change behavior or add complexity
-   - UX redesigns or significant layout changes
-   - Anything where reasonable people might disagree
+   **Fix these too** (auto-fix, but note them in the summary)
+   - Performance optimizations with clear, low-risk fixes
+   - Code reuse opportunities that reduce duplication
+   - Better naming, clearer interfaces
+   - Minor UX/UI improvements that are straightforward
+   - Anything a reviewer suggested that has an obvious, quick fix
+
+   **Defer** (present for user decision - do NOT auto-fix)
+   - Architectural changes that would take significant effort
+   - Changes unrelated to the current feature scope
+   - Work better suited to a dedicated session (e.g., "refactor the whole timing system")
+   - Subjective tradeoffs where reasonable people might disagree
 
 3. **Present the consolidated review** in this format:
 
@@ -168,13 +174,16 @@ Once all reviews are complete, merge the results:
    ### Easy Wins (auto-fixing)
    - [ ] Issue description - file:line - what's wrong and how it's being fixed
 
-   ### Suggestions (for your decision)
-   - [ ] Issue description - file:line - what's suggested and why
+   ### Also Fixing (reviewer suggestions, straightforward)
+   - [ ] Issue description - file:line - what's being improved
+
+   ### Deferred (big-effort, out of scope, or debatable)
+   - [ ] Issue description - file:line - why it's deferred
    ```
 
-### 4. Auto-fix must-fix and easy-win items
+### 4. Auto-fix everything except deferred items
 
-Apply fixes for all items in the "Must fix" and "Easy wins" categories:
+Apply fixes for all items in "Must fix", "Easy wins", and "Fix these too":
 
 - Make the changes directly. Do not ask for permission on these categories.
 - After applying all fixes, run the type checker and linter to confirm nothing is broken:
@@ -199,22 +208,24 @@ After applying all fixes from step 4, run one more review cycle to make sure the
 3. **If new must-fix or easy-win items are found**, fix them. This is not an infinite loop - just one verification round. If new suggestions surface, add them to the suggestions list.
 4. **If the verification round is clean**, note it in the summary ("Verification round: no new issues found").
 
-### 6. Present suggestions and ask for direction
+### 6. Present deferred items and ask for direction
 
-After auto-fixes and verification are complete, present the "Suggestions" category and ask:
+After auto-fixes and verification are complete, present only the deferred items:
 
-> "I've auto-fixed [N] must-fix and [M] easy-win items. Verification round: [clean / fixed X additional items].
+> "I've auto-fixed [N] items across must-fix, easy-wins, and reviewer suggestions. Verification round: [clean / fixed X additional items].
 >
 > The changes are uncommitted so you can review them.
 >
-> Here are [X] suggestions that need your input: [list suggestions]
+> [If deferred items exist:]
+> These [X] items I left alone - they're either big-effort, out of scope, or debatable:
+> [list deferred items]
 >
-> Want me to apply any of these?"
+> Want me to tackle any of these?"
 
 ## Rules
 
 - **Never commit during a review.** All fixes are left as uncommitted changes.
-- **Never auto-fix suggestions or collateral changes.** Only must-fix and easy-win items get auto-fixed. Collateral changes are always presented for user decision (keep or revert).
+- **Fix by default, defer only when justified.** Auto-fix everything unless it's big-effort, out of scope, or debatable. Collateral changes are always presented for user decision (keep or revert).
 - **If Codex is unavailable or fails**, proceed with the Claude-side reviews. Note that Codex was skipped in the summary.
 - **If no frontend files changed**, skip the UI review entirely. Don't mention it in the summary.
 - **Respect project conventions.** Check CLAUDE.md for project-specific rules and flag violations.

@@ -1,7 +1,7 @@
 ---
 name: spec-interview
-description: Interview the user in detail about a feature they want to build, then write a complete spec to docs/specs/
-disable-model-invocation: true
+description: "Interview the user in detail about a feature they want to build, then write a complete spec to docs/specs/. Use when the user says 'spec interview', 'interview me', 'create a spec', 'write a spec', 'let's spec this out', or asks to define requirements for a feature."
+user-invocable: true
 argument-hint: [brief description of what to build]
 ---
 
