@@ -39,40 +39,27 @@ Use the AskUserQuestion tool to interview the user in detail about this feature.
 
 Once the interview is complete, write the spec to `docs/specs/YYYY-MM-DD-<feature-name>.md` (today's date + kebab-case filename derived from the feature name). Create the `docs/specs/` directory if it doesn't exist.
 
-**Spec format:**
+**Spec structure:**
+
+Every spec has these **required sections** (always present):
 
 ```markdown
 # [Feature Name]
 
 ## Overview
-One-paragraph summary of what we're building and why.
+One-paragraph summary of what we're building and why. Include a guiding principle if one emerged.
 
 ## User Stories
 - As a [role], I want [action] so that [benefit].
-- As a [role], I want [action] so that [benefit].
 
 ## Acceptance Criteria
+Grouped by logical area (e.g., "### Setup & Template", "### Core Algorithm", "### Validation").
 - [ ] Testable criterion 1
 - [ ] Testable criterion 2
 - [ ] All existing tests still pass
 
 ## User Flow
-Step-by-step walkthrough of the primary user journey.
-
-## UI Design
-- Layout and component hierarchy
-- Key interactions and state transitions
-- Loading, empty, and error states
-
-## Data Model
-- New or modified tables/fields
-- Relations and constraints
-- Migration notes
-
-## API
-- New or modified endpoints
-- Request/response shapes
-- Validation rules
+Step-by-step walkthrough of the primary user journey. Multiple flows if the feature has distinct paths (e.g., "### Primary Flow", "### Re-run Flow", "### Latecomer Flow").
 
 ## Constraints
 - Tech stack constraints (from CLAUDE.md and existing code)
@@ -80,19 +67,32 @@ Step-by-step walkthrough of the primary user journey.
 - Scope boundaries
 
 ## Edge Cases
-- Enumerate each edge case and how it's handled
+| Scenario | Handling |
+Table format preferred for scanning 10+ cases.
 
 ## Out of Scope
-- What we're explicitly not building
+- What we're explicitly not building. Split into "Deferred to [milestone]" vs "Not MVP" if useful.
 
 ## Open Questions
 - Anything still unresolved (should be empty if interview was thorough)
 ```
 
+Beyond these, **add whatever sections the feature demands.** The spec should capture every concept, decision, and nuance that emerged from the interview. Common additional sections (add any that apply):
+
+- **Glossary and Concepts** - when the feature introduces domain terms, structures, or rules that readers must understand before the rest of the spec makes sense. Define each term with examples. This section goes right after Overview if needed.
+- **UI Design** - layout, component hierarchy, interactions, states. Include ASCII mockups for table/grid layouts. Add per-section details (e.g., "### Journey Groups Tab", "### Designer Tab").
+- **Data Model** - new/modified tables with Prisma-style schemas. Include caching strategy if relevant.
+- **API** - endpoints, payloads, response shapes. Include long-running operation strategy (SSE, polling, etc.).
+- **Algorithm / Logic** - when the feature has non-trivial computation. Describe inputs, steps, scoring functions, performance budgets. Note what should be pure functions.
+- **Key Decisions from Interview** - table of decisions + rationale from the interview. Prevents future re-debating.
+
+Don't pad the spec with empty sections. If the feature has no algorithm, don't add an Algorithm section. If there's no new data model, skip it. But when a section IS needed, go deep - a thorough spec prevents rework.
+
 **Writing tips:**
 - User stories should cover each distinct persona/scenario, not just the happy path.
-- Acceptance criteria must be **testable** - a QA tester or e2e test should be able to verify each one with a pass/fail. Write them as checkboxes so they can be ticked off during review.
+- Acceptance criteria must be **testable** - a QA tester or e2e test should be able to verify each one with a pass/fail. Write them as checkboxes so they can be ticked off during review. Group by area when there are 15+ criteria.
 - Constraints ground the spec in reality - pull from CLAUDE.md, existing code patterns, and what the user said during the interview.
+- **Key Decisions** is one of the most valuable sections. Record every notable decision with its rationale so future sessions don't re-debate them.
 
 ## Phase 3: Present the Spec
 

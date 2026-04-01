@@ -144,15 +144,16 @@ Once all reviews are complete, merge the results:
    - Minor UI polish (missing hover states, inconsistent spacing)
 
    **Fix these too** (auto-fix, but note them in the summary)
+   - **Fragile code** - brittle logic, hardcoded values, implicit dependencies that will break on the next change
+   - **Duplication** - same logic in two places, copy-pasted code, functions that compute the same thing differently
    - Performance optimizations with clear, low-risk fixes
-   - Code reuse opportunities that reduce duplication
    - Better naming, clearer interfaces
    - Minor UX/UI improvements that are straightforward
    - Anything a reviewer suggested that has an obvious, quick fix
 
    **Defer** (present for user decision - do NOT auto-fix)
    - Architectural changes that would take significant effort
-   - Changes unrelated to the current feature scope
+   - Changes completely unrelated to the current feature scope
    - Work better suited to a dedicated session (e.g., "refactor the whole timing system")
    - Subjective tradeoffs where reasonable people might disagree
 
