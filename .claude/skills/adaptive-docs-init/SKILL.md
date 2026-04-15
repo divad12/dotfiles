@@ -1,19 +1,20 @@
 ---
 name: adaptive-docs-init
-description: "Bootstrap the adaptive documentation system in a project: create docs/ai/, .agents/skills/, the .claude/skills symlink, root AGENTS.md, writing-docs.md, and a slim CLAUDE.md template. Use when the user says 'set up adaptive docs', 'set up the doc system', 'init docs', 'add agent docs to this project', or wants to apply the three-layer docs architecture to a new project."
+description: "Bootstrap the agent-agnostic adaptive documentation system in a project: create docs/ai/, .agents/skills/, the .claude/skills symlink, root AGENTS.md, writing-docs.md. Use when the user says 'set up adaptive docs', 'set up the doc system', 'init docs', 'add agent docs to this project', or wants to apply the three-layer docs architecture to a new project. Works for any agent that supports AGENTS.md (Claude Code, Codex, Cursor, Windsurf, Aider)."
 user-invocable: true
 ---
 
 # Adaptive Docs - Init
 
-Set up the adaptive documentation system in a project. This is the **mechanical bootstrap** - it creates the structure but doesn't try to refactor existing CLAUDE.md sprawl. Use `/adaptive-docs-extract` for that after.
+Set up the adaptive documentation system in a project. This is the **mechanical bootstrap** - it creates the structure but doesn't try to refactor existing sprawl. Use `/adaptive-docs-extract` for that after.
+
+The system is **agent-agnostic**: `AGENTS.md` is the primary root file (universal standard, supported by Codex / Cursor / Windsurf / Aider, and read by Claude Code as a fallback). `CLAUDE.md` is optional and only created if the user wants Claude Code-specific additions.
 
 The architecture being installed:
 
 ```
 <project>/
-├── CLAUDE.md                 # always loaded by Claude Code (slim, intent-based table)
-├── AGENTS.md                 # always loaded by Codex; Claude Code fallback
+├── AGENTS.md                 # always loaded, agent-agnostic root (primary)
 ├── docs/ai/                  # on-demand reference docs (the source of truth)
 │   ├── README.md
 │   └── writing-docs.md       # meta-rules for editing these
@@ -42,8 +43,8 @@ Detect project name from `package.json`, `pyproject.toml`, `Cargo.toml`, or the 
 Check for each piece of the system:
 
 ```bash
-test -f CLAUDE.md            && echo "HAS_CLAUDE_MD"
 test -f AGENTS.md            && echo "HAS_AGENTS_MD"
+test -f CLAUDE.md            && echo "HAS_CLAUDE_MD"
 test -d docs/ai              && echo "HAS_DOCS_AI"
 test -d .agents/skills       && echo "HAS_AGENTS_SKILLS"
 test -L .claude/skills       && echo "HAS_SKILLS_SYMLINK"
@@ -86,7 +87,7 @@ If `.gitignore` doesn't mention `.claude/` at all, add the same block. If it alr
 
 ### 6. Create docs/ai/writing-docs.md
 
-Copy `~/.claude/templates/adaptive-docs/writing-docs.md.template` to `docs/ai/writing-docs.md`. Replace template placeholders with empty strings (the file inventory will be filled in as docs are added):
+Copy `~/.claude/templates/adaptive-docs/writing-docs.md.template` to `docs/ai/writing-docs.md`. Replace template placeholders with empty strings (the inventory tables will be filled in as docs are added):
 
 - `{{FILE_TABLE_ROWS}}` → empty (just the header row remains)
 - `{{SKILL_TABLE_ROWS}}` → empty
@@ -98,45 +99,60 @@ Copy `~/.claude/templates/adaptive-docs/README.md.template` to `docs/ai/README.m
 
 ### 8. Create root AGENTS.md (if missing)
 
-Copy `~/.claude/templates/adaptive-docs/AGENTS.md.template` to `AGENTS.md` at the project root.
+This is the **primary root file**. Copy `~/.claude/templates/adaptive-docs/AGENTS.md.template` to `AGENTS.md` at the project root.
 
 Replace placeholders:
 - `{{PROJECT_NAME}}` → detected project name
-- `{{TECH_STACK_DESCRIPTION}}` → empty (or one line if obvious from package.json)
+- `{{TECH_STACK_DESCRIPTION}}` → empty or one line if obvious from `package.json`
 - `{{REFERENCE_TABLE_ROWS}}` → empty (to be filled in as docs are added)
 
 If `AGENTS.md` already exists, **do not overwrite**. Report it and tell the user that `/adaptive-docs-extract` can help align it with the structure.
 
-### 9. Create root CLAUDE.md (only if missing)
+### 9. Do NOT create CLAUDE.md
 
-If `CLAUDE.md` does not exist, copy `~/.claude/templates/adaptive-docs/CLAUDE.md.template` to `CLAUDE.md`. Replace placeholders the same way as AGENTS.md.
+By default, skip `CLAUDE.md`. Claude Code reads `AGENTS.md` as a fallback when no `CLAUDE.md` exists, so it works fine without one.
 
-If `CLAUDE.md` already exists, **do not overwrite**. Report that the next step is to run `/adaptive-docs-extract` to refactor it into the three-layer system.
+**Only create `CLAUDE.md` if the user explicitly asks for it** (e.g. they have Claude-specific hooks, `/command` aliases, or custom Claude Code settings). In that case, create a thin pointer:
+
+```markdown
+# {{PROJECT_NAME}} - Claude Code-specific config
+
+See `AGENTS.md` for universal instructions. This file contains Claude Code-specific additions only.
+
+## Claude-specific commands
+
+(Add `/command` aliases, hook configs, or Claude Code-only workflows here.)
+```
+
+Do not copy the full universal rules into CLAUDE.md. Duplication creates drift.
 
 ### 10. Report what was done
 
 Print a summary like:
 
 ```
-Adaptive docs initialized.
+Adaptive docs initialized (agent-agnostic).
 
 Created:
   ✓ docs/ai/README.md
   ✓ docs/ai/writing-docs.md
-  ✓ AGENTS.md
+  ✓ AGENTS.md (primary root file - read by all agents)
   ✓ .agents/skills/ (empty)
   ✓ .claude/skills → ../.agents/skills (symlink)
   ✓ .gitignore updated to track .claude/skills
 
-Skipped (already existed):
-  - CLAUDE.md  (run /adaptive-docs-extract to refactor it)
+Not created (by design):
+  - CLAUDE.md  (AGENTS.md covers Claude Code too via fallback;
+                add a CLAUDE.md only if you need Claude-specific config)
 
 Next steps:
-  - If your existing CLAUDE.md is more than ~100 lines, run /adaptive-docs-extract
-    to split it into docs/ai/ files with skill triggers.
-  - Otherwise, start adding topic docs as you encounter them. The /capture-learning
-    skill knows how to route new principles into the right docs/ai/ file.
+  - Fill in AGENTS.md with your project's tech stack and hard rules.
+  - Add topic docs to docs/ai/ as you encounter recurring guidelines.
   - Read docs/ai/writing-docs.md to understand the maintenance rules.
+
+For other agents:
+  - GitHub Copilot: copy the AGENTS.md reference table to .github/copilot-instructions.md
+  - ChatGPT / other chat agents: paste relevant docs/ai/ files per conversation
 ```
 
 ## Notes
@@ -145,3 +161,4 @@ Next steps:
 - **Templates are at `~/.claude/templates/adaptive-docs/`.** If the templates are missing (e.g. user doesn't have these dotfiles), bail with a clear message instead of inventing content.
 - **Do not invent content for placeholders.** If you don't have a real value (e.g. tech stack), leave a clear comment like `<!-- TODO: fill in tech stack -->` so the user knows to come back.
 - **Don't run /adaptive-docs-extract automatically.** It's interactive and the user may want to do it later.
+- **AGENTS.md is the standard.** Don't default to CLAUDE.md - that encourages Claude-specific thinking that breaks the agent-agnostic goal.

@@ -1,21 +1,23 @@
-Always use context7 when I need code generation, setup or configuration steps, or
-library/API documentation. This means you should automatically use the Context7 MCP
-tools to resolve library id and get library docs without me having to explicitly ask.
+# Global Agent Instructions
+
+Agent-agnostic rules that apply to any AI coding agent (Claude Code, Codex, Cursor, Windsurf, Aider) working on my projects. Mirrors `CLAUDE.md` for agents that read `AGENTS.md` as their primary configuration file.
+
+## Documentation Lookups
+
+Use context7 (or the agent's equivalent documentation MCP) when you need code generation, setup/configuration steps, or library/API documentation. Resolve library IDs and fetch docs without the user having to explicitly ask.
 
 ## Session Management
 
-- **When starting a new session:** Read PROGRESS.md first to understand current state before continuing work.
-- **Saving progress:** Use the `/save` skill. It updates PROGRESS.md, TECH_DEBT.md, and checks for CLAUDE.md learnings.
-- **Committing:** Always run `/save` before committing (the `/ship` skill does this automatically).
+- **When starting a new session:** Read `PROGRESS.md` at the project root first to understand current state.
+- **Saving progress:** Use the `save` skill / `/save` command. It updates `PROGRESS.md`, `TECH_DEBT.md`, and checks for learnings to route into the docs.
+- **Committing:** Always run `save` before committing (the `ship` skill does this automatically).
 
 ## Tech Debt Tracking
 
-Consult `TECH_DEBT.md` at these key moments:
-- **Before starting a new feature** - check if any P1 items affect the area you're working in
+Consult `TECH_DEBT.md` at:
+- **Before starting a new feature** - check if any P1 items affect the area
 - **Before each milestone ships** - review all P1 items and resolve them
 - **During refactoring passes** - work through P2/P3 items
-
-The `/save` skill handles TECH_DEBT.md updates (format, priorities, housekeeping).
 
 ## Adaptive Docs System
 
@@ -27,7 +29,7 @@ Before diving into a task, state which `docs/ai/` files you're loading in this f
 📖 Loading context: docs/ai/<file>.md
 ```
 
-To install this system in a project: `/adaptive-docs-init`. To refactor an existing bloated `CLAUDE.md` / `AGENTS.md` into it: `/adaptive-docs-extract`.
+To install this system in a project: `/adaptive-docs-init`. To refactor an existing bloated root instructions file into it: `/adaptive-docs-extract`.
 
 ## Superpowers Directory Overrides
 

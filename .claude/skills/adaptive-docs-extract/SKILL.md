@@ -1,14 +1,16 @@
 ---
 name: adaptive-docs-extract
-description: "Refactor an existing bloated CLAUDE.md or AGENTS.md into the three-layer adaptive docs system. Identifies topics that should become docs/ai/ files, suggests skill triggers, and proposes directories for nested AGENTS.md guardrails. Use when the user says 'extract docs', 'split CLAUDE.md', 'refactor the docs', 'apply adaptive docs to existing project', 'slim CLAUDE.md', or has a sprawling root CLAUDE.md they want to break up."
+description: "Refactor an existing bloated AGENTS.md or CLAUDE.md into the three-layer agent-agnostic adaptive docs system. Identifies topics that should become docs/ai/ files, suggests skill triggers, and proposes directories for nested AGENTS.md guardrails. Use when the user says 'extract docs', 'split AGENTS.md', 'split CLAUDE.md', 'refactor the docs', 'apply adaptive docs to existing project', 'slim AGENTS.md', 'slim CLAUDE.md', or has sprawling root instructions they want to break up."
 user-invocable: true
 ---
 
 # Adaptive Docs - Extract
 
-Refactor an existing project's `CLAUDE.md` (and/or `AGENTS.md`) into the three-layer adaptive docs system: slim root + on-demand `docs/ai/` references + auto-activating skills + nested `AGENTS.md` guardrails.
+Refactor an existing project's `AGENTS.md` (and/or `CLAUDE.md`) into the three-layer adaptive docs system: slim root + on-demand `docs/ai/` references + auto-activating skills + nested `AGENTS.md` guardrails.
 
 This is a **consultant skill** - it doesn't blindly extract. It interviews the user about which topics deserve their own file, which directories warrant guardrails, and which need skill triggers.
+
+`AGENTS.md` is treated as the **primary** root file (agent-agnostic universal standard). `CLAUDE.md`, if it exists, is for Claude Code-specific additions only.
 
 ## Prerequisites
 
@@ -24,13 +26,17 @@ If any of those is missing, run init before proceeding.
 
 ### 1. Read the current root files
 
-Read `CLAUDE.md` and `AGENTS.md` (whichever exist) at the project root. Note their length and structure.
+Read whichever exist at the project root:
+- `AGENTS.md` (primary)
+- `CLAUDE.md` (may be legacy from pre-agent-agnostic setup, or may contain Claude-specific content)
 
-If `CLAUDE.md` is under ~100 lines and well-organized, tell the user there may not be much to extract and confirm before proceeding. Sometimes a project genuinely has little context to disclose progressively.
+Note their length and structure. If they both exist with near-identical content, flag this as a consolidation opportunity: the universal rules belong in `AGENTS.md`, and `CLAUDE.md` should either be deleted (if no Claude-specific content remains) or slimmed to just the Claude-specific parts.
+
+If the root files are under ~100 lines each and well-organized, tell the user there may not be much to extract. Confirm before proceeding.
 
 ### 2. Identify candidate topics
 
-Read through `CLAUDE.md` and group its content into **topics**. A topic is a coherent area where 3+ paragraphs (or one substantial section) cluster around a single concern. Common candidates:
+Read through the root file(s) and group content into **topics**. A topic is a coherent area where 3+ paragraphs (or one substantial section) cluster around a single concern. Common candidates:
 
 | Topic | Often worth extracting if... |
 |-------|------------------------------|
@@ -45,14 +51,14 @@ Read through `CLAUDE.md` and group its content into **topics**. A topic is a coh
 | Build / deploy | There are deployment-specific rules or environment notes |
 | Code review | There are review-specific checklists or rules |
 
-For each potential topic in the current CLAUDE.md, decide:
+For each potential topic, decide:
 - **Extract** - clearly its own area, gets read often when working on relevant tasks
 - **Keep in root** - universal, applies to ANY task (e.g. "never use em dashes", "comment the why not the what")
 - **Drop** - stale, redundant, or covered by linters
 
 ### 3. Confirm the extraction plan with the user
 
-Present the plan using the AskUserQuestion tool. For each candidate, ask:
+Present the plan using the `AskUserQuestion` tool. For each candidate, ask:
 
 > "I see content about **{{topic}}**. Should this become `docs/ai/{{filename}}.md`?"
 
@@ -61,7 +67,7 @@ Options:
 - "No, keep in root"
 - "No, drop it (stale/redundant)"
 
-For larger refactors, batch related questions into a single AskUserQuestion call.
+For larger refactors, batch related questions into a single `AskUserQuestion` call.
 
 Also ask:
 - "What's the project name?" (only if you can't infer it)
@@ -80,9 +86,9 @@ For each topic the user approves:
    {{extracted content here}}
    ```
 
-2. **Remove the extracted content from CLAUDE.md** (and AGENTS.md if it was duplicated there).
+2. **Remove the extracted content** from the root files (AGENTS.md and CLAUDE.md if duplicated).
 
-3. **Add a row to the reference table** in CLAUDE.md and AGENTS.md:
+3. **Add a row to the reference table** in `AGENTS.md` (and `CLAUDE.md` if it has its own table):
    ```markdown
    | Working on... | Read |
    | {{when this applies}} | `docs/ai/{{topic}}.md` |
@@ -125,7 +131,7 @@ After all docs are extracted, scan the project for high-stakes directories that 
 
 For each candidate, ask: "Add a nested `AGENTS.md` guardrail here?"
 
-Nested AGENTS.md should be **under 10 lines** and state the rule + why. Example:
+Nested `AGENTS.md` should be **under 10 lines** and state the rule + why. Example:
 
 ```markdown
 # {{Directory}} Guardrails
@@ -139,29 +145,44 @@ Add each created file to the "Nested AGENTS.md" table in `docs/ai/writing-docs.m
 
 ### 7. Slim the root files
 
-After extraction, the root `CLAUDE.md` should:
+After extraction:
+
+**Root `AGENTS.md`** should:
 - Be under ~100 lines
 - Contain only universal rules (apply to ANY task)
 - Have an intent-based reference table pointing to `docs/ai/`
+- Be agent-agnostic in wording
 
-Root `AGENTS.md` should:
-- Mirror CLAUDE.md universal rules
-- Have the FULL "if X then Y" reference table
-- Include any agent-specific guidance (e.g. PR conventions for Codex)
+**Root `CLAUDE.md`** (if it exists) should:
+- Contain ONLY Claude Code-specific content (hooks, `/command` aliases, Claude-only settings)
+- Reference `AGENTS.md` for universal rules - don't duplicate them
+- OR be deleted if there's nothing Claude-specific to keep
 
-If CLAUDE.md is still over 100 lines after extraction, ask the user which sections might still be split or compressed.
+If `AGENTS.md` is still over 100 lines after extraction, ask the user which sections might still be split or compressed.
 
-### 8. Verify and report
+### 8. Consolidate if CLAUDE.md and AGENTS.md duplicate each other
+
+If both files exist and contain near-identical universal rules:
+- Keep the universal content in `AGENTS.md` only
+- Offer to either delete `CLAUDE.md` entirely, or slim it to a pointer:
+  ```markdown
+  # {{PROJECT}} - Claude Code config
+  See `AGENTS.md` for universal instructions.
+  ```
+
+Ask the user which they prefer before deleting.
+
+### 9. Verify and report
 
 Run a final pass:
 
 ```bash
-wc -l CLAUDE.md AGENTS.md docs/ai/*.md
+wc -l AGENTS.md CLAUDE.md docs/ai/*.md 2>/dev/null
 ls .agents/skills/
 ```
 
 Report:
-- Original CLAUDE.md length vs new length
+- Original root file length(s) vs new length(s)
 - Number of `docs/ai/` files created
 - Number of skills created
 - Number of nested AGENTS.md created
@@ -169,9 +190,10 @@ Report:
 
 ## Notes
 
+- **AGENTS.md is primary.** If the project only has `CLAUDE.md` today, the extraction should produce an `AGENTS.md` as the new primary root file. The `CLAUDE.md` either gets deleted or slimmed to Claude-specific content.
 - **Don't extract aggressively on the first pass.** Better to leave 3 things in root than to create 10 thin docs that each have one paragraph. Topics should be substantive enough to be worth a separate file.
-- **Use the AskUserQuestion tool** for the extraction plan rather than presenting a long markdown list. The user wants to make decisions, not read a wall of text.
+- **Use the `AskUserQuestion` tool** for the extraction plan rather than presenting a long markdown list. The user wants to make decisions, not read a wall of text.
 - **Preserve content semantics.** When extracting, don't paraphrase or "improve" the text - move it verbatim. Refactor the writing in a separate pass if needed.
 - **Banner format is mandatory.** Every `docs/ai/` file must have the "Context loaded" banner at the top so the agent doesn't re-read it within a session.
 - **One canonical location per concept.** If you find the same rule stated in two places during extraction, keep it in one and remove the other - don't duplicate.
-- **The /capture-learning skill** is the long-term maintenance flow. It routes new principles into the right `docs/ai/` file. Mention this at the end so the user knows how to grow the system.
+- **The `/capture-learning` skill** is the long-term maintenance flow. It routes new principles into the right `docs/ai/` file. Mention this at the end so the user knows how to grow the system.

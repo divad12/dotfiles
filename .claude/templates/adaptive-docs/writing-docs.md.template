@@ -2,32 +2,41 @@
 
 # Writing & Editing Project Documentation
 
-Read this before making changes to any `CLAUDE.md`, `AGENTS.md`, `docs/ai/` file, or skill.
+Read this before making changes to any `AGENTS.md`, `CLAUDE.md`, `docs/ai/` file, or skill.
 
 ## Core Principle: LLMs Have an Instruction Budget
 
-LLMs reliably follow ~150-200 instructions, with degradation beyond that. The agent's system prompt already consumes ~50. Every line in root `CLAUDE.md` / `AGENTS.md` competes for attention. Less is more.
+LLMs reliably follow ~150-200 instructions, with degradation beyond that. The agent's system prompt already consumes ~50. Every line in root `AGENTS.md` / `CLAUDE.md` competes for attention. Less is more.
 
 ## The Three-Layer Architecture
 
-This project uses a layered documentation system with two parallel activation mechanisms:
+This project uses a layered documentation system that's **agent-agnostic** - works with any coding agent that supports `AGENTS.md` (the emerging universal standard).
 
 ### Layer 1: Root Files (Always Loaded)
-- **`CLAUDE.md`** - Claude Code root. Universal rules only. Keep under 100 lines.
-- **`AGENTS.md`** - Codex root (and Claude Code fallback). Same universal rules + "if X then Y" reference table.
+
+- **`AGENTS.md`** - The primary root file. Universal rules only. Keep under 100 lines.
+  - Read by: Codex, Cursor, Windsurf, Aider (natively), Claude Code (as fallback)
+- **`CLAUDE.md`** - *Optional*. Only create if you have Claude Code-specific content (commands, hooks, etc.) that shouldn't live in `AGENTS.md`. If it exists, it duplicates the universal rules + adds the Claude-specific bits.
+  - Read by: Claude Code (primary)
+- **`.github/copilot-instructions.md`** - *Optional*. Copy the root `AGENTS.md` reference table here if you use GitHub Copilot.
 
 ### Layer 2: Skills + Nested AGENTS.md (Auto-Activated)
-- **`.agents/skills/*/SKILL.md`** - Shared skills (both Claude Code and Codex). Thin pointers that tell the agent to read the relevant `docs/ai/` file. Auto-activated based on `description` matching. Claude Code accesses these via a symlink at `.claude/skills/`.
-- **Nested `AGENTS.md`** in source directories - Auto-injected by both Claude Code and Codex. Used for non-negotiable guardrails in high-stakes directories.
+
+- **`.agents/skills/*/SKILL.md`** - Shared skills. Thin pointers that tell the agent to read the relevant `docs/ai/` file. Auto-activated based on `description` matching.
+  - Claude Code accesses these via a symlink at `.claude/skills/`.
+  - Codex reads `.agents/skills/` directly.
+- **Nested `AGENTS.md`** in source directories - Auto-injected by agents when editing files in those directories. Used for non-negotiable guardrails in high-stakes directories.
 
 ### Layer 3: Reference Docs (Loaded On-Demand)
+
 - **`docs/ai/*.md`** - Agent-agnostic detailed guidelines. The source of truth. Skills and nested AGENTS.md point here. Humans read these directly.
 
 ## Where to Put New Instructions
 
 | The instruction... | Put it in... |
 |---|---|
-| Always matters, regardless of task | Root `CLAUDE.md` + root `AGENTS.md` |
+| Always matters, regardless of task | Root `AGENTS.md` |
+| Claude Code-specific (hooks, `/command` names) | Root `CLAUDE.md` only |
 | Only matters for a specific topic | `docs/ai/` reference doc |
 | Is a non-negotiable rule for a specific directory | Nested `AGENTS.md` in that directory |
 | Needs to auto-activate for agents | `.agents/skills/` SKILL.md (points to docs/ai/ file) |
@@ -35,16 +44,16 @@ This project uses a layered documentation system with two parallel activation me
 
 ## Rules for Editing
 
-### Root CLAUDE.md
+### Root AGENTS.md
 - Target: under 100 lines
 - Every instruction must pass: "Does this matter for ANY task?" If not, move it out.
 - Reference table is intent-based ("Working on X | Read Y"), not feature-based
-- No example code, no future feature details
+- Agent-agnostic wording - no assumptions about which specific agent is running
 
-### Root AGENTS.md
-- Mirrors CLAUDE.md universal rules
-- Has the FULL "if X then Y" reference table (all docs/ai/ files)
-- Includes any code review or contribution guidelines specific to other agents
+### Root CLAUDE.md (optional)
+- Only exists if you have Claude-specific content (commands, hooks, Claude Code configuration)
+- Mirrors AGENTS.md universal rules for discoverability, then adds Claude-specific sections
+- If kept thin, can just point to `AGENTS.md`
 
 ### docs/ai/ Reference Docs
 - One doc per topic area, not per feature
@@ -73,7 +82,7 @@ Every `docs/ai/` file must start with this banner so the agent doesn't re-read i
 - State the rule and why. Don't explain background.
 - Point to docs/ai/ for details
 - Only create if the directory has non-negotiable rules
-- Both Claude Code and Codex read these (Claude as AGENTS.md fallback, Codex as primary)
+- Any agent that supports `AGENTS.md` reads these (Claude Code, Codex, Cursor, etc.)
 
 ## Anti-Patterns
 
@@ -83,18 +92,19 @@ Every `docs/ai/` file must start with this banner so the agent doesn't re-read i
 - **Example code in docs.** It duplicates the codebase and goes stale. Use `file:line` pointers.
 - **Using docs for linting rules.** Linters are cheaper, faster, and deterministic.
 - **Auto-generating docs.** Every line should be manually crafted.
+- **Claude-specific content in AGENTS.md.** If it's Claude-only (hook names, `/command` specifics), put it in `CLAUDE.md` instead so other agents don't get confused.
 
 ## Maintenance
 
 ### Keep the indexes in sync
 
-When adding, removing, or renaming a `docs/ai/` file, you **must** update all three indexes that point to it:
+When adding, removing, or renaming a `docs/ai/` file, you **must** update all indexes that point to it:
 
-1. **`CLAUDE.md` reference table** - The "Working on... | Read" table in root CLAUDE.md
-2. **`AGENTS.md` reference table** - The Codex root file
-3. **`.agents/skills/` SKILL.md files** - The skill that points to this doc (update the description and body)
-4. **Nested `AGENTS.md` files** - Any "Read before editing:" pointers in source directories
-5. **`docs/ai/README.md` file table** - The catalog
+1. **`AGENTS.md` reference table** at the project root
+2. **`CLAUDE.md` reference table** at the project root (if it exists)
+3. **`.agents/skills/` SKILL.md files** - any skill that points to this doc (update description + body)
+4. **Nested `AGENTS.md` files** - any "Read before editing:" pointers in source directories
+5. **`docs/ai/README.md` file table** - the catalog
 6. This file's "Current File Inventory" section below (if you maintain one)
 
 ### Other maintenance
@@ -107,8 +117,8 @@ When adding, removing, or renaming a `docs/ai/` file, you **must** update all th
 ### Root Files
 | File | Purpose |
 |------|---------|
-| `CLAUDE.md` | Universal rules, commands, slim reference table |
-| `AGENTS.md` | Universal rules + full reference table + agent guidelines |
+| `AGENTS.md` | Universal rules + full reference table (primary) |
+| `CLAUDE.md` | Claude Code-specific additions (optional) |
 
 ### docs/ai/
 | File | Purpose |

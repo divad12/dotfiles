@@ -1,16 +1,16 @@
 # Agent Documentation
 
-This directory contains agent-agnostic reference docs that both Claude Code and Codex (and any future LLM agent) load on demand.
+This directory contains agent-agnostic reference docs that any AI coding agent (Claude Code, Codex, Cursor, Windsurf, Aider) loads on demand.
 
 ## Why this structure exists
 
-LLMs reliably follow ~150-200 instructions before degrading. If we put every rule in the root `CLAUDE.md`/`AGENTS.md`, we'd burn the budget on rules that don't apply to the current task.
+LLMs reliably follow ~150-200 instructions before degrading. If we put every rule in the root `AGENTS.md`, we'd burn the budget on rules that don't apply to the current task.
 
 Instead, we use **progressive disclosure**:
 
-1. **Root files** (`CLAUDE.md`, `AGENTS.md`) - always loaded. Universal rules only. Kept slim.
-2. **Skills + nested `AGENTS.md`** - auto-activated when relevant (skills via description matching, nested AGENTS.md via directory). Thin pointers to docs/ai/.
-3. **`docs/ai/` reference docs** (this folder) - the source of truth. Loaded when the root files / skills tell the agent to.
+1. **Root `AGENTS.md`** - always loaded. Universal rules + reference table only. Kept slim. (Claude Code reads this as a fallback when `CLAUDE.md` doesn't exist; Codex / Cursor / Windsurf / Aider read it natively.)
+2. **Skills + nested `AGENTS.md`** - auto-activated when relevant. Skills match by description, nested files load when editing their directory.
+3. **`docs/ai/` reference docs** (this folder) - the source of truth. Loaded when the root file / skills tell the agent to.
 
 See `writing-docs.md` for the full architecture and rules for editing these files.
 
@@ -24,12 +24,17 @@ See `writing-docs.md` for the full architecture and rules for editing these file
 
 ## Maintenance
 
-When you add, remove, or rename a file in this folder, update **all three indexes**:
+When you add, remove, or rename a file in this folder, update **all these indexes** that reference it:
 
-1. `CLAUDE.md` reference table at the project root
-2. `AGENTS.md` reference table at the project root
+1. `AGENTS.md` reference table at the project root
+2. `CLAUDE.md` reference table at the project root (if present)
 3. The skill (in `.agents/skills/` or `.claude/skills/`) that points to this doc
 4. Any nested `AGENTS.md` files that reference it
 5. The file table above
 
 The `writing-docs.md` file has the canonical maintenance checklist.
+
+## For agents without native support
+
+- **GitHub Copilot** - copy the root `AGENTS.md` reference table into `.github/copilot-instructions.md`
+- **ChatGPT / other chat agents** - paste the relevant `docs/ai/` file into your conversation when starting work on a matching task

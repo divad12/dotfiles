@@ -1,8 +1,8 @@
-# {{PROJECT_NAME}} - Agent Instructions
+# {{PROJECT_NAME}}
 
-Universal rules and reference table for any AI agent (Claude Code, Codex, etc.) working on this project.
+Instructions for any AI coding agent working on this project.
 
-> Both Claude Code and Codex auto-load this file. Claude Code also loads `CLAUDE.md` (which mirrors the universal rules section). Keep them in sync.
+> **This is the primary instructions file.** `AGENTS.md` is the emerging universal standard - supported natively by Codex, Cursor, Windsurf, Aider, and read by Claude Code as a fallback when `CLAUDE.md` doesn't exist. For GitHub Copilot, copy the reference table below into `.github/copilot-instructions.md`. For ChatGPT (no native support), paste the relevant `docs/ai/` file into your conversation.
 
 ## Tech Stack
 
@@ -48,6 +48,10 @@ When starting work on a task, state which `docs/ai/` files you're reading before
 
 This lets the user verify the right knowledge loaded. If no `docs/ai/` files are relevant, say so.
 
-## For Codex specifically
+## Architecture
 
-(Optional: code review guidelines, PR conventions, anything Codex-specific that doesn't belong in the universal rules above.)
+This project uses the three-layer adaptive docs system - see `docs/ai/writing-docs.md` for the full explanation.
+
+- **Layer 1 (this file)** - universal rules + reference table. Always loaded.
+- **Layer 2** - skills in `.agents/skills/` (auto-activated by description matching) and nested `AGENTS.md` files in source directories (auto-loaded when editing those directories).
+- **Layer 3** - reference docs in `docs/ai/` (loaded on-demand via the table above).
