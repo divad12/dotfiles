@@ -1,0 +1,35 @@
+# Agent Documentation
+
+This directory contains agent-agnostic reference docs that both Claude Code and Codex (and any future LLM agent) load on demand.
+
+## Why this structure exists
+
+LLMs reliably follow ~150-200 instructions before degrading. If we put every rule in the root `CLAUDE.md`/`AGENTS.md`, we'd burn the budget on rules that don't apply to the current task.
+
+Instead, we use **progressive disclosure**:
+
+1. **Root files** (`CLAUDE.md`, `AGENTS.md`) - always loaded. Universal rules only. Kept slim.
+2. **Skills + nested `AGENTS.md`** - auto-activated when relevant (skills via description matching, nested AGENTS.md via directory). Thin pointers to docs/ai/.
+3. **`docs/ai/` reference docs** (this folder) - the source of truth. Loaded when the root files / skills tell the agent to.
+
+See `writing-docs.md` for the full architecture and rules for editing these files.
+
+## Files
+
+| File | Purpose |
+|------|---------|
+| `README.md` | This file. Structure explanation. |
+| `writing-docs.md` | Meta-rules for editing docs and skills. |
+{{FILE_TABLE_ROWS}}
+
+## Maintenance
+
+When you add, remove, or rename a file in this folder, update **all three indexes**:
+
+1. `CLAUDE.md` reference table at the project root
+2. `AGENTS.md` reference table at the project root
+3. The skill (in `.agents/skills/` or `.claude/skills/`) that points to this doc
+4. Any nested `AGENTS.md` files that reference it
+5. The file table above
+
+The `writing-docs.md` file has the canonical maintenance checklist.

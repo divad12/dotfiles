@@ -1,0 +1,44 @@
+# {{PROJECT_NAME}} - Project Context for Claude Code
+
+{{ONE_LINE_DESCRIPTION}}
+
+## Tech Stack
+
+{{TECH_STACK_TABLE}}
+
+## Hard Rules
+
+### Writing
+- (Add project writing conventions here, e.g. "Never use em dashes.")
+
+### Code
+- (Add universal code rules here. Keep this section short - move topic-specific rules to `docs/ai/`.)
+
+## Commands
+
+```bash
+# Add the most important commands here.
+```
+
+## Reference Docs
+
+Detailed guidelines live in `docs/ai/`. Each doc announces itself when read. Before starting work, read ALL relevant docs:
+
+| Working on... | Read |
+|---------------|------|
+| Editing project instructions or skills | `docs/ai/writing-docs.md` |
+{{REFERENCE_TABLE_ROWS}}
+
+**Multiple rows often apply.** When in doubt, read more rather than less.
+
+See `docs/ai/README.md` for the full structure. When suggesting changes to project instructions, put them in the appropriate `docs/ai/` file - not here. Only universally-applicable rules belong in this root file.
+
+## Context Loading
+
+When starting work on a task, state which `docs/ai/` files you're reading before diving in, in this format:
+
+```
+📖 Loading context: docs/ai/<file>.md, docs/ai/<other>.md
+```
+
+This lets the user verify the right knowledge loaded. If no `docs/ai/` files are relevant, say so.

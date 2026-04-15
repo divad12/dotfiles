@@ -1,0 +1,18 @@
+---
+name: {{SKILL_NAME}}
+description: "{{DESCRIPTION}}"
+---
+
+# {{SKILL_TITLE}}
+
+{{ONE_LINE_PURPOSE}}
+
+## When to use
+
+{{TRIGGERS_PROSE}}
+
+## What to do
+
+Read **`docs/ai/{{DOC_FILE}}`** for the full guidelines on this topic.
+
+That file contains the canonical rules. Apply them to the current task.

@@ -1,0 +1,1 @@
+> **IMPORTANT: Before reading, check if you already read this file earlier in this session. If yes, skip the read and announce "Context already loaded: {{FILENAME}} (re-using from earlier)". If no, read it and announce "Context loaded: {{FILENAME}}".**

@@ -1,0 +1,128 @@
+> **IMPORTANT: Before reading, check if you already read this file earlier in this session. If yes, skip the read and announce "Context already loaded: writing-docs.md (re-using from earlier)". If no, read it and announce "Context loaded: writing-docs.md".**
+
+# Writing & Editing Project Documentation
+
+Read this before making changes to any `CLAUDE.md`, `AGENTS.md`, `docs/ai/` file, or skill.
+
+## Core Principle: LLMs Have an Instruction Budget
+
+LLMs reliably follow ~150-200 instructions, with degradation beyond that. The agent's system prompt already consumes ~50. Every line in root `CLAUDE.md` / `AGENTS.md` competes for attention. Less is more.
+
+## The Three-Layer Architecture
+
+This project uses a layered documentation system with two parallel activation mechanisms:
+
+### Layer 1: Root Files (Always Loaded)
+- **`CLAUDE.md`** - Claude Code root. Universal rules only. Keep under 100 lines.
+- **`AGENTS.md`** - Codex root (and Claude Code fallback). Same universal rules + "if X then Y" reference table.
+
+### Layer 2: Skills + Nested AGENTS.md (Auto-Activated)
+- **`.agents/skills/*/SKILL.md`** - Shared skills (both Claude Code and Codex). Thin pointers that tell the agent to read the relevant `docs/ai/` file. Auto-activated based on `description` matching. Claude Code accesses these via a symlink at `.claude/skills/`.
+- **Nested `AGENTS.md`** in source directories - Auto-injected by both Claude Code and Codex. Used for non-negotiable guardrails in high-stakes directories.
+
+### Layer 3: Reference Docs (Loaded On-Demand)
+- **`docs/ai/*.md`** - Agent-agnostic detailed guidelines. The source of truth. Skills and nested AGENTS.md point here. Humans read these directly.
+
+## Where to Put New Instructions
+
+| The instruction... | Put it in... |
+|---|---|
+| Always matters, regardless of task | Root `CLAUDE.md` + root `AGENTS.md` |
+| Only matters for a specific topic | `docs/ai/` reference doc |
+| Is a non-negotiable rule for a specific directory | Nested `AGENTS.md` in that directory |
+| Needs to auto-activate for agents | `.agents/skills/` SKILL.md (points to docs/ai/ file) |
+| Is a one-off fix or edge case | Nowhere. Don't add it. |
+
+## Rules for Editing
+
+### Root CLAUDE.md
+- Target: under 100 lines
+- Every instruction must pass: "Does this matter for ANY task?" If not, move it out.
+- Reference table is intent-based ("Working on X | Read Y"), not feature-based
+- No example code, no future feature details
+
+### Root AGENTS.md
+- Mirrors CLAUDE.md universal rules
+- Has the FULL "if X then Y" reference table (all docs/ai/ files)
+- Includes any code review or contribution guidelines specific to other agents
+
+### docs/ai/ Reference Docs
+- One doc per topic area, not per feature
+- Every file starts with the "already loaded" banner (see template below)
+- Keep cross-references correct (if you rename a file, update all pointers)
+- Don't duplicate content across docs. One canonical location per concept.
+- Update `docs/ai/README.md` file table when adding/removing docs
+
+#### Banner format
+
+Every `docs/ai/` file must start with this banner so the agent doesn't re-read it within a session:
+
+```markdown
+> **IMPORTANT: Before reading, check if you already read this file earlier in this session. If yes, skip the read and announce "Context already loaded: <filename>.md (re-using from earlier)". If no, read it and announce "Context loaded: <filename>.md".**
+```
+
+### .agents/skills/ SKILL.md Files
+- Keep them thin - just a description and a pointer to docs/ai/
+- The `description` field is the activation trigger. Write it with specific keywords (file paths, library names, user-facing actions).
+- A skill can be both user-invocable (`/<skill-name>`) and auto-invoked
+- Claude Code accesses these via symlink at `.claude/skills/`; Codex reads `.agents/skills/` directly
+- Both agents use the same SKILL.md format (name, description frontmatter + body)
+
+### Nested AGENTS.md Files
+- Keep under 10 lines. These are guardrails, not documentation.
+- State the rule and why. Don't explain background.
+- Point to docs/ai/ for details
+- Only create if the directory has non-negotiable rules
+- Both Claude Code and Codex read these (Claude as AGENTS.md fallback, Codex as primary)
+
+## Anti-Patterns
+
+- **Stuffing everything in root files.** The more you add, the less gets followed.
+- **Duplicating content across files.** One canonical location. Others point to it.
+- **Adding stale content.** Delete, don't accumulate.
+- **Example code in docs.** It duplicates the codebase and goes stale. Use `file:line` pointers.
+- **Using docs for linting rules.** Linters are cheaper, faster, and deterministic.
+- **Auto-generating docs.** Every line should be manually crafted.
+
+## Maintenance
+
+### Keep the indexes in sync
+
+When adding, removing, or renaming a `docs/ai/` file, you **must** update all three indexes that point to it:
+
+1. **`CLAUDE.md` reference table** - The "Working on... | Read" table in root CLAUDE.md
+2. **`AGENTS.md` reference table** - The Codex root file
+3. **`.agents/skills/` SKILL.md files** - The skill that points to this doc (update the description and body)
+4. **Nested `AGENTS.md` files** - Any "Read before editing:" pointers in source directories
+5. **`docs/ai/README.md` file table** - The catalog
+6. This file's "Current File Inventory" section below (if you maintain one)
+
+### Other maintenance
+
+- When creating new source directories, check if they need a nested AGENTS.md and/or a new skill
+- Periodically prune skills with descriptions that never trigger - they're dead weight in the registry
+
+## Current File Inventory
+
+### Root Files
+| File | Purpose |
+|------|---------|
+| `CLAUDE.md` | Universal rules, commands, slim reference table |
+| `AGENTS.md` | Universal rules + full reference table + agent guidelines |
+
+### docs/ai/
+| File | Purpose |
+|------|---------|
+| `README.md` | Structure explanation, file table, maintenance notes |
+| `writing-docs.md` | This file. Meta-rules for editing docs. |
+{{FILE_TABLE_ROWS}}
+
+### .agents/skills/ (symlinked from .claude/skills/)
+| Skill | Description trigger |
+|-------|------------|
+{{SKILL_TABLE_ROWS}}
+
+### Nested AGENTS.md
+| File | Guardrail |
+|------|-----------|
+{{NESTED_AGENTS_ROWS}}

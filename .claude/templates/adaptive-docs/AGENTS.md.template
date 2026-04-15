@@ -1,0 +1,53 @@
+# {{PROJECT_NAME}} - Agent Instructions
+
+Universal rules and reference table for any AI agent (Claude Code, Codex, etc.) working on this project.
+
+> Both Claude Code and Codex auto-load this file. Claude Code also loads `CLAUDE.md` (which mirrors the universal rules section). Keep them in sync.
+
+## Tech Stack
+
+{{TECH_STACK_DESCRIPTION}}
+
+## Hard Rules
+
+### Writing
+- (Add project writing conventions here, e.g. "Never use em dashes.")
+
+### Code
+- (Add universal code rules here, e.g. "Comment the 'why', not the 'what'.")
+- (e.g. "SEARCH before you write - grep the codebase for existing implementations before adding new helpers.")
+- (e.g. "One source, one truth - extract shared logic, never copy-paste patterns.")
+
+## Commands
+
+```bash
+# Add the most important commands here, e.g.
+# npm run dev
+# npm test
+# npm run build
+```
+
+## Reference Table
+
+When you're about to work on something, read the matching `docs/ai/` file BEFORE diving in:
+
+| Working on... | Read |
+|---------------|------|
+| Editing these instructions or skills | `docs/ai/writing-docs.md` |
+{{REFERENCE_TABLE_ROWS}}
+
+**Multiple rows often apply.** When in doubt, read more rather than less.
+
+## Context Loading
+
+When starting work on a task, state which `docs/ai/` files you're reading before diving in, in this format:
+
+```
+📖 Loading context: docs/ai/<file>.md, docs/ai/<other>.md
+```
+
+This lets the user verify the right knowledge loaded. If no `docs/ai/` files are relevant, say so.
+
+## For Codex specifically
+
+(Optional: code review guidelines, PR conventions, anything Codex-specific that doesn't belong in the universal rules above.)
