@@ -87,42 +87,9 @@ Each entry should have: **Where** (file path + line if relevant), **Issue** (wha
 - **Before each milestone ships** - review all P1 items and resolve them
 - **During refactoring passes** - work through P2/P3 items
 
-### 3. Capture learnings in documentation
+### 3. Capture learnings
 
-**Goal: never fix the same thing twice.** Every bug fix, gotcha, pattern discovery, or "oh that's how this works" moment should be captured so future sessions don't repeat the work. The adaptive docs system (docs/ai/) ensures learnings only load when relevant, so there's no cost to capturing aggressively.
-
-**Review the session and capture:**
-
-- Bug fixes: what went wrong, why, and the fix - as a "why" comment in the code AND as a pattern/gotcha in the relevant docs/ai/ file
-- Conventions discovered or established
-- Architecture decisions with rationale
-- "We tried X and it didn't work" insights
-- Validation rules, edge cases, or integration patterns
-- Workflow improvements or tool usage patterns
-
-**Where each learning goes:**
-
-- **Code comments** - Non-obvious fixes get a "why" comment right next to the code. This is the primary home for problem-solution knowledge.
-- **`docs/ai/` files** - Patterns, conventions, and gotchas that apply to a topic area. Route to the specific file (e.g., testing gotcha → `docs/ai/testing.md`, form pattern → `docs/ai/form-guidelines.md`).
-- **Root `CLAUDE.md`** - Only if it applies to ALL tasks regardless of context (hard rules, writing style, commands). Very rare.
-- **Nested `AGENTS.md`** - Only if it's a new non-negotiable guardrail for a specific source directory. Also rare.
-
-**Present findings to the user:**
-
-```
-Save complete. PROGRESS.md updated.
-
-Learnings from this session to capture:
-
-1. [docs/ai/testing.md] Added: when mocking Prisma, must also mock the $transaction method (hit this debugging the cascade test)
-2. [src/lib/timing/recalculate.ts:45] Added code comment: midnight crossover check needed because naive subtraction wraps negative
-
-Want me to apply these?
-```
-
-Options: "Yes, update the docs", "No, skip it"
-
-If the user approves and the target is CLAUDE.md, run the `/claude-md-management:revise-claude-md` skill. Otherwise, edit the target files directly.
+Run the `/capture-learning` skill for each learning from this session. This generalizes specific fixes into durable principles and routes them to the right documentation.
 
 If the session was genuinely trivial (one-line typo fix, config change) with nothing to capture, skip this step.
 

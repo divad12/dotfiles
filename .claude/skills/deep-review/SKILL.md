@@ -1,6 +1,6 @@
 ---
 name: deep-review
-description: "Run a thorough five-way code review: collateral change audit, Claude's own diff analysis, a simplification/code-quality pass, Codex review, and a UI usability review (if frontend changes are present) - all in parallel. Consolidates findings, auto-fixes must-fix and easy-win items, flags collateral changes for user decision, runs a verification round, then presents remaining suggestions. Use when the user says 'deep review', 'thorough review', 'full review', 'triple review', or 'ultra review'."
+description: "Run a thorough six-way code review: collateral change audit, Claude's own diff analysis, a rule compliance audit (re-reads CLAUDE.md and project docs to catch shortcuts from context pressure), a simplification/code-quality pass, Codex review, and a UI usability review (if frontend changes are present) - all in parallel. Consolidates findings, auto-fixes must-fix and easy-win items, flags collateral changes for user decision, runs a verification round, then presents remaining suggestions. Use when the user says 'deep review', 'thorough review', 'full review', 'triple review', or 'ultra review'."
 user-invocable: true
 ---
 
@@ -12,13 +12,14 @@ The value of multi-agent review is that each reviewer has a different perspectiv
 
 ## Overview
 
-This skill orchestrates a comprehensive review by combining up to five perspectives:
+This skill orchestrates a comprehensive review by combining up to six perspectives:
 
 1. **Collateral change audit** - flag changes to existing behavior that aren't required by the feature
 2. **Claude review** - diff analysis, correctness, conventions, code quality
-3. **Simplify pass** - code reuse opportunities, unnecessary complexity, efficiency, dead code
-4. **Codex review** - independent AI review with fresh eyes (no shared context with the coding agent)
-5. **UI review** - usability, accessibility, and design quality (only when frontend files are changed)
+3. **Rule compliance audit** - re-read project rules (CLAUDE.md, docs/ai/) with fresh eyes and systematically verify the diff obeys them. This catches shortcuts the coding agent took under context pressure.
+4. **Simplify pass** - code reuse opportunities, unnecessary complexity, efficiency, dead code
+5. **Codex review** - independent AI review with fresh eyes (no shared context with the coding agent)
+6. **UI review** - usability, accessibility, and design quality (only when frontend files are changed)
 
 After all reviews complete, findings are consolidated, deduplicated, and categorized for action.
 
@@ -71,6 +72,36 @@ Analyze the diff yourself. Focus on:
 - **Data integrity** - schema alignment, missing validations, cascade issues
 
 Use `git diff` (for uncommitted) or `git diff main...HEAD` (for branch) to read the actual changes.
+
+#### Review 1.5: Rule compliance audit (run inline, CRITICAL)
+
+**Why this exists:** The agent that wrote the code and the agent reviewing it share the same context window. Rules read at session start fade as context fills. This review step re-reads project rules with fresh eyes and systematically checks the diff against them.
+
+**Step 1: Re-read the project rules.** Read CLAUDE.md (or AGENTS.md) and any docs it references that are relevant to the changed files. Don't rely on what you "remember" from earlier in the session - actually re-read them now. If the project has a reference table mapping topics to docs (e.g. "forms -> docs/ai/form-guidelines.md"), read the docs that match the changed file types.
+
+**Step 2: For each rule, grep the diff for violations.** Common patterns to check (adapt to the project's specific rules):
+
+```bash
+# Hardcoded values that should come from config or data
+git diff main...HEAD -- ':!*.test.*' | grep -n '= ""' | grep -v 'class\|placeholder\|useState'
+git diff main...HEAD -- ':!*.test.*' | grep -n 'fetch(' | grep -v 'test\|spec\|mock'
+
+# Duplication - new files that mirror existing ones
+git diff main...HEAD --name-only --diff-filter=A  # newly added files
+# For each new file: does an existing file already handle this?
+
+# Data fields added to types but not wired through the full chain
+git diff main...HEAD | grep -A2 'interface\|type.*='  # new fields in types
+# For each new field: is it in the DB select? In all callers?
+```
+
+**Step 3: Check architectural rules.** For each changed file, verify:
+- If it's a component: does it use project hooks (not raw fetch, not prop-drilled config)?
+- If it's a form: does it follow the form guidelines (dirty tracking, inline errors, optimistic close)?
+- If it adds a new field: does the field flow from DB select -> type -> every rendering surface?
+- If it duplicates logic: is there already a shared function for this?
+
+Rule violations found here are **Must Fix**, not suggestions. They represent the exact class of bug that the coding agent is blind to because of context pressure.
 
 #### Review 2: Simplify pass (run inline)
 
@@ -152,10 +183,9 @@ Once all reviews are complete, merge the results:
    - Anything a reviewer suggested that has an obvious, quick fix
 
    **Defer** (present for user decision - do NOT auto-fix)
-   - Architectural changes that would take significant effort
-   - Changes completely unrelated to the current feature scope
-   - Work better suited to a dedicated session (e.g., "refactor the whole timing system")
-   - Subjective tradeoffs where reasonable people might disagree
+   - Only defer if fixing it would take longer than the entire rest of the review combined
+   - "Big effort" means genuinely big (new tables, new API endpoints, multi-file architecture change) - not "more than 5 lines"
+   - When in doubt, fix it. Err heavily toward fixing.
 
 3. **Present the consolidated review** in this format:
 
@@ -226,7 +256,7 @@ After auto-fixes and verification are complete, present only the deferred items:
 ## Rules
 
 - **Never commit during a review.** All fixes are left as uncommitted changes.
-- **Fix by default, defer only when justified.** Auto-fix everything unless it's big-effort, out of scope, or debatable. Collateral changes are always presented for user decision (keep or revert).
+- **Fix everything. Always.** Fix every finding from every reviewer - simplify pass, Codex, UI review, all of it. The only exception is genuinely massive work (new tables, new endpoints, multi-file architecture changes). "Out of scope" and "debatable" are not reasons to skip a fix. When in doubt, fix it. Collateral changes are always presented for user decision (keep or revert).
 - **If Codex is unavailable or fails**, proceed with the Claude-side reviews. Note that Codex was skipped in the summary.
 - **If no frontend files changed**, skip the UI review entirely. Don't mention it in the summary.
 - **Respect project conventions.** Check CLAUDE.md for project-specific rules and flag violations.
