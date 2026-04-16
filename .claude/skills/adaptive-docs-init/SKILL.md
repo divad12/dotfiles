@@ -1,6 +1,6 @@
 ---
 name: adaptive-docs-init
-description: "Bootstrap the agent-agnostic adaptive documentation system in a project: create docs/ai/, .agents/skills/, the .claude/skills symlink, root AGENTS.md, writing-docs.md. Use when the user says 'set up adaptive docs', 'set up the doc system', 'init docs', 'add agent docs to this project', or wants to apply the three-layer docs architecture to a new project. Works for any agent that supports AGENTS.md (Claude Code, Codex, Cursor, Windsurf, Aider)."
+description: "Bootstrap the agent-agnostic adaptive documentation system in a project: create docs/ai/, .agents/skills/, the .claude/skills symlink, root AGENTS.md, writing-docs.md, and optionally a starter docs/ai/architecture.md with a mermaid diagram placeholder. Use when the user says 'set up adaptive docs', 'set up the doc system', 'init docs', 'add agent docs to this project', or wants to apply the three-layer docs architecture to a new project. Works for any agent that supports AGENTS.md (Claude Code, Codex, Cursor, Windsurf, Aider)."
 user-invocable: true
 ---
 
@@ -108,6 +108,37 @@ Replace placeholders:
 
 If `AGENTS.md` already exists, **do not overwrite**. Report it and tell the user that `/adaptive-docs-extract` can help align it with the structure.
 
+### 8b. Optionally scaffold `docs/ai/architecture.md` with a mermaid placeholder
+
+If the project has a clear architecture worth diagramming (multiple services, a meaningful request flow, or distinct layers), ask the user if they want a starter `docs/ai/architecture.md` scaffold. If yes (or if the user already opted in), create the file with:
+
+- The banner header (standard `docs/ai/` re-read banner)
+- An H1 title
+- An empty mermaid fenced block as a placeholder, with a TODO comment
+- A short prompt for the user describing next steps
+
+Example starter content:
+
+````markdown
+> **IMPORTANT: Before reading, check if you already read this file earlier in this session. If yes, skip the read and announce "Context already loaded: architecture.md (re-using from earlier)". If no, read it and announce "Context loaded: architecture.md".**
+
+# Architecture
+
+```mermaid
+%% TODO: replace with actual architecture
+graph LR
+    A[Component A] --> B[Component B]
+```
+
+Fill in the components, data flow, and any external dependencies. See `docs/ai/writing-docs.md` for mermaid guidance.
+````
+
+Do **not** auto-generate the diagram content - understanding the project's real shape is too project-specific for a template. The scaffold only creates the slot.
+
+Skip this step entirely if the project is tiny (single-file CLI, one-script tool) where a diagram adds no value.
+
+If `docs/ai/architecture.md` already exists, **do not overwrite**.
+
 ### 9. Do NOT create CLAUDE.md
 
 By default, skip `CLAUDE.md`. Claude Code reads `AGENTS.md` as a fallback when no `CLAUDE.md` exists, so it works fine without one.
@@ -136,6 +167,7 @@ Adaptive docs initialized (agent-agnostic).
 Created:
   ✓ docs/ai/README.md
   ✓ docs/ai/writing-docs.md
+  ✓ docs/ai/architecture.md (optional, starter scaffold with mermaid placeholder)
   ✓ AGENTS.md (primary root file - read by all agents)
   ✓ .agents/skills/ (empty)
   ✓ .claude/skills → ../.agents/skills (symlink)

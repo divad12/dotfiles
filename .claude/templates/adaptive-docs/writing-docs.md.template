@@ -70,6 +70,30 @@ Every `docs/ai/` file must start with this banner so the agent doesn't re-read i
 > **IMPORTANT: Before reading, check if you already read this file earlier in this session. If yes, skip the read and announce "Context already loaded: <filename>.md (re-using from earlier)". If no, read it and announce "Context loaded: <filename>.md".**
 ```
 
+#### Diagrams with Mermaid
+
+Prefer mermaid diagrams over prose for:
+- System architecture (component boxes + arrows)
+- Sequence flows (request lifecycle, event propagation)
+- State machines (form dirty/clean, cache states)
+
+**Why:** Agents read diagrams faster than paragraphs describing the same shape. A 15-line mermaid block often replaces 200 words of prose.
+
+**Where:** Inline inside the relevant `docs/ai/` file, not as separate `.mermaid` files. Keep the diagram next to the prose that explains it.
+
+Use fenced code blocks with the `mermaid` language tag:
+
+```` markdown
+```mermaid
+graph LR
+    Browser --> API[Next.js API]
+    API --> Prisma
+    Prisma --> DB[(Supabase Postgres)]
+```
+````
+
+Both GitHub and VS Code render mermaid natively.
+
 ### .agents/skills/ SKILL.md Files
 - Keep them thin - just a description and a pointer to docs/ai/
 - The `description` field is the activation trigger. Write it with specific keywords (file paths, library names, user-facing actions).
