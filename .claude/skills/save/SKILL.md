@@ -97,6 +97,31 @@ If the session was genuinely trivial (one-line typo fix, config change) with not
 
 If the project has a `docs/ai/` directory and `.claude/skills/` (or `.agents/skills/`), quickly check: did this session create any new directories or file patterns that aren't covered by existing skill descriptions? If so, note it in the save output so the user can decide whether to update skill triggers.
 
+### 5. Check architecture diagram drift (if docs/ai/architecture.md exists)
+
+If `docs/ai/architecture.md` exists and has a `## This diagram covers` section, run a quick drift check:
+
+1. Parse the coverage paths from that section (list of globs like `src/app/api/**`)
+2. Run `git diff --name-status` (current session's unstaged + staged changes) scoped to those paths
+3. Filter for **structural** changes: `A` (added files), `D` (deleted files), `R` (renamed files). Ignore `M` (modifications to internals).
+4. Also check if `docs/ai/architecture.md` itself was modified this session
+
+If there are structural changes under covered paths AND architecture.md was NOT modified this session:
+
+> Print in the save output:
+> ```
+> ⚠ Architecture drift suspected: <N> structural changes under paths covered by architecture.md
+>   - Added: <files>
+>   - Removed: <files>
+>   Run /sync-architecture to check if the diagram needs updating.
+> ```
+
+This is a **reminder, not a block.** The user can ignore it and commit anyway. The point is to surface drift at the moment when it's cheapest to fix.
+
+If architecture.md WAS modified this session, assume the user already handled it - skip the warning.
+
+If there are no structural changes, skip this step silently.
+
 ## Rules
 
 - **PROGRESS.md is a coordination board, not a history log.** Keep under 30 lines. Cap Recently Done at ~7 items.

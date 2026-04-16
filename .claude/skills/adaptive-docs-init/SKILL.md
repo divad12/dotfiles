@@ -130,10 +130,20 @@ graph LR
     A[Component A] --> B[Component B]
 ```
 
+## This diagram covers
+
+<!-- List the paths whose structure is represented in the diagram above.
+     /sync-architecture uses this list to detect drift when code changes. -->
+
+- `src/<module>/**` - <one-line description>
+- `src/<other>/**` - <one-line description>
+
 Fill in the components, data flow, and any external dependencies. See `docs/ai/writing-docs.md` for mermaid guidance.
 ````
 
 Do **not** auto-generate the diagram content - understanding the project's real shape is too project-specific for a template. The scaffold only creates the slot.
+
+The `## This diagram covers` section is required - the `/sync-architecture` skill uses it to scope drift detection. If the user doesn't know what paths to list yet, leave the placeholder bullets and tell them to fill in on their first real edit.
 
 Skip this step entirely if the project is tiny (single-file CLI, one-script tool) where a diagram adds no value.
 

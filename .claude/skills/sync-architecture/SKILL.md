@@ -1,0 +1,141 @@
+---
+name: sync-architecture
+description: "Check if docs/ai/architecture.md is still in sync with the codebase, and propose mermaid updates if it drifted. Use when the user says 'sync architecture', 'update the architecture diagram', 'check the arch diagram', 'refresh architecture', 'audit the diagram', or is told by /save that architecture may have drifted. Also use after adding, removing, or renaming a top-level component (new API route module, new shared-function module, schema restructure)."
+user-invocable: true
+---
+
+# Sync Architecture Diagram
+
+Check whether `docs/ai/architecture.md` still reflects the codebase, and propose a mermaid patch if it drifted. The goal is to make diagram upkeep a **30-second review task**, not a rewrite chore.
+
+## Prerequisites
+
+```bash
+test -f docs/ai/architecture.md || { echo "No architecture.md - run /adaptive-docs-init first or create one manually"; exit 1; }
+```
+
+The diagram must contain a `## This diagram covers` section listing the paths it represents. Without that, the skill can't scope the check.
+
+## Steps
+
+### 1. Read the diagram and its coverage
+
+Read `docs/ai/architecture.md`. Extract:
+- The `mermaid` fenced block (the diagram itself)
+- The `## This diagram covers` section (the list of paths)
+
+If there's no coverage section, stop and tell the user to add one. The format is:
+
+```markdown
+## This diagram covers
+
+- `src/app/api/**` - description
+- `src/lib/foo/**` - description
+```
+
+Without coverage metadata, there's no principled way to decide what "in sync" means.
+
+### 2. Find when the diagram last changed
+
+```bash
+LAST_ARCH_COMMIT=$(git log -1 --format=%H -- docs/ai/architecture.md)
+LAST_ARCH_DATE=$(git log -1 --format=%ai -- docs/ai/architecture.md)
+```
+
+If the file has never been committed, use the working directory as the baseline and compare to `main`.
+
+### 3. Find what's changed in the covered paths since then
+
+For each path in the coverage section:
+
+```bash
+git log --since="$LAST_ARCH_DATE" --name-status -- <path>
+```
+
+Collect:
+- **New files** (`A` status) - might mean a new component
+- **Deleted files** (`D` status) - might mean a removed component
+- **Renamed files** (`R` status) - might mean a reorganization
+- **Modified files** (`M` status) - usually internal changes, NOT architecture-affecting
+
+The key signal is **structural change** (add/delete/rename), not line-level edits. Modifications to internals of an existing module rarely need diagram updates.
+
+### 4. Classify the changes
+
+For each structural change, ask:
+
+- Does this add a **new top-level module** (e.g. a whole new `src/lib/billing/` directory)? → diagram likely needs a new box
+- Does this **remove a top-level module**? → diagram likely needs to remove a box
+- Does this **move files between modules** (e.g. `src/lib/timing/recalculate.ts` → `src/lib/cascade/recalculate.ts`)? → diagram label or arrow probably needs updating
+- Is it just a **new file inside an existing module** (e.g. `src/app/api/events/[id]/archive/route.ts` when `src/app/api/events/**` already exists)? → no diagram change needed
+
+**If no structural changes found, tell the user the diagram is still in sync and exit.** Don't propose cosmetic edits.
+
+### 5. Propose the diff
+
+If structural changes exist, present them in this format:
+
+```
+The diagram says: <current mermaid description>
+The code says:   <what's actually there now>
+
+Proposed update: <inline diff of the mermaid block>
+
+Reasoning:
+- Added `src/lib/billing/` - new box needed for payment flow
+- Removed `src/lib/legacy-timing/` - remove from diagram
+- ...
+```
+
+Use the `AskUserQuestion` tool (or the agent's equivalent) to let the user:
+- Approve the proposed patch
+- Edit it
+- Skip this round (tell them what they'd need to add manually)
+
+### 6. Apply the patch
+
+If approved, edit `docs/ai/architecture.md` with the new mermaid block. Preserve:
+- The banner header (line 1)
+- The prose sections below the diagram (only change them if prose also drifted - flag separately)
+- The `## This diagram covers` section itself (unless coverage should expand/contract)
+
+If the coverage list also needs updating (e.g. a new covered directory was added), flag that explicitly and ask.
+
+### 7. Don't commit
+
+Leave the edit as a staged or unstaged change. The user decides when to commit - typically bundled with the code change that triggered the drift, or with the next `/save`.
+
+## When to say "no drift, all good"
+
+Resist the urge to suggest changes for the sake of it. A good outcome is often "the diagram is still accurate - no action needed." Look for these **non-signals**:
+
+- Lots of modifications to internals (normal feature work, doesn't change shape)
+- New tests in `__tests__/` directories (tests don't appear in the diagram)
+- Bug fixes (usually don't change shape)
+- Refactors within a single module
+
+And these **real signals**:
+
+- New directory at `src/lib/<x>/` that isn't in the coverage list
+- Deleted directory that WAS represented as a box
+- A module split (one directory became two)
+- A module merged (two directories became one)
+- A new external service (new Supabase feature, new third-party API)
+- Data flow change (e.g. introducing a queue between two components)
+
+## Scope discipline
+
+- **Architecture is about shape.** This skill updates the shape. It does not rewrite prose unless asked.
+- **Don't re-litigate design decisions.** If the user chose to represent something a certain way in the original diagram, respect that. Propose the minimal patch.
+- **Don't expand coverage silently.** If code changed under a path NOT in the coverage list, note it to the user but don't automatically add it. Coverage is a deliberate choice.
+- **One shot, not a loop.** Present the patch, let the user decide, done. Don't iterate five times trying to perfect it.
+
+## Failure modes to avoid
+
+- **Suggesting edits for every session.** The diagram is stable by nature. Most sessions produce zero proposed changes. That's success, not failure.
+- **Hallucinating files.** Before claiming "the diagram doesn't mention `src/lib/X/`", verify `src/lib/X/` actually exists as a top-level module with substantive content - not a single utility file.
+- **Over-fitting to the code.** The diagram is a useful abstraction, not a 1:1 inventory. Don't propose adding every new directory. Ask: "does a new reader of the diagram benefit from knowing this box exists?"
+
+## If `docs/ai/architecture.md` doesn't exist
+
+Don't create it in this skill. That's the job of `/adaptive-docs-init` step 8b (or manual creation). Bail with a clear message.
