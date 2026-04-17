@@ -13,4 +13,8 @@ grep -q "^## Triggers$" "$SKILL" || { echo "FAIL: Triggers section"; exit 1; }
 grep -q "^## Input$" "$SKILL" || { echo "FAIL: Input section"; exit 1; }
 grep -q "^## State Detection$" "$SKILL" || { echo "FAIL: State Detection section"; exit 1; }
 
+grep -q "^## Template Resolution$" "$SKILL" || { echo "FAIL: Template Resolution section"; exit 1; }
+grep -q "^## Per-Task Loop$" "$SKILL" || { echo "FAIL: Per-Task Loop section"; exit 1; }
+grep -q "claude-plugins-official/superpowers/\*/skills/subagent-driven-development" "$SKILL" || { echo "FAIL: Glob pattern missing"; exit 1; }
+
 echo "OK: fly structural check passed"
