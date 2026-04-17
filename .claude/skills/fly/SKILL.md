@@ -88,9 +88,13 @@ Walk the checklist's tasks in order. For each task:
 
 4. Dispatch via Task tool with:
    - `subagent_type`: `general-purpose`
-   - `model`: the model specified in the checklist's `Model:` annotation for this task (haiku/sonnet/opus)
+   - `model`: the EXACT model string from the checklist's `Model:` annotation for this task. No substitutions, no upgrades "because the task looks complex", no defaults. If the checklist says `Model: sonnet`, the Task call gets `model: "sonnet"` - not opus, not claude-opus-4-7, not "let me be safe". The checklist IS the contract.
    - `description`: `Implement <task id>: <task name>`
    - `prompt`: the substituted template
+
+   **If you believe the checklist's model assignment is wrong for this task**, HALT. Tell the user: "Task <id> checklist says Model: <X>, but the task appears to need <Y> because <reason>. Edit the checklist and re-run?" Then stop. Do NOT silently upgrade - that destroys the commitment contract and makes the audit trail lie (the checklist says sonnet, reality was opus).
+
+   Same rule applies to reviewer model dispatch in steps E/G and all phase/final gate dispatches: the `model` parameter is copied verbatim from the checklist annotation. No orchestrator discretion.
 
 5. Wait for the implementer's report.
 
@@ -357,6 +361,10 @@ After final verification passes:
 | "Reviewer returned findings without file:line, I'll act on them anyway" | Inadmissible. Fabricated findings without citations waste fix cycles. Discard, log `inadmissible=N`, move on. |
 | "Auto-fixing this style nit won't hurt" | Only `[critical]` / `[correctness]` auto-fix. Style/cosmetic amplifies fabricated-finding waste. Log and move on. |
 | "That test was probably failing on main anyway" | Phase regression check: run the suite at the phase base commit. Assertion without running is gaslighting. |
+| "This task looks harder than sonnet, let me use opus to be safe" | NO. The checklist is the contract. If you think the model is wrong, HALT and ask the user to edit the checklist. Silent upgrades destroy the audit trail - the checklist says sonnet, the dispatch log says opus, reality becomes un-reproducible. |
+| "Opus is better, it won't hurt to upgrade" | Cost and audit: opus costs more, and "we used sonnet" becomes a lie when checklist-vs-dispatch drift. Preflight picked sonnet for a reason. Respect the decision or surface the disagreement to the user. |
+| "I'll use opus for the reviewer because this code is tricky" | Same rule. Reviewer model is in the checklist. Upgrading silently also primes the review outcome (opus reviews differ from sonnet reviews) and defeats preflight's per-gate assignment. |
+| "Defaulting to opus is fine for everything" | It is NOT fine. Preflight assigned per-task models to balance cost, latency, and appropriate rigor. A fly run that always uses opus has ignored the checklist. |
 
 ## Red Flags - STOP
 
@@ -371,6 +379,9 @@ If you catch yourself thinking any of these, STOP and re-read the Rationalizatio
 - "I'll fill in the SHA slot later from memory"
 - "Ticking the verification box is fine, I'm sure it's done"
 - "The implementer said DONE, no need to verify each step checkbox"
+- "This task is complex, opus will be safer than the checklist's sonnet"
+- "Let me just use opus for everything, it's fine"
+- "The reviewer will be more rigorous on opus, so I'll swap the model"
 
 **All of these mean: you are about to violate the checklist contract. Do the work.**
 
