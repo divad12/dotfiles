@@ -27,3 +27,13 @@ grep -q "^## Terminal Summary$" "$SKILL" || { echo "FAIL: Terminal Summary secti
 grep -q "^## Checklist Format$" "$SKILL" || { echo "FAIL: Checklist Format section"; exit 1; }
 
 echo "OK: preflight structural check passed"
+
+# Integration test: run /preflight on sample-plan.md in a fresh Claude session
+# and diff output against tests/expected/sample-plan-checklist.md.
+# This test is MANUAL - cannot be automated without a live AI session.
+# Procedure:
+#   1. Fresh Claude Code session
+#   2. /preflight .claude/skills/preflight/tests/samples/sample-plan.md
+#   3. diff .claude/skills/preflight/tests/samples/sample-plan-checklist.md \
+#           .claude/skills/preflight/tests/expected/sample-plan-checklist.md
+#   4. Tolerate minor wording differences; fail on structural/decision mismatch.
