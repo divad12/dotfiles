@@ -17,4 +17,9 @@ grep -q "^## Template Resolution$" "$SKILL" || { echo "FAIL: Template Resolution
 grep -q "^## Per-Task Loop$" "$SKILL" || { echo "FAIL: Per-Task Loop section"; exit 1; }
 grep -q "claude-plugins-official/superpowers/\*/skills/subagent-driven-development" "$SKILL" || { echo "FAIL: Glob pattern missing"; exit 1; }
 
+grep -q "^## Phase Gates$" "$SKILL" || { echo "FAIL: Phase Gates section"; exit 1; }
+grep -q "^## Final Gate$" "$SKILL" || { echo "FAIL: Final Gate section"; exit 1; }
+grep -q "^## Deferred File Handling$" "$SKILL" || { echo "FAIL: Deferred File Handling section"; exit 1; }
+grep -q "^## Final Verification$" "$SKILL" || { echo "FAIL: Final Verification section"; exit 1; }
+
 echo "OK: fly structural check passed"

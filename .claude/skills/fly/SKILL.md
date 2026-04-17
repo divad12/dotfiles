@@ -145,3 +145,79 @@ Same as F, but fill the `Code review resolution` slot.
 For tasks annotated `Review: batched-with <neighbor-ids>`:
 - Skip steps E-H for tasks that are NOT the last task in the batch (their review gates don't exist in the checklist).
 - For the LAST task in the batch, after completing its steps A-D, run spec + code review on ALL batched tasks' combined diff. Fill the `Batch review` and `Batch review resolution` slots on the last task.
+
+## Phase Gates
+
+After all tasks in a phase complete (all per-task slots filled), run the phase's review gate per its checklist annotation.
+
+- **Normal review** (`Phase N Gate (reviewer: <model>)` with `Normal code-review on Phase N diff`):
+  1. Compute the phase diff: `git diff <phase-N-first-commit-sha>^..<phase-N-last-commit-sha>`.
+  2. Dispatch code reviewer via `code-quality-reviewer-prompt.md` template, with the phase diff as the subject.
+  3. Fill Outcome slot with summary.
+  4. If findings: same auto-fix loop as per-task reviews. Fill Resolution.
+
+- **Deep-review** (`Phase N Gate (reviewer: ...)` with `/deep-review on Phase N diff`):
+  1. Invoke `/deep-review` scoped to the phase diff (note: `/deep-review` reads the current git state; you may need to checkpoint or use `git stash`/`git diff` explicitly to scope it).
+  2. Fill Outcome slot with `/deep-review`'s summary (e.g., "12 auto-fixed, 2 deferred to -deferred.md §N").
+  3. `/deep-review` has its own auto-fix. Resolution reflects what it did.
+
+## Final Gate
+
+After all phases complete, check the checklist's final gate:
+
+- If `## Final Gate: /deep-review over <scope>` exists:
+  1. Invoke `/deep-review` scoped per the annotation.
+  2. Fill Outcome + Resolution slots.
+
+- If `**Final gate not needed - all phases have deep-review coverage.**` exists: skip; nothing to do.
+
+## Deferred File Handling
+
+Create/append to `<plan-basename>-deferred.md` in the same directory as the checklist when:
+- A fix-implementer reports BLOCKED even at an upgraded model.
+- A `/deep-review` invocation produces items it couldn't auto-fix (recorded in its output).
+
+Format of the deferred file:
+
+```markdown
+# Deferred Items: <feature>
+
+> Items found during `/fly` execution that couldn't be auto-fixed. Review and address manually.
+
+## §1: <brief context, e.g., "Task 1.1 code review">
+
+**Finding:** <description from reviewer>
+
+**Why deferred:** <reason, e.g., "fix-implementer reported BLOCKED: architectural change required">
+
+**Suggested fix:** <from reviewer's output>
+```
+
+When writing a deferred item, assign it the next available `§N`. Then update the corresponding Resolution slot in the checklist: `Action: Deferred to <plan-basename>-deferred.md §N`.
+
+If the deferred file doesn't exist yet, create it with the header first, then append the first `§1` entry.
+
+## Final Verification
+
+After all tasks, phase gates, and final gate are processed, run the verification block at the bottom of the checklist. Tick each item by actually verifying:
+
+- **All plan-step and [INJECTED] checkboxes ticked:** grep the checklist for `- \[ \]` occurrences before the verification block. Should find none. If any found, halt: "Task <X> step <N> not ticked - did the implementer actually complete it?"
+
+- **All SHA slots filled:** grep for `SHA: \`<fill>\``. Should find none.
+
+- **All Outcome slots filled (non-`<fill>`):** grep for `Outcome: \`<fill>\``. Should find none.
+
+- **All Resolution slots filled (non-empty, not "ignored"/"skipped"):** grep for `Action: \`<fill>\`` or `Action: \`ignored\`` or `Action: \`skipped\``. Should find none.
+
+- **Deep-review invariant satisfied:** confirm that every task's commit SHA is in the scope of at least one deep-review Outcome that's non-`<fill>` (i.e., actually ran). If a task's commits aren't covered by any deep-review scope, halt: "Task <X> not covered by a deep-review - invariant violated."
+
+- **If `<plan-basename>-deferred.md` exists, surface contents to user:** read the file and include its full contents in the final report. Explicitly tell the user "deferred items need manual review before shipping."
+
+Tick each verification checkbox only after confirming the condition.
+
+## Completion
+
+After final verification passes:
+1. Print final report: tasks completed, commits made, deferred items (if any), time taken.
+2. **DO NOT auto-invoke `/ship` or `/superpowers:finishing-a-development-branch`.** Explicit user command only.
+3. Suggest next step: "Ready to ship? Run `/ship` when you've reviewed any deferred items."
