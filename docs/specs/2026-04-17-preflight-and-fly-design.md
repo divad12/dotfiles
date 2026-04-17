@@ -30,7 +30,7 @@ When executing long implementation plans with `superpowers:subagent-driven-devel
 
 1. **The checklist is the contract.** All execution decisions (models, phases, review gates, reviewer models, TDD steps, resolution mechanism) are encoded in the checklist before execution starts. `/fly` does not make discretionary calls - it ticks boxes and fills slots.
 2. **Commitment device through markdown checkboxes.** Every step, review, and resolution is an unchecked checkbox. Final verification rejects the run if any checkbox is unticked or slot is unfilled. Inline fields are promoted to standalone checkboxes wherever commitment matters (e.g., review resolution).
-3. **Preserve upstream via template reuse, not flow invocation.** `superpowers:writing-plans`, `superpowers:subagent-driven-development`, and `superpowers:test-driven-development` are not modified or forked. `/fly` owns its own per-task flow but references upstream **prompt templates** by path (e.g., `superpowers:subagent-driven-development/implementer-prompt.md`). Upstream prompt improvements flow through automatically. `/fly` does NOT "invoke subagent-driven-development inline" — that would nest flows confusingly when `/fly` already overrides most steps.
+3. **Preserve upstream via template reuse, not flow invocation.** `superpowers:writing-plans`, `superpowers:subagent-driven-development`, and `superpowers:test-driven-development` are not modified or forked. `/fly` owns its own per-task flow but **reads upstream prompt templates at runtime** via Glob resolution of the plugin cache (see Implementation Notes). Upstream prompt improvements flow through automatically on plugin upgrade. `/fly` does NOT "invoke subagent-driven-development inline" — that would nest flows confusingly when `/fly` already overrides most steps.
 4. **Agent-agnostic.** Checklist is plain markdown. Skills work anywhere AGENTS.md is honored (Claude Code, Codex, Cursor).
 5. **Deep-review invariant.** Every task's code must be in at least one deep-review scope before shipping. `/preflight` decides review gate structure to satisfy this.
 6. **Auto-fix by default, defer only when necessary.** Review findings trigger automatic fix-implementer dispatch. Deferral only happens when fix-implementer reports BLOCKED (too large, architectural).
@@ -116,13 +116,17 @@ If checklist already exists, preflight warns and requires explicit overwrite con
 - `standard`: dispatches spec-reviewer + code-reviewer per subagent-driven-development default.
 - `batched-with <neighbors>`: groups of genuinely trivial adjacent tasks share a single post-batch review. Max batch size: 3 tasks. Batch review lives on the LAST task in the batch (can only review after all batched tasks are done).
 
-**Reviewer model per gate (static defaults):**
-- Spec review: haiku (bounded by requirements, not code complexity).
-- Code review: sonnet (standard code review, matches observed usage).
-- Phase review (normal): sonnet.
-- Deep-review (`/deep-review`): owns its own model logic; preflight does not override.
+**Reviewer model per gate (dynamically assigned by preflight):**
+Preflight picks a reviewer model per gate based on the gate's complexity. Defaults and upgrade rules:
 
-User can override any reviewer model directly in the checklist before invoking `/fly`. Preflight's terminal summary surfaces reviewer models so tweaks are easy. Dynamic per-task assignment is deferred — static defaults plus manual override handles the edge cases.
+- **Spec review**: default haiku. Upgrade to sonnet if the task has complex requirements or broad spec scope (verification itself requires nuanced understanding). Opus reserved for rare cases.
+- **Code review**: default sonnet. Upgrade to opus if the task involves subtle correctness, multi-file integration, architectural judgment, or high blast-radius changes.
+- **Phase review (normal)**: default sonnet. Upgrade to opus for phases covering many files or touching cross-cutting concerns.
+- **Deep-review (`/deep-review`)**: owns its own model logic; preflight does not override.
+
+Upgrade signals mirror those for the task's implementer model, one tier higher (reviewer needs to catch what the implementer might have missed). If a task has opus implementer, its code review should at minimum be opus too.
+
+User can still manually tweak any reviewer model in the checklist before invoking `/fly` — preflight's terminal summary surfaces the assignments so override is easy.
 
 **Phase review gate:**
 - `normal`: dispatch code-reviewer over phase diff.
@@ -391,6 +395,30 @@ Resolution slots in checklist reference deferred items by section number:
 - Register slash commands in standard frontmatter (`user-invocable: true`).
 - Update `SKILLS.md` diagram to reflect new skills' place in the superpowers pipeline.
 - Test on a real plan (e.g., a pending Journology plan with many tasks) before claiming done.
+
+### Resolving Upstream Prompt Templates at Runtime
+
+The superpowers plugin cache at `~/.claude/plugins/cache/claude-plugins-official/superpowers/` contains versioned directories (e.g., `5.0.5/`, `5.0.7/`). Direct hard-coded paths are brittle because version changes on plugin upgrade.
+
+`/fly` resolves templates at dispatch time using Glob, picking the newest version:
+
+```
+Glob: ~/.claude/plugins/cache/claude-plugins-official/superpowers/*/skills/subagent-driven-development/implementer-prompt.md
+→ sort by modification time (Glob already does this), take first
+→ Read that file for template content
+```
+
+Templates to resolve this way:
+- `subagent-driven-development/implementer-prompt.md`
+- `subagent-driven-development/spec-reviewer-prompt.md`
+- `subagent-driven-development/code-quality-reviewer-prompt.md`
+
+This gives `/fly`:
+- Auto-update on plugin upgrade (no manual sync)
+- Visible failure if templates are renamed/moved upstream (Glob returns no match → `/fly` errors loudly, user investigates)
+- No duplication, no fork
+
+Trade-off: Claude-Code-specific (plugin cache is a CC concept). Acceptable because subagent dispatch via Task tool is itself CC-specific. The *plan and checklist* artifacts remain agent-agnostic.
 
 ## Next Steps
 
