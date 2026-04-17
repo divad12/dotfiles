@@ -2,6 +2,8 @@
 
 This repo hosts my global Claude Code skills (and agent-agnostic rules) at `.claude/skills/`. They get symlinked into `~/.claude/skills/` by `symlink.sh` and are also cloned by the cloud-session setup hook in other projects, so changes here propagate everywhere.
 
+**Recent session handoffs** live in `handoffs/` with date-prefixed filenames. Read the latest one before picking up skill work - it captures the nuances and rationale that don't make it into the skills themselves.
+
 ## Layout
 
 ```
