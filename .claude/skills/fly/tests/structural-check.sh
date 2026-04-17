@@ -28,3 +28,12 @@ grep -q "^## The Iron Rule$" "$SKILL" || { echo "FAIL: The Iron Rule section"; e
 grep -qi "checklist is the contract" "$SKILL" || { echo "FAIL: commitment contract language"; exit 1; }
 
 echo "OK: fly structural check passed"
+
+# Integration test: dry-run /fly on sample checklist.
+# MANUAL - requires live Claude Code session with plugin installed.
+# Procedure:
+#   1. Fresh Claude session: /fly .claude/skills/fly/tests/samples/sample-checklist.md
+#   2. Interrupt after "Mode: fresh run" announcement; verify template resolution logs.
+#   3. Edit sample-checklist.md to tick first step + fill Task 1 SHA.
+#   4. Re-run /fly; verify "Mode: resuming from Task 1".
+#   5. git checkout to restore fixture.
