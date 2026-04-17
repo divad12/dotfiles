@@ -22,4 +22,8 @@ grep -q "Reviewer model per gate" "$SKILL" || { echo "FAIL: Reviewer model subse
 grep -q "Deep-review coverage invariant" "$SKILL" || { echo "FAIL: Deep-review invariant"; exit 1; }
 grep -q "TDD audit" "$SKILL" || { echo "FAIL: TDD audit subsection"; exit 1; }
 
+grep -q "^## Steps$" "$SKILL" || { echo "FAIL: Steps section"; exit 1; }
+grep -q "^## Terminal Summary$" "$SKILL" || { echo "FAIL: Terminal Summary section"; exit 1; }
+grep -q "^## Checklist Format$" "$SKILL" || { echo "FAIL: Checklist Format section"; exit 1; }
+
 echo "OK: preflight structural check passed"
