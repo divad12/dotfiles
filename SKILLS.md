@@ -31,6 +31,8 @@ This repo hosts my global Claude Code skills (and agent-agnostic rules) at `.cla
     ├── adaptive-docs-*/   # Set up / refactor the docs/ai/ system in a project
     ├── sync-architecture/ # Keep architecture docs in sync
     ├── superpowers/       # Compatibility shim for shared skills
+    ├── preflight/         # Transform plan → checklist contract (models, gates, TDD audit)
+    ├── fly/               # Execute checklist; dispatch subagents via upstream templates
     └── playwright-cli/    # Browser automation via Playwright
 ```
 
@@ -80,9 +82,12 @@ graph LR
 
 1. `superpowers:brainstorming` - explore intent, requirements, design before implementation
 2. `superpowers:writing-plans` - turn the brainstorm into a plan with review checkpoints
-3. `superpowers:subagent-driven-development` - execute the plan via dispatched subagents
+3. `/preflight` - transform the plan into a checklist with dynamic model/gate/TDD decisions
+4. `/fly` - execute the checklist with auto-fix, phase gates, and final verification
 
-**Planning to build on top:** project-specific orchestrator skills that chain into these superpowers skills rather than the monolithic `build` / `autopilot` flow below.
+`/preflight` and `/fly` are custom dotfiles skills that layer discipline on top of
+`superpowers:subagent-driven-development` via template reuse (not flow invocation).
+Commitment device: the checklist with its checkboxes and SHA slots.
 
 **Being phased out:** `build` and `autopilot` - both tried to do too much in one skill and don't compose well with plan-driven flows. Leaves (`critique`, `deep-review`, `qa-test`, `new-session`, etc.) stay - they're useful building blocks for any orchestrator.
 
@@ -115,7 +120,9 @@ graph TD
 
   subgraph superpowers[Superpowers plugin flow]
     brainstorming --> writing-plans
-    writing-plans --> subagent-driven-development
+    writing-plans -.user types.-> preflight
+    preflight --> fly
+    fly -.template reuse.-> subagent-driven-development
   end
 
   subgraph leaves[Leaves - pure building blocks]
@@ -138,6 +145,8 @@ graph TD
   style brainstorming fill:#2d5a3a,color:#fff
   style writing-plans fill:#2d5a3a,color:#fff
   style subagent-driven-development fill:#2d5a3a,color:#fff
+  style preflight fill:#2d4a5a,color:#fff
+  style fly fill:#2d4a5a,color:#fff
 ```
 
 **Active orchestrators** (blue): `ship`, `save` - still in daily use.
