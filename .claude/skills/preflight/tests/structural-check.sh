@@ -8,4 +8,10 @@ grep -q "^name: preflight$" "$SKILL" || { echo "FAIL: frontmatter name"; exit 1;
 grep -q "^user-invocable: true$" "$SKILL" || { echo "FAIL: user-invocable"; exit 1; }
 grep -q "^# Preflight$" "$SKILL" || { echo "FAIL: H1 heading"; exit 1; }
 
+grep -q "^## Purpose$" "$SKILL" || { echo "FAIL: Purpose section"; exit 1; }
+grep -q "^## Triggers$" "$SKILL" || { echo "FAIL: Triggers section"; exit 1; }
+grep -q "^## Input$" "$SKILL" || { echo "FAIL: Input section"; exit 1; }
+grep -q "^## Output$" "$SKILL" || { echo "FAIL: Output section"; exit 1; }
+grep -q "^## Overwrite Behavior$" "$SKILL" || { echo "FAIL: Overwrite Behavior section"; exit 1; }
+
 echo "OK: preflight structural check passed"
