@@ -30,7 +30,7 @@ When executing long implementation plans with `superpowers:subagent-driven-devel
 
 1. **The checklist is the contract.** All execution decisions (models, phases, review gates, reviewer models, TDD steps, resolution mechanism) are encoded in the checklist before execution starts. `/fly` does not make discretionary calls - it ticks boxes and fills slots.
 2. **Commitment device through markdown checkboxes.** Every step, review, and resolution is an unchecked checkbox. Final verification rejects the run if any checkbox is unticked or slot is unfilled. Inline fields are promoted to standalone checkboxes wherever commitment matters (e.g., review resolution).
-3. **Preserve upstream.** `superpowers:writing-plans`, `superpowers:subagent-driven-development`, and `superpowers:test-driven-development` are not modified or forked. Our skills wrap and layer on top.
+3. **Preserve upstream via template reuse, not flow invocation.** `superpowers:writing-plans`, `superpowers:subagent-driven-development`, and `superpowers:test-driven-development` are not modified or forked. `/fly` owns its own per-task flow but references upstream **prompt templates** by path (e.g., `superpowers:subagent-driven-development/implementer-prompt.md`). Upstream prompt improvements flow through automatically. `/fly` does NOT "invoke subagent-driven-development inline" — that would nest flows confusingly when `/fly` already overrides most steps.
 4. **Agent-agnostic.** Checklist is plain markdown. Skills work anywhere AGENTS.md is honored (Claude Code, Codex, Cursor).
 5. **Deep-review invariant.** Every task's code must be in at least one deep-review scope before shipping. `/preflight` decides review gate structure to satisfy this.
 6. **Auto-fix by default, defer only when necessary.** Review findings trigger automatic fix-implementer dispatch. Deferral only happens when fix-implementer reports BLOCKED (too large, architectural).
@@ -41,10 +41,12 @@ When executing long implementation plans with `superpowers:subagent-driven-devel
 ```
    user writes plan via /superpowers:writing-plans
                       │
+                      │  writing-plans offers its own handoff prompt (subagent-driven vs inline);
+                      │  user ignores it and types /preflight instead (de-facto auto-chain via muscle memory)
                       ▼
    docs/specs/plans/YYYY-MM-DD-<feature>.md    (plan - untouched by our skills)
                       │
-                      │  user explicitly invokes /preflight when ready
+                      │  user invokes /preflight when ready (also works on any pre-existing plan)
                       ▼
               /preflight <plan-path>
                       │
@@ -57,15 +59,17 @@ When executing long implementation plans with `superpowers:subagent-driven-devel
                       ▼
    docs/specs/plans/YYYY-MM-DD-<feature>-checklist.md   (checklist - slots empty)
                       │
-                      │  user explicitly invokes /fly (typically in a fresh session)
+                      │  user invokes /fly (typically in a fresh session)
                       ▼
                 /fly <checklist-path>
                       │
                       ├─ read BOTH plan (for content) AND checklist (for gates)
-                      ├─ invoke /superpowers:subagent-driven-development inline
-                      │     per-task: implementer (model from checklist)
-                      │              → spec-review → auto-fix if findings
-                      │              → code-review → auto-fix if findings
+                      ├─ own per-task loop; dispatch subagents using upstream prompt templates:
+                      │     implementer  (model from checklist + TDD override + [INJECTED] steps)
+                      │        → spec-reviewer (model from checklist)
+                      │        → auto-dispatch fix-implementer if findings (model matches task)
+                      │        → code-reviewer (model from checklist)
+                      │        → auto-dispatch fix-implementer if findings
                       ├─ fill SHA + Outcome + Resolution slots as work progresses
                       ├─ run phase gates and final gate per checklist
                       ├─ write deferred items to <feature>-deferred.md when fix fails
@@ -112,11 +116,13 @@ If checklist already exists, preflight warns and requires explicit overwrite con
 - `standard`: dispatches spec-reviewer + code-reviewer per subagent-driven-development default.
 - `batched-with <neighbors>`: groups of genuinely trivial adjacent tasks share a single post-batch review. Max batch size: 3 tasks. Batch review lives on the LAST task in the batch (can only review after all batched tasks are done).
 
-**Reviewer model per gate:**
-- Spec review: haiku (usually cheap - checking requirements match).
-- Code review: sonnet (standard code review).
+**Reviewer model per gate (static defaults):**
+- Spec review: haiku (bounded by requirements, not code complexity).
+- Code review: sonnet (standard code review, matches observed usage).
 - Phase review (normal): sonnet.
 - Deep-review (`/deep-review`): owns its own model logic; preflight does not override.
+
+User can override any reviewer model directly in the checklist before invoking `/fly`. Preflight's terminal summary surfaces reviewer models so tweaks are easy. Dynamic per-task assignment is deferred — static defaults plus manual override handles the edge cases.
 
 **Phase review gate:**
 - `normal`: dispatch code-reviewer over phase diff.
@@ -183,23 +189,29 @@ User invokes `/fly <checklist-path>` - typically in a fresh session for clean co
    - All checkboxes empty, all slots `<fill>` → fresh run
    - Some checkboxes ticked, some slots filled → mid-flight pickup; resume from first unticked box
 3. Announce: "Flying <checklist>. Mode: fresh run | resume from Task X.Y."
-4. Invoke /superpowers:subagent-driven-development inline, walking the checklist's tasks in order.
+4. Walk the checklist's tasks in order, implementing /fly's own per-task loop.
+   Dispatch subagents using prompt templates from superpowers:subagent-driven-development
+   (implementer-prompt.md, spec-reviewer-prompt.md, code-quality-reviewer-prompt.md)
+   — /fly references them by path; does not invoke subagent-driven-development as a skill.
+
    For each task:
-     a. Dispatch implementer subagent with:
+     a. Dispatch implementer subagent using implementer-prompt.md template with:
         - Plan's task text (source of truth for code, commands)
         - Model from checklist
-        - Explicit instruction: "Follow TDD regardless of task text."
+        - Explicit instruction appended: "Follow TDD regardless of task text."
         - Any [INJECTED] steps from checklist (TDD steps not in plan)
      b. As implementer reports completed steps, tick corresponding plan-step checkboxes.
      c. Fill commit SHA slot.
-     d. Dispatch spec reviewer (model per checklist). Fill Outcome slot.
+     d. Dispatch spec reviewer using spec-reviewer-prompt.md template (model per checklist). Fill Outcome slot.
      e. If findings:
-        - Auto-dispatch fix-implementer with findings
-        - Loop: re-dispatch spec-reviewer, fix again, until spec approves
+        - Auto-dispatch fix-implementer with findings. Fix model = task's implementer model by default.
+          If fix-implementer reports BLOCKED/NEEDS_CONTEXT, upgrade model and retry
+          (same pattern subagent-driven-development documents).
+        - Loop: re-dispatch spec-reviewer → fix-implementer if findings → re-review, until spec approves.
         - Fill Resolution slot: "Fixed in <SHA>"
         Otherwise Resolution: "None needed".
-     f. Dispatch code reviewer (model per checklist). Fill Outcome slot.
-     g. If findings: same auto-fix loop. Fill Resolution slot.
+     f. Dispatch code reviewer using code-quality-reviewer-prompt.md template (model per checklist). Fill Outcome slot.
+     g. If findings: same auto-fix loop with fix-implementer. Fill Resolution slot.
      h. For batched tasks: spec + code review happen once on the batch's last task; resolution covers all batched tasks.
 5. After each phase, run phase gate per checklist (normal code-review or /deep-review). Fill slots. Auto-fix findings same as task-level.
 6. After all phases, run final gate if specified.
@@ -214,13 +226,14 @@ User invokes `/fly <checklist-path>` - typically in a fresh session for clean co
 
 ### Auto-fix Default
 - After every review with findings, `/fly` immediately dispatches a fix-implementer subagent with the findings.
-- Loop: re-review, fix again, until reviewer approves.
-- Only defers to `<feature>-deferred.md` if fix-implementer reports BLOCKED (too large, architectural, out of scope).
+- **Fix-implementer model selection:** default-matches the task's implementer model. If fix-implementer reports BLOCKED or NEEDS_CONTEXT, `/fly` upgrades the model and retries (following subagent-driven-development's documented pattern).
+- Loop: re-review → fix again → re-review, until reviewer approves.
+- Only defers to `<feature>-deferred.md` if fix-implementer reports BLOCKED even at upgraded model (truly too large, architectural, out of scope).
 - `/deep-review` has its own auto-fix mechanism; `/fly` records what it did in the Resolution slot (e.g., "12 auto-fixed, 2 deferred to -deferred.md §3").
 
 ### Does NOT manage TodoWrite
-- `superpowers:subagent-driven-development`'s internal TodoWrite usage is untouched.
 - The checklist IS the durable commitment artifact. No conflicting TodoWrite preload.
+- If `/fly` uses TodoWrite for ephemeral session state (e.g., high-level phase markers for its own tracking), that's internal to `/fly` — separate from the checklist contract.
 
 ### Mid-flight Pickup
 - `/fly` detects partial fill (some boxes ticked, some slots filled) and resumes from the first unticked step.
@@ -368,7 +381,7 @@ Resolution slots in checklist reference deferred items by section number:
 
 - **Octopus recursion.** Deferred. If commitment device alone doesn't handle 40-100+ task plans (drift observed), add phase-level subagent dispatch to `/fly`: loop over phases dispatching subagent-driven-development per phase instead of walking all tasks in one pass. Mechanical to add later.
 - **Custom subagent type for the coordinator.** Rejected for now in favor of commitment-device approach (agent-agnostic + human-in-the-loop preferred). Available as fallback if commitment device proves insufficient.
-- **Auto-chaining from writing-plans to preflight.** Explicit user invocation only. Preserves plan review gate.
+- **Auto-chaining from writing-plans to preflight.** Not done in code (would require forking writing-plans, which has its own execution-handoff prompt). In practice the chain is muscle-memory: after writing-plans finishes, user ignores its prompt and types `/preflight` directly. Preflight's terminal summary becomes the de-facto plan review gate for lazy reviewers.
 - **Auto-handoff to /ship or finishing-a-development-branch.** Explicit user invocation only.
 - **Upstream contribution to superpowers plugin.** Valuable but not required now.
 
