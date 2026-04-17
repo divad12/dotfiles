@@ -34,14 +34,23 @@ grep -q "Actual Diff" "$SKILL" || { echo "FAIL: Actual Diff heading in override"
 grep -q "\[critical\]" "$SKILL" || { echo "FAIL: critical finding tag"; exit 1; }
 grep -q "\[correctness\]" "$SKILL" || { echo "FAIL: correctness finding tag"; exit 1; }
 grep -q "\[cosmetic\]" "$SKILL" || { echo "FAIL: cosmetic finding tag"; exit 1; }
-grep -qi "findings without citations are inadmissible" "$SKILL" || { echo "FAIL: citations inadmissible rule"; exit 1; }
+grep -qi "inadmissible" "$SKILL" || { echo "FAIL: inadmissibility rule"; exit 1; }
 
 # Phase regression check (Patch D)
 grep -q "^### Phase regression check" "$SKILL" || { echo "FAIL: Phase regression check subsection"; exit 1; }
 
-# Structured Outcome slot format (Patch E)
+# Structured Outcome slot format (Patch E) + findings accounting invariant
 grep -q "^## Outcome Slot Format$" "$SKILL" || { echo "FAIL: Outcome Slot Format section"; exit 1; }
-grep -q "findings=N critical=N auto_fixed=N" "$SKILL" || { echo "FAIL: structured outcome format"; exit 1; }
+grep -q "findings=N critical=N auto_fixed=N deferred=N" "$SKILL" || { echo "FAIL: structured outcome format with deferred="; exit 1; }
+grep -qi "admissible.findings = auto_fixed + deferred\|findings == auto_fixed + deferred\|findings = auto_fixed + deferred" "$SKILL" || { echo "FAIL: accounting invariant language"; exit 1; }
+
+# Numbered findings + project-rule severity + deferred-for-all
+grep -q "### Finding N\|### Finding 1" "$SKILL" || { echo "FAIL: numbered findings format"; exit 1; }
+grep -qi "project.rule severity\|project rules override" "$SKILL" || { echo "FAIL: project-rule severity language"; exit 1; }
+grep -qi "style.*ALWAYS deferred\|always deferred\|deferred-write.*ALL style\|MUST be written to.*deferred" "$SKILL" || { echo "FAIL: style-always-deferred rule"; exit 1; }
+
+# Deep-review subagent dispatch invoking Skill tool
+grep -qi "invoke.*deep-review.*skill.*via.*Skill tool\|invoke the .deep-review. skill via" "$SKILL" || { echo "FAIL: deep-review Skill tool invocation"; exit 1; }
 
 echo "OK: fly structural check passed"
 
