@@ -9,6 +9,8 @@ user-invocable: true
 
 Execute a preflight checklist. Walks tasks, dispatches subagents, fills slots, auto-fixes review findings, verifies completion.
 
+> **Docs naming note:** where this skill says `AGENTS.md`, read `AGENTS.md` or `CLAUDE.md`, whichever the project has. Same for user-global `~/.claude/AGENTS.md` vs `~/.claude/CLAUDE.md`. Each agent handles the fallback conventionally.
+
 ## Purpose
 
 Execute a preflight checklist by:
@@ -96,13 +98,15 @@ Walk the checklist's tasks in order. For each task:
 
 4. Dispatch via Task tool with:
    - `subagent_type`: `general-purpose`
-   - `model`: the EXACT model string from the checklist's `Model:` annotation for this task. No substitutions, no upgrades "because the task looks complex", no defaults. If the checklist says `Model: sonnet`, the Task call gets `model: "sonnet"` - not opus, not claude-opus-4-7, not "let me be safe". The checklist IS the contract.
+   - `model`: the EXACT model string from the checklist's `Model:` annotation for this task. No drift in either direction. If the checklist says `Model: sonnet`, the Task call gets `model: "sonnet"` - not opus (upgrade), not haiku (downgrade), not a different opus variant. The checklist IS the contract, and audit-trail integrity requires the dispatch to match.
    - `description`: `Implement <task id>: <task name>`
    - `prompt`: the substituted template
 
-   **If you believe the checklist's model assignment is wrong for this task**, HALT. Tell the user: "Task <id> checklist says Model: <X>, but the task appears to need <Y> because <reason>. Edit the checklist and re-run?" Then stop. Do NOT silently upgrade - that destroys the commitment contract and makes the audit trail lie (the checklist says sonnet, reality was opus).
+   **If you believe the checklist's model assignment is wrong for this task**, HALT. Tell the user: "Task <id> checklist says Model: <X>, but the task appears to need <Y> because <reason>. Edit the checklist and re-run?" Then stop. Do NOT silently drift - upgrading "to be safe" or downgrading "because this looks easy" both break the commitment contract and make the audit trail lie.
 
-   Same rule applies to reviewer model dispatch in steps E/G and all phase/final gate dispatches: the `model` parameter is copied verbatim from the checklist annotation. No orchestrator discretion.
+   Same rule applies to REVIEWER model dispatch in steps E/G and all phase/final gate dispatches: the `model` parameter is copied verbatim from the checklist annotation. No orchestrator discretion on review-gate models.
+
+   **Exception: fix-implementer dispatches** (step F, H, and phase-gate fix loops) are NOT governed by a checklist annotation. The fixer defaults to the task's implementer model but may upgrade on its own judgment when a finding is architecturally gnarly or when the default-model fix BLOCKED. That's discretionary, not contract-gated, because there's no checklist entry to violate.
 
 5. Wait for the implementer's report.
 
@@ -138,44 +142,41 @@ Read the implementer's report for the commit SHA. Edit the checklist to replace 
 
 ### F. Handle spec findings
 
-Parse the reviewer's output. Every admissible finding has a unique number, a tag, and a file:line citation. Classify:
+Parse the reviewer's output. Every admissible finding has a unique number, a priority, a disposition, and a file:line citation. Classify by disposition:
 
-- **Inadmissible** - missing number, tag, or citation. Count for `inadmissible=N` in the Outcome, but do NOT act on them. Inadmissibility exists to defuse fabricated/vacuous findings.
-- **`[critical]` / `[correctness]`** - auto-fix (see below).
-- **`[style]` / `[cosmetic]`** - do NOT auto-fix (auto-fixing nits amplifies waste without improving correctness), but MUST be written to `<plan-basename>-deferred.md` so the user has a complete to-do list.
+- **Inadmissible** - missing number, priority, disposition, or citation. Count for `inadmissible=N` in the Outcome. Do NOT act on them; the reviewer failed its contract.
+- **`[fix]`** - auto-fix via fix-implementer (see below). This is the default disposition; most findings land here regardless of priority.
+- **`[defer]`** - write to deferred.md. Only valid if the reviewer cited one of the three defer criteria (user decision / phase-sized / extremely risky). If the reviewer tagged `[defer]` without a valid reason, reject: halt and re-dispatch the reviewer asking it to reconsider disposition.
 
-**Accounting invariant (NO ADMISSIBLE FINDING MAY BE DROPPED):**
+**Accounting invariant:**
 
-    admissible_findings = auto_fixed + deferred
+    admissible_findings = fixed + deferred
 
-If the numbers don't match, you lost a finding. Halt and reconcile before filling the slot. There is no "skipped" / "ignored" / "wontfix" category - every admissible finding either gets a commit that fixes it, or a `§N` entry in deferred.md. Style/cosmetic count toward `deferred`.
+Every admissible finding lands in one bucket. No "skipped" / "ignored" / "wontfix".
 
-**Auto-fix loop (critical/correctness only):**
+**Fix loop (all `[fix]` findings, highest priority first):**
 
-1. Craft a fix prompt listing each critical/correctness finding by its number, tag, citation, and suggested fix. The fixer's report must reference which finding numbers were addressed.
-2. Dispatch fix-implementer with model = task's implementer model from the checklist. Do NOT silently upgrade.
-3. Wait for fix report. If any admissible critical/correctness number is missing from the fix report, treat it as BLOCKED (not silently fixed).
-4. If BLOCKED or NEEDS_CONTEXT on any finding, upgrade model one tier and retry just those findings. If still BLOCKED, write THAT finding to deferred with the BLOCKED reason.
-5. Re-dispatch spec reviewer (full cycle: Reviewer Independence Override, fresh diff, numbered + tagged format). Loop until the admissible critical/correctness set is empty.
+1. Craft a fix prompt listing each `[fix]` finding by its number, priority, citation, and suggested fix. Order by priority (critical → major → minor → cosmetic). The fixer's report must reference which finding numbers were addressed.
+2. Dispatch fix-implementer. Default model: the task's implementer model from the checklist. The fixer may upgrade if a specific finding is architecturally gnarly or if the default-model fix BLOCKs - this is discretionary, not contract-gated (the checklist annotates task work, not fix work).
+3. Wait for fix report. If any `[fix]` number is missing from the report, treat that finding as BLOCKED.
+4. For BLOCKED findings: retry once with upgraded model. If still BLOCKED, evaluate whether the finding actually meets a defer criterion - if yes, move it to deferred.md with the BLOCKED reason. If no (e.g., it's a tractable fix the model just couldn't see), halt and surface to the user.
+5. Re-dispatch spec reviewer (full cycle: Reviewer Independence Override, fresh diff). Loop until no `[fix]` admissible findings remain.
 
-**Deferred-write (ALL style/cosmetic + any BLOCKED critical/correctness):**
+**Deferred-write (only `[defer]` findings + any `[fix]` that legitimately blocked):**
 
-Every style/cosmetic finding - whether one or twenty - gets a `§N` entry in deferred.md with its tag in the heading. No batching into a single "§6: style nits" entry; each finding is distinct with its own section, citation, and suggested fix. Cost of writing an entry is trivial; cost of losing a finding is unbounded.
-
-If you catch yourself thinking "this nit isn't worth a deferred entry" or "let me consolidate these style findings into one section" - STOP. Style findings drive quality drift; track them individually. The user will triage them in a hygiene pass.
+Each deferred finding gets its own `§N` entry with priority in the heading and the specific defer reason (which of the 3 criteria). If you find yourself writing many defer entries in a single review, that's a signal - either the reviewer is mis-disposing (re-dispatch), or the scope of this task genuinely needs the user's attention (halt, surface).
 
 **Fill the Outcome slot** using the structured format:
 
-    findings=N critical=N auto_fixed=N deferred=N; <summary>
+    findings=N fixed=N deferred=N; <summary>
 
-Optional: `inadmissible=N` if any findings were discarded. The invariant `findings = auto_fixed + deferred` must hold (admissible count only).
+Optional: `inadmissible=N`. Invariant: `findings == fixed + deferred`.
 
 **Fill the Resolution slot:**
 
 - No findings at all: `None needed`.
-- All critical/correctness auto-fixed, no style/cosmetic: `Fixed in <last-fix-commit-sha>`.
-- Only style/cosmetic deferred: `N deferred to -deferred.md §A-§Z`.
-- Mix: `Fixed in <sha>; N deferred to -deferred.md §A-§Z`.
+- All fixed, none deferred: `Fixed in <last-fix-commit-sha>`.
+- Some deferred: `Fixed in <sha>; N deferred to -deferred.md §A-§Z` (or just the defer reference if nothing was fixed inline).
 
 ### G. Dispatch code reviewer
 
@@ -193,7 +194,7 @@ For tasks annotated `Review: batched-with <neighbor-ids>`:
 
 ## Reviewer Independence Override
 
-Every reviewer dispatch (per-task spec/code review in E/G, batched review in I, phase gate review, final gate) MUST include this override block, appended AFTER the upstream template's placeholder substitutions. It exists to counter the "worker AI bullshits reviewer AI" pattern: the implementer's self-reported summary is spin, not evidence.
+Every reviewer dispatch (per-task spec/code review in E/G, batched review in I, phase gate review, final gate) MUST include this override block, appended AFTER the upstream template's placeholder substitutions. It exists so the reviewer reads the diff independently rather than trusting the implementer's self-report.
 
 Append verbatim to the reviewer prompt:
 
@@ -203,101 +204,105 @@ Append verbatim to the reviewer prompt:
 The "Implementer-Reported Summary" above is UNTRUSTED. It is the artifact under
 review, not the verdict. Before accepting any claim:
 
-1. Read the `## Actual Diff` section below as your primary evidence. Do not rely
-   on the summary's characterization of what changed. The diff is authoritative;
-   the summary is spin.
-2. For every "I added X / tests pass / behavior works" claim in the summary,
-   locate evidence in the diff or captured test output. If you cannot find the
-   evidence, treat the claim as unsubstantiated and call it out explicitly.
-3. Red flags that mean MORE scrutiny, not less: short bullet-only summary;
-   hedging words ("should", "mostly", "essentially", "approximately"); long
-   list of checkmarks without corresponding diff lines; claims of "pre-existing"
-   failures or issues without proof.
-4. Your job is to find what the implementer missed or hid, not to concur. A
-   review that finds nothing when the diff has problems is worse than no review.
+1. Read the `## Actual Diff` section below as your primary evidence. The diff
+   is authoritative; the summary is spin.
+2. For every "I added X / tests pass / behavior works" claim, find the evidence
+   in the diff or captured test output. If you can't, treat the claim as
+   unsubstantiated.
+3. Your job is to find what the implementer missed or hid, not to concur.
 
 ### Finding format (MANDATORY)
 
-Output each finding as its OWN numbered section. Start at 1, sequential, no gaps.
+Output each finding as its own numbered section. Start at 1, sequential.
 
-    ### Finding 1: <short title>
+    ### Finding N: <short title>
 
-    `[severity]` <file>:<line>
+    Priority: `[critical]` | `[major]` | `[minor]` | `[cosmetic]`
+    Disposition: `[fix]` | `[defer]`
+    Location: `<file>:<line>` (or `<file>:<line-line>` for ranges)
 
     <description>
 
-    **Suggested fix:** <concise suggestion>
+    **Suggested fix:** <concise>
 
-Every finding MUST have:
+    **Why defer:** <only present if Disposition=defer; cite which of the 3
+                    defer criteria applies - see below>
 
-1. A unique sequential number (`### Finding N:`). The orchestrator reconciles auto-fix vs deferred by number; any collapse into prose drops detail.
-2. Exactly one severity tag:
-   - `[critical]` - breaks correctness, security, or specified behavior
-   - `[correctness]` - logic error, missing edge case, wrong output, OR a project-rule violation escalated to correctness (see "Project-rule severity" below)
-   - `[style]` - naming, formatting, or convention mismatch
-   - `[cosmetic]` - purely aesthetic
-3. A concrete `<file>:<line>` (or `<file>:<line-line>` for ranges).
+Findings without a number, priority, disposition, or citation are inadmissible
+and will be discarded.
 
-Findings without a number, tag, or citation are inadmissible and will be discarded by the orchestrator. Do NOT collapse multiple related findings into a single numbered entry with prose bullets - each distinct location or violation gets its own number.
+### Priority
 
-### Project-rule severity
+- `[critical]` - ship-blocker: breaks correctness, security, data integrity, or
+  specified behavior
+- `[major]` - real correctness or quality issue; would annoy a careful reviewer
+- `[minor]` - small correctness issue or noticeable style/convention mismatch
+- `[cosmetic]` - purely aesthetic
 
-Before tagging severity, read the project's `CLAUDE.md` (or `AGENTS.md`). If a project rule labels a pattern as correctness-blocking, findings matching that pattern are `[correctness]` regardless of generic severity conventions.
+Priority is for fix order and human readability. It does NOT gate whether to
+fix - disposition does.
 
-Common correctness-upgrade patterns (tag as `[correctness]`, NOT `[style]`, when the project's rules include them):
+### Disposition: fix by default
 
-- "DRY" / "One source, one truth" / "Extend, don't duplicate mechanisms" → duplicated code, config, values, or test fixtures. Duplication has a documented track record of causing bugs in this codebase - that's why the rule exists.
-- "No silent shortcuts" → swallowed errors, unsurfaced exceptions, empty catch blocks, missing error-state UI.
-- "No hardcoded values" → magic numbers/strings where a shared constant belongs.
-- "Don't change existing working behavior without asking" → unscoped refactors, collateral changes not called out in the commit.
+**Default is `[fix]` for every finding, regardless of priority.** Little things
+compound; style smell propagates into new code; deferring creates a hygiene
+backlog that never gets done. Extract-helper refactors and naming cleanups are
+part of healthy implementation, not a separate track.
 
-"Comment the why, not the what" remains `[style]`. "Never use em dashes" remains `[style]`. Use judgment, but default to escalating when a project rule directly names the pattern.
+Use `[defer]` ONLY if one of these three criteria applies:
 
-Do NOT tag `[style]` out of habit when the project says the pattern is correctness-blocking. Project rules override generic review conventions.
+1. **Needs user decision** - product/UX semantics, architectural direction, or
+   anything where the fix depends on human intent rather than code judgment.
+2. **Phase-sized effort** - the fix alone would take as long as an entire plan
+   phase (major refactor, schema migration, multi-file architectural change).
+3. **Extremely risky** - security-adjacent, data-integrity, unclear blast
+   radius on unfamiliar code, or hard-to-reverse changes.
+
+"This is just a style nit" is NOT a defer criterion. If it's worth mentioning,
+it's worth fixing.
+
+### Project-rule priority
+
+Abide by the rules in the project's `AGENTS.md` and the user-global
+`~/.claude/AGENTS.md` (plus anything they reference). Any violation of rules
+found there is AT LEAST `[major]` priority; if the rule explicitly names the
+pattern as causing bugs or being correctness-blocking, tag `[critical]`.
+Project/user rules override generic review conventions.
 
 ### Honest-null rule
 
-If the diff has no issues after you have actually read it, output exactly:
-
-    No issues.
-
-Do NOT pad with vacuous findings to "look thorough". Do NOT invent security
-concerns for unauthenticated services, flag harmless third-party scripts as
-risky, or list stylistic preferences as findings. A clean "No issues." after a
-real review is the correct answer and is preferred over fabricated findings.
-
-Only say "No issues." after you have read every hunk of the diff. Stating it
-without reading is worse than saying nothing.
+If the diff has no issues after you read it, output exactly `No issues.`
+Only say this after you have actually read every hunk.
 ```
 
-In addition, the reviewer prompt MUST contain these two sections (populated by the orchestrator), clearly labeled so the reviewer understands the trust boundary:
+In addition, the reviewer prompt MUST contain these two sections, clearly labeled so the reviewer understands the trust boundary:
 
 - `## Implementer-Reported Summary (untrusted)` - the implementer's report text.
-- `## Actual Diff` - the raw output of `git show <sha>` for single-task reviews, or `git diff <base>..<head>` for batched/phase/final reviews.
+- `## Actual Diff` - raw output of `git show <sha>` for single-task reviews, or `git diff <base>..<head>` for batched/phase/final reviews.
 
 ## Outcome Slot Format
 
 When filling an `Outcome: \`<fill>\`` slot, use this structured single-line format:
 
 ```
-findings=N critical=N auto_fixed=N deferred=N; <one-sentence summary>
+findings=N fixed=N deferred=N; <one-sentence summary>
 ```
 
 Tokens:
-- `findings=N` - total admissible findings (numbered, tagged, cited).
-- `critical=N` - count of findings tagged `[critical]` or `[correctness]` (the auto-fix-triggering set).
-- `auto_fixed=N` - how many critical/correctness findings were fixed by the fix-implementer loop.
-- `deferred=N` - how many findings were written to `-deferred.md`. Includes all `[style]` / `[cosmetic]` findings (they always deferred) plus any `[critical]` / `[correctness]` that BLOCKED even at upgraded model.
+- `findings=N` - total admissible findings (numbered, prioritized, disposition-tagged, cited).
+- `fixed=N` - how many findings were fixed by the fix-implementer loop. Includes findings of any priority; disposition is `[fix]`.
+- `deferred=N` - how many findings were written to `-deferred.md`. Only findings where disposition is legitimately `[defer]` (user decision / phase-sized / extremely risky), plus any `[fix]` findings that genuinely BLOCKED even after model upgrade.
 - `<summary>` - one sentence describing the outcome.
-- `inadmissible=N` (optional) - count of findings discarded for missing number/tag/citation.
+- Optional priority breakdown for readability: `(crit=N maj=N min=N cos=N)`.
+- Optional: `inadmissible=N` for findings discarded for missing number/priority/disposition/citation.
 
-**Invariant:** `findings == auto_fixed + deferred`. If they don't match, the orchestrator lost a finding - halt and reconcile before filling.
+**Invariant:** `findings == fixed + deferred`. If they don't match, the orchestrator lost a finding - halt and reconcile before filling.
 
 Examples:
-- `findings=0 critical=0 auto_fixed=0 deferred=0; No issues.`
-- `findings=3 critical=1 auto_fixed=1 deferred=2; Null check added; 2 style findings deferred to §12-§13.`
-- `findings=10 critical=4 auto_fixed=3 deferred=7; 1 correctness BLOCKED at opus, deferred §5; 6 style deferred §6-§11.`
-- `findings=5 critical=0 auto_fixed=0 deferred=5 inadmissible=2; 2 uncited findings discarded; 5 style deferred.`
+- `findings=0 fixed=0 deferred=0; No issues.`
+- `findings=10 fixed=10 deferred=0 (crit=1 maj=3 min=4 cos=2); All inline.`
+- `findings=12 fixed=11 deferred=1; 11 inline; §5 deferred (needs user UX decision on error surface pattern).`
+- `findings=5 fixed=0 deferred=0 inadmissible=5; All findings missing disposition tag - reviewer re-dispatched.`
 
 Prose-only Outcomes (no `findings=` token) fail Final Verification. The machine-checkable prefix is how `/fly` audits that reviews actually ran, how they resolved, and that no finding was silently dropped.
 
@@ -371,9 +376,9 @@ After the regression check passes, run the review gate per the checklist's annot
   2. When the subagent returns, process its numbered findings list EXACTLY as in step F (classify, auto-fix critical/correctness, deferred-write everything else, reconciliation invariant). Do NOT accept a prose summary in place of enumerated findings - if the subagent returned prose, re-dispatch asking for the enumerated form.
   3. Fill the Phase Gate Outcome using the structured format, prefixed with the regression check metrics from above:
 
-         tests_pass=N tests_fail=N regressions=0; findings=N critical=N auto_fixed=N deferred=N; <summary>
+         tests_pass=N tests_fail=N regressions=0; findings=N fixed=N deferred=N; <summary>
 
-  4. Note: `/deep-review` has its own auto-fix mechanism internally. If the subagent reports that certain findings were already auto-fixed inside `/deep-review`, count those in `auto_fixed`. Findings the skill itself flagged as deferred go into `/fly`'s deferred.md (same file - don't create a separate one).
+  4. Note: `/deep-review` has its own auto-fix mechanism internally. If the subagent reports that certain findings were already auto-fixed inside `/deep-review`, count those in `fixed`. Findings the skill itself flagged as deferred go into `/fly`'s deferred.md (same file - don't create a separate one).
 
 ## Final Gate
 
@@ -381,47 +386,50 @@ After all phases complete, check the checklist's final gate:
 
 - If `## Final Gate: /deep-review over <scope>` exists:
   1. Dispatch a subagent to invoke `/deep-review` via the Skill tool, same pattern as the deep-review Phase Gate above (see "Dispatch pattern: subagent → Skill tool"). Scope per the checklist annotation.
-  2. Process returned findings with the accounting invariant (`findings = auto_fixed + deferred`). All style/cosmetic findings → deferred.md.
-  3. Fill Outcome slot using the structured format: `findings=N critical=N auto_fixed=N deferred=N; <summary>`.
+  2. Process returned findings with the accounting invariant (`findings = fixed + deferred`). Default disposition is `[fix]`; only legitimately-defer findings go to deferred.md.
+  3. Fill Outcome slot using the structured format: `findings=N fixed=N deferred=N; <summary>`.
   4. Fill Resolution slot per the outcome (Fixed / deferred references / mix).
 
 - If `**Final gate not needed - all phases have deep-review coverage.**` exists: skip; nothing to do.
 
 ## Deferred File Handling
 
-`<plan-basename>-deferred.md` is the catch-all for every admissible finding that was NOT auto-fixed. It is the complete post-execution to-do list. Creating a deferred entry is cheap; losing a finding is unbounded damage.
+`<plan-basename>-deferred.md` holds findings that legitimately cannot be fixed inline. **Deferred is the exception, not the default.** Default is fix-inline; deferral requires justification.
 
-Create/append to the deferred file when:
-- A fix-implementer reports BLOCKED even at an upgraded model (→ that one finding is deferred).
-- A `/deep-review` invocation reports findings it couldn't auto-fix (→ each one is a deferred entry).
-- Any `[style]` or `[cosmetic]` admissible finding exists from any review (per-task spec/code, batched, phase gate, final gate). Style/cosmetic are ALWAYS deferred - they are not auto-fixed per policy, but they must still be tracked.
+A finding qualifies for deferral only if at least one of these applies:
 
-Each finding gets its OWN `§N` entry. Do not consolidate multiple findings into one entry - each distinct citation is its own section, even if they're all tagged `[style]` or share a theme. The user will triage them in a hygiene pass; a flat numbered list is easier to process than nested bullets.
+1. **Needs user decision** - fix depends on product/UX semantics or architectural direction only the user can supply.
+2. **Phase-sized effort** - fix alone would consume as much time as an entire plan phase (major refactor, schema migration, large architectural change).
+3. **Extremely risky** - security-adjacent, data-integrity, unclear blast radius on unfamiliar code, hard-to-reverse.
 
-Format:
+Also: a `[fix]` finding that fix-implementer BLOCKED on after model upgrade can legitimately defer, IF evaluation shows it actually meets one of the three criteria. A failed fix attempt on a tractable problem is not a defer - halt and surface to the user instead.
+
+"It's just a style nit" is NOT a defer criterion. If it's worth mentioning, it's worth fixing.
+
+Each finding gets its OWN `§N` entry. Format:
 
 ```markdown
 # Deferred Items: <feature>
 
-> Items found during `/fly` execution that were not auto-fixed. Review and address manually before shipping (or schedule for a hygiene pass).
+> Items flagged during `/fly` execution that require your attention - user decision needed, too large for inline fix, or too risky to auto-apply.
 
-## §1: <task/gate context> - [critical|correctness|style|cosmetic] <short title>
+## §1: <task/gate context> - [priority] <short title>
 
 **Finding:** <description from reviewer, preserving file:line citation>
 
-**Why deferred:** <one of: "style/cosmetic - not auto-fixed by policy" | "fix-implementer reported BLOCKED: <reason>" | "deep-review output flagged as manual">
+**Why deferred:** <one of: "needs user decision - <specifics>" | "phase-sized effort - <estimate>" | "extremely risky - <blast radius>" | "BLOCKED at upgraded model; fits defer criterion X because <reason>">
 
 **Suggested fix:** <from reviewer's output>
 ```
 
 When writing a deferred item:
 1. Assign the next available `§N`.
-2. Include the severity tag in the heading so the user can grep by type (`grep "\[style\]" -deferred.md`).
-3. Update the corresponding Resolution slot in the checklist: `Action: Deferred to <plan-basename>-deferred.md §N` (or `§A-§Z` for ranges).
+2. Include priority in the heading.
+3. Update the Resolution slot in the checklist: `Action: Deferred to <plan-basename>-deferred.md §N`.
 
 If the deferred file doesn't exist yet, create it with the header before appending `§1`.
 
-**Anti-pattern**: batching 10 style findings into a single `§N: style nits` section with 10 bullets. This loses the individual citations and makes per-finding triage harder. Each finding is its own entry.
+**Watch your defer rate.** If you find yourself writing more than 1-2 defer entries per review, pause: either the reviewer is mis-disposing findings (re-dispatch to re-evaluate), or the task genuinely needs the user's attention (halt `/fly` and surface to the user instead of accumulating defers silently).
 
 ## Final Verification
 
@@ -433,9 +441,9 @@ After all tasks, phase gates, and final gate are processed, run the verification
 
 - **All Outcome slots filled (non-`<fill>`):** grep for `Outcome: \`<fill>\``. Should find none.
 
-- **Outcome slots use structured format:** grep for `Outcome: \`` lines that do NOT contain `findings=`. Should find none. Prose-only Outcomes without the `findings=N critical=N auto_fixed=N deferred=N` prefix fail verification - they indicate a review happened without structured accounting (or no review happened at all).
+- **Outcome slots use structured format:** grep for `Outcome: \`` lines that do NOT contain `findings=`. Should find none. Prose-only Outcomes without the `findings=N fixed=N deferred=N` prefix fail verification - they indicate a review happened without structured accounting (or no review happened at all).
 
-- **Findings accounting invariant:** for every Outcome, parse the tokens and confirm `findings == auto_fixed + deferred`. If mismatch, findings were dropped. Halt and ask the user to reconcile.
+- **Findings accounting invariant:** for every Outcome, parse the tokens and confirm `findings == fixed + deferred`. If mismatch, findings were dropped. Halt and ask the user to reconcile.
 
 - **Phase Gate Outcomes contain regression-check prefix:** each phase's Outcome must start with `tests_pass=N tests_fail=N regressions=0;`. Any phase missing this prefix means the Phase regression check was skipped - halt and fail.
 
@@ -471,7 +479,7 @@ After final verification passes:
 | "Verification block is just a formality" | Verification catches tasks you forgot. Tick each box only after actually verifying its condition (grep for unticked boxes, check SHA slots aren't `<fill>`, etc.). |
 | "Deep-review on this phase is slow, let me skip" | Preflight decided which phases get deep-review to satisfy the invariant. Skipping breaks the invariant. |
 | "The implementer's summary says it's good, reviewer can skim" | The summary is UNTRUSTED. Reviewer must read the `## Actual Diff` independently. Dispatching a reviewer with only the summary is reviewer priming. |
-| "I'll just write 'Looks good' in the Outcome slot" | Outcome needs `findings=N critical=N auto_fixed=N`. Prose-only fails Final Verification. If you didn't count, you didn't review. |
+| "I'll just write 'Looks good' in the Outcome slot" | Outcome needs `findings=N fixed=N deferred=N`. Prose-only fails Final Verification. If you didn't count, you didn't review. |
 | "Reviewer returned findings without file:line, I'll act on them anyway" | Inadmissible. Fabricated findings without citations waste fix cycles. Discard, log `inadmissible=N`, move on. |
 | "Auto-fixing this style nit won't hurt" | Only `[critical]` / `[correctness]` auto-fix. Style/cosmetic amplifies fabricated-finding waste. Log and move on. |
 | "That test was probably failing on main anyway" | Phase regression check: run the suite at the phase base commit. Assertion without running is gaslighting. |
@@ -479,12 +487,14 @@ After final verification passes:
 | "Opus is better, it won't hurt to upgrade" | Cost and audit: opus costs more, and "we used sonnet" becomes a lie when checklist-vs-dispatch drift. Preflight picked sonnet for a reason. Respect the decision or surface the disagreement to the user. |
 | "I'll use opus for the reviewer because this code is tricky" | Same rule. Reviewer model is in the checklist. Upgrading silently also primes the review outcome (opus reviews differ from sonnet reviews) and defeats preflight's per-gate assignment. |
 | "Defaulting to opus is fine for everything" | It is NOT fine. Preflight assigned per-task models to balance cost, latency, and appropriate rigor. A fly run that always uses opus has ignored the checklist. |
-| "Reviewer returned 20 findings, let me consolidate the main ones" | NO. Every admissible finding gets processed by number. Consolidation into prose loses detail. Either auto-fix it (critical/correctness) or deferred-write it (style/cosmetic). No third option. |
-| "This style finding isn't worth a deferred entry" | WRONG. Deferred entries cost nothing; losing findings costs unbounded quality drift. Every style/cosmetic finding gets its own §N. |
-| "I'll batch these 10 style findings into one §N entry with bullets" | NO. Each citation is its own entry. Flat enumerated list is easier for the user to triage than nested bullets. Anti-pattern explicitly called out. |
+| "Reviewer returned 20 findings, let me consolidate the main ones" | NO. Every admissible finding gets processed by number. Consolidation into prose loses detail. Fix it or defer it (with a valid defer reason). |
+| "This cosmetic finding can wait for a hygiene pass" | NO. Default disposition is [fix]. Cosmetic nits compound into quality drift, and later tasks copy the smell. Fix it now. Cheaper overall than whack-a-mole later. |
+| "Let me defer this 5-minute extract-helper refactor" | Extract-helper refactors are part of healthy implementation, not a separate track. Only defer if fix is phase-sized, needs user decision, or is extremely risky. |
 | "Let me paraphrase /deep-review's structure into a subagent prompt instead of invoking the skill" | NO. Paraphrasing destroys the skill's tuned behavior (parallel Codex review, Chrome MCP UI review, etc.) and destroys the audit trail. Dispatch a subagent that invokes the skill via Skill tool. |
-| "The reviewer tagged duplication as [style] so I won't escalate" | Read the project's CLAUDE.md/AGENTS.md. If it says "duplication has always led to bugs" or "One source, one truth", duplication is [correctness], not [style]. Project rules override generic tagging. |
-| "findings = 10, auto_fixed = 2, deferred = 0 - I'll note '8 style findings' in the summary" | INVARIANT VIOLATION: findings must equal auto_fixed + deferred. 8 findings disappeared. Halt and deferred-write each one individually. |
+| "The reviewer tagged this [minor] so I won't bother" | Priority doesn't gate fix; disposition does. If it's [fix], fix it regardless of priority. |
+| "findings = 10, fixed = 2, deferred = 0, let me note '8 style findings' in the summary" | INVARIANT VIOLATION: findings = fixed + deferred. 8 findings disappeared. Halt. |
+| "The reviewer tagged this [defer] so I'll defer it" | Check the "Why defer" reason. If it doesn't cite one of the 3 criteria (user decision / phase-sized / extremely risky), reject and re-dispatch - the reviewer misdisposed. |
+| "Most of these should defer because they're out of scope" | If the reviewer is producing a high defer rate, the reviewer is wrong or the task scope is wrong. Re-dispatch or halt. Silent acceptance of mass-defer defeats the fix-inline principle. |
 
 ## Red Flags - STOP
 
@@ -504,10 +514,12 @@ If you catch yourself thinking any of these, STOP and re-read the Rationalizatio
 - "The reviewer will be more rigorous on opus, so I'll swap the model"
 - "Let me consolidate these findings into main points"
 - "The deep-review returned 20 findings, I'll focus on the critical ones"
-- "This nit doesn't need its own deferred entry"
-- "I'll write 'style findings deferred' in the summary instead of enumerating them"
+- "This nit can wait for a hygiene pass"
+- "Default to defer and let the user triage"
+- "Fix-inline for a style thing is overkill, just defer"
 - "Invoking /deep-review as a full skill is heavy, let me just replicate its prompts"
-- "The reviewer tagged duplication as style, I'll respect their tag" (when CLAUDE.md says duplication is correctness-blocking)
+- "The reviewer tagged [defer] so I'll defer it" (without checking the defer reason)
+- "The task said use sonnet but haiku will be fine" (downgrade drift is as bad as upgrade drift)
 
 **All of these mean: you are about to violate the checklist contract. Do the work.**
 

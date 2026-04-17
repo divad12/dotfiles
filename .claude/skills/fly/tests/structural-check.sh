@@ -39,15 +39,16 @@ grep -qi "inadmissible" "$SKILL" || { echo "FAIL: inadmissibility rule"; exit 1;
 # Phase regression check (Patch D)
 grep -q "^### Phase regression check" "$SKILL" || { echo "FAIL: Phase regression check subsection"; exit 1; }
 
-# Structured Outcome slot format (Patch E) + findings accounting invariant
+# Structured Outcome slot format + findings accounting invariant
 grep -q "^## Outcome Slot Format$" "$SKILL" || { echo "FAIL: Outcome Slot Format section"; exit 1; }
-grep -q "findings=N critical=N auto_fixed=N deferred=N" "$SKILL" || { echo "FAIL: structured outcome format with deferred="; exit 1; }
-grep -qi "admissible.findings = auto_fixed + deferred\|findings == auto_fixed + deferred\|findings = auto_fixed + deferred" "$SKILL" || { echo "FAIL: accounting invariant language"; exit 1; }
+grep -q "findings=N fixed=N deferred=N" "$SKILL" || { echo "FAIL: structured outcome format (fixed/deferred tokens)"; exit 1; }
+grep -qi "findings == fixed + deferred\|findings = fixed + deferred" "$SKILL" || { echo "FAIL: accounting invariant language"; exit 1; }
 
-# Numbered findings + project-rule severity + deferred-for-all
+# Numbered findings + disposition model + project-rule severity
 grep -q "### Finding N\|### Finding 1" "$SKILL" || { echo "FAIL: numbered findings format"; exit 1; }
-grep -qi "project.rule severity\|project rules override" "$SKILL" || { echo "FAIL: project-rule severity language"; exit 1; }
-grep -qi "style.*ALWAYS deferred\|always deferred\|deferred-write.*ALL style\|MUST be written to.*deferred" "$SKILL" || { echo "FAIL: style-always-deferred rule"; exit 1; }
+grep -qi "disposition.*\[fix\]\|disposition.*fix.*defer\|\[fix\].*\[defer\]" "$SKILL" || { echo "FAIL: disposition field"; exit 1; }
+grep -qi "default.*\[fix\]\|fix by default\|default disposition.*fix" "$SKILL" || { echo "FAIL: fix-by-default rule"; exit 1; }
+grep -qi "project.rule\|project/user rules override\|abide by the rules" "$SKILL" || { echo "FAIL: project-rule language"; exit 1; }
 
 # Deep-review subagent dispatch invoking Skill tool
 grep -qi "invoke.*deep-review.*skill.*via.*Skill tool\|invoke the .deep-review. skill via" "$SKILL" || { echo "FAIL: deep-review Skill tool invocation"; exit 1; }
