@@ -72,50 +72,76 @@ graph LR
 
 **Key asymmetry:** local sees edits instantly (symlink). Cloud sees them only after push to master. When iterating rapidly, test locally first.
 
+## Current direction: superpowers-based orchestration
+
+**Active workflow (what I'm using now):**
+
+1. `superpowers:brainstorming` - explore intent, requirements, design before implementation
+2. `superpowers:writing-plans` - turn the brainstorm into a plan with review checkpoints
+3. `superpowers:subagent-driven-development` - execute the plan via dispatched subagents
+
+**Planning to build on top:** project-specific orchestrator skills that chain into these superpowers skills rather than the monolithic `build` / `autopilot` flow below.
+
+**Being phased out:** `build` and `autopilot` - both tried to do too much in one skill and don't compose well with plan-driven flows. Leaves (`critique`, `deep-review`, `qa-test`, `new-session`, etc.) stay - they're useful building blocks for any orchestrator.
+
 ## Skill invocation graph
 
 Which skills invoke which. Solid arrows = direct invocation (skill A reads skill B's SKILL.md and follows its steps inline). Dotted = triggered externally (e.g. `save` calls `capture-learning` when the session produced learnings).
 
 ```mermaid
 graph TD
-  autopilot --> build
-  autopilot --> deep-review
+  subgraph deprecated[Phasing out]
+    autopilot --> build
+    autopilot --> deep-review
+    build --> new-session
+    build --> critique
+    build --> qa-test
+    build --> deep-review
+    build --> ship
+    build --> close-session
+  end
 
-  build --> new-session
-  build --> critique
-  build --> qa-test
-  build --> deep-review
-  build --> ship
-  build --> close-session
+  subgraph active[Active orchestrators]
+    ship --> save
+    ship --> merge
+    close-session --> merge
+    save -.->|if learnings| capture-learning
+    save -.->|if arch drift| sync-architecture
+    adaptive-docs-init --> sync-architecture
+    adaptive-docs-extract -.-> capture-learning
+  end
 
-  ship --> save
-  ship --> merge
+  subgraph superpowers[Superpowers plugin flow]
+    brainstorming --> writing-plans
+    writing-plans --> subagent-driven-development
+  end
 
-  close-session --> merge
+  subgraph leaves[Leaves - pure building blocks]
+    bugfix-tdd
+    critique
+    deep-review
+    merge
+    new-session
+    qa-test
+    spec-interview
+    frontend-design
+  end
 
-  save -.->|if learnings| capture-learning
-  save -.->|if arch drift| sync-architecture
+  subagent-driven-development -.->|future orchestrators<br/>will chain these| leaves
 
-  adaptive-docs-init --> sync-architecture
-  adaptive-docs-extract -.-> capture-learning
-
-  bugfix-tdd
-  critique
-  deep-review
-  merge
-  new-session
-  qa-test
-  spec-interview
-  frontend-design
-
-  style build fill:#2d4a5a,color:#fff
-  style autopilot fill:#2d4a5a,color:#fff
+  style build fill:#5a3a3a,color:#fff
+  style autopilot fill:#5a3a3a,color:#fff
   style ship fill:#2d4a5a,color:#fff
   style save fill:#2d4a5a,color:#fff
+  style brainstorming fill:#2d5a3a,color:#fff
+  style writing-plans fill:#2d5a3a,color:#fff
+  style subagent-driven-development fill:#2d5a3a,color:#fff
 ```
 
-**Orchestrators** (blue): `build`, `autopilot`, `ship`, `save` - these coordinate other skills.
-**Leaves**: `bugfix-tdd`, `critique`, `deep-review`, `merge`, `new-session`, `qa-test`, `spec-interview`, `frontend-design` - pure, no invocations out. Safe to edit without worrying about cascading effects.
+**Active orchestrators** (blue): `ship`, `save` - still in daily use.
+**Superpowers flow** (green): `brainstorming` -> `writing-plans` -> `subagent-driven-development`. Future project-specific skills will plug into this pipeline.
+**Phasing out** (red): `build`, `autopilot` - kept in repo for now but not being invoked.
+**Leaves**: pure, no invocations out. Safe to edit without worrying about cascading effects. These are the useful building blocks that survive the migration.
 
 **Important:** Claude's Skill tool can't be called from within another skill. So "invokes" means "reads the target's SKILL.md and follows its steps inline in the same conversation." If you change a leaf skill's interface, update every orchestrator that invokes it.
 
