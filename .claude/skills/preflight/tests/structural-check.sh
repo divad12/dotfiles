@@ -14,4 +14,12 @@ grep -q "^## Input$" "$SKILL" || { echo "FAIL: Input section"; exit 1; }
 grep -q "^## Output$" "$SKILL" || { echo "FAIL: Output section"; exit 1; }
 grep -q "^## Overwrite Behavior$" "$SKILL" || { echo "FAIL: Overwrite Behavior section"; exit 1; }
 
+grep -q "^## Decisions Preflight Makes$" "$SKILL" || { echo "FAIL: Decisions section"; exit 1; }
+grep -q "Phase groupings" "$SKILL" || { echo "FAIL: Phase groupings subsection"; exit 1; }
+grep -q "Per-task model assignment" "$SKILL" || { echo "FAIL: Model assignment subsection"; exit 1; }
+grep -q "Review policy per task" "$SKILL" || { echo "FAIL: Review policy subsection"; exit 1; }
+grep -q "Reviewer model per gate" "$SKILL" || { echo "FAIL: Reviewer model subsection"; exit 1; }
+grep -q "Deep-review coverage invariant" "$SKILL" || { echo "FAIL: Deep-review invariant"; exit 1; }
+grep -q "TDD audit" "$SKILL" || { echo "FAIL: TDD audit subsection"; exit 1; }
+
 echo "OK: preflight structural check passed"
