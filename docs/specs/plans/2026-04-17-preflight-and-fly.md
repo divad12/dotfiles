@@ -91,7 +91,7 @@ Create `.claude/skills/preflight/SKILL.md`:
 ```markdown
 ---
 name: preflight
-description: "Transform an implementation plan into a preflight checklist encoding per-task models, phase groupings, review gates with reviewer models, TDD audit with injected steps, and explicit resolution checkboxes. The checklist becomes the contract /fly executes. Use when the user says 'preflight', 'preflight the plan', or invokes with a plan path."
+description: "Use when preparing an implementation plan for disciplined execution, typically after /superpowers:writing-plans and before /fly. Triggers: 'preflight', 'checklist the plan', 'prep for execution', or when given a plan file path to process."
 argument-hint: [path to plan file]
 user-invocable: true
 ---
@@ -102,6 +102,8 @@ Transform a plan file into a checklist contract that `/fly` executes.
 
 (Skill body to be filled in later tasks.)
 ```
+
+**Description rationale:** Triggering conditions only — no summary of what the skill does internally. Per `superpowers:writing-skills` guidance: descriptions that summarize workflow cause Claude to follow the description instead of reading the skill body. Keeping it to "Use when..." + triggers preserves the skill content as load-bearing.
 
 - [ ] **Step 4: Run test to verify it passes**
 
@@ -136,7 +138,7 @@ Create `.claude/skills/fly/SKILL.md`:
 ```markdown
 ---
 name: fly
-description: "Execute a preflight checklist by dispatching implementer + reviewer subagents using upstream prompt templates, auto-dispatching fix agents for findings, filling SHA/Outcome/Resolution slots, and verifying every box is ticked at the end. Use when the user says 'fly', 'fly the plan', or invokes with a checklist path."
+description: "Use when executing a preflight checklist. Triggers: 'fly', 'launch execution', 'run the checklist', or when given a preflight checklist file path."
 argument-hint: [path to checklist file]
 user-invocable: true
 ---
@@ -147,6 +149,8 @@ Execute a preflight checklist. Walks tasks, dispatches subagents, fills slots, a
 
 (Skill body to be filled in later tasks.)
 ```
+
+**Description rationale:** Triggering conditions only. Per writing-skills, `/fly` is especially vulnerable to description-as-shortcut: if the description summarized "dispatches subagents, auto-fixes, verifies", Claude might skip the full discipline mechanisms on the assumption they're captured in the description. Keeping it minimal forces Claude to read the body where the commitment contract lives.
 
 Run: `bash .claude/skills/fly/tests/structural-check.sh`
 Expected: `OK: fly structural check passed`
@@ -1182,7 +1186,91 @@ git commit -m "fly: phase gates, final gate, deferred file, final verification"
 
 ---
 
-### Task 3.4: Create sample checklist fixture for dry-run testing
+### Task 3.4: Write fly's Rationalization Table and Red Flags sections
+
+**Files:**
+- Modify: `.claude/skills/fly/SKILL.md`
+
+**Why this task exists:** `/fly` is a *discipline-enforcing* skill — its entire reason for existing is to counter coordinator rationalizations under context pressure. Per `superpowers:writing-skills`, discipline skills need explicit rationalization tables and red-flag lists because agents are smart and will find loopholes. This task adds that hardening.
+
+- [ ] **Step 1: Extend structural check**
+
+Append to `.claude/skills/fly/tests/structural-check.sh`:
+
+```bash
+grep -q "^## Rationalization Table$" "$SKILL" || { echo "FAIL: Rationalization Table section"; exit 1; }
+grep -q "^## Red Flags - STOP$" "$SKILL" || { echo "FAIL: Red Flags section"; exit 1; }
+grep -q "^## The Iron Rule$" "$SKILL" || { echo "FAIL: The Iron Rule section"; exit 1; }
+grep -qi "checklist is the contract" "$SKILL" || { echo "FAIL: commitment contract language"; exit 1; }
+```
+
+- [ ] **Step 2: Run test, verify FAIL**
+
+Run: `bash .claude/skills/fly/tests/structural-check.sh`
+Expected: FAIL with `Rationalization Table section`
+
+- [ ] **Step 3: Add the three sections to SKILL.md**
+
+Append to `.claude/skills/fly/SKILL.md`:
+
+````markdown
+## Rationalization Table
+
+`/fly` exists because LLM coordinators rationalize shortcuts under context pressure. Before skipping any step, check this table:
+
+| Excuse | Reality |
+|--------|---------|
+| "This task is trivial, no review needed" | The checklist has review gate checkboxes for every task. Skipping violates the contract. |
+| "I already did the spec review conceptually" | The Outcome slot requires a written summary. Mental review doesn't fill the slot. |
+| "Finding is minor, skip it" | Resolution slot MUST be filled. Valid Actions: Fixed / FIXME / Deferred. Not "ignored", not "skipped", not empty. |
+| "Fix-implementer reported BLOCKED, move on" | Upgrade model one tier and retry FIRST. If still BLOCKED, write to `-deferred.md`. Never silent skip. |
+| "Context pressure, let me batch some tasks myself" | Batching is preflight's decision, encoded in the checklist. Do NOT invent new batches at execution time. |
+| "Running the review feels redundant, code looks fine" | "Looks fine" is not a review. Dispatch the reviewer subagent. Fill the slot. |
+| "The plan doesn't have TDD steps, so I'll skip TDD" | Either the checklist has `[INJECTED]` TDD steps, OR the implementer dispatch has a TDD override instruction. Do TDD. |
+| "I'll fix all review findings at the end in one batch" | Each review's Resolution must be filled before moving to the next gate. No accumulating findings across gates. |
+| "Verification block is just a formality" | Verification catches tasks you forgot. Tick each box only after actually verifying its condition (grep for unticked boxes, check SHA slots aren't `<fill>`, etc.). |
+| "Deep-review on this phase is slow, let me skip" | Preflight decided which phases get deep-review to satisfy the invariant. Skipping breaks the invariant. |
+
+## Red Flags - STOP
+
+If you catch yourself thinking any of these, STOP and re-read the Rationalization Table:
+
+- "Just this one review can be skipped"
+- "The finding is so minor it's not worth fixing"
+- "I'll come back to this slot later"
+- "This is close enough to complete"
+- "Let me batch these myself since preflight didn't"
+- "Reviewer said 'mostly fine', that counts as approved"
+- "I'll fill in the SHA slot later from memory"
+- "Ticking the verification box is fine, I'm sure it's done"
+- "The implementer said DONE, no need to verify each step checkbox"
+
+**All of these mean: you are about to violate the checklist contract. Do the work.**
+
+## The Iron Rule
+
+**The checklist is the contract. Every checkbox must be ticked by verifying its condition. Every slot must be filled with actual content. No exceptions, no rationalizations.**
+
+If `/fly` completes without every box ticked and every slot filled, the final verification will catch the gap and halt. Do not try to work around the verification — fix the missing work. The verification exists because commitment contracts only hold when they're enforced.
+
+If you genuinely believe a step is wrong or impossible, surface the issue explicitly to the user. Do not silently skip.
+````
+
+- [ ] **Step 4: Run test, verify PASS**
+
+Run: `bash .claude/skills/fly/tests/structural-check.sh`
+Expected: `OK: fly structural check passed`
+
+- [ ] **Step 5: Commit**
+
+```bash
+git add .claude/skills/fly/
+git commit -m "fly: rationalization table + red flags + iron rule (discipline hardening)"
+```
+
+---
+
+### Task 3.5: Create sample checklist fixture for dry-run testing
 
 **Files:**
 - Create: `.claude/skills/fly/tests/samples/sample-checklist.md`
@@ -1289,7 +1377,7 @@ git commit -m "fly: sample checklist + stub plan fixtures for dry-run validation
 
 ---
 
-### Task 3.5: Integration test — dry-run /fly on sample checklist
+### Task 3.6: Integration test — dry-run /fly on sample checklist
 
 **Files:** no new files - manual test procedure.
 
