@@ -97,30 +97,24 @@ If the session was genuinely trivial (one-line typo fix, config change) with not
 
 If the project has a `docs/ai/` directory and `.claude/skills/` (or `.agents/skills/`), quickly check: did this session create any new directories or file patterns that aren't covered by existing skill descriptions? If so, note it in the save output so the user can decide whether to update skill triggers.
 
-### 5. Check architecture diagram drift (if docs/ai/architecture.md exists)
+### 5. Auto-sync the architecture diagram (if docs/ai/architecture.md exists)
 
-If `docs/ai/architecture.md` exists and has a `## This diagram covers` section, run a quick drift check:
+If `docs/ai/architecture.md` exists and has a `## This diagram covers` section, check for drift and fix it automatically:
 
 1. Parse the coverage paths from that section (list of globs like `src/app/api/**`)
-2. Run `git diff --name-status` (current session's unstaged + staged changes) scoped to those paths
+2. Run `git diff --name-status main...HEAD` (and working tree) scoped to those paths
 3. Filter for **structural** changes: `A` (added files), `D` (deleted files), `R` (renamed files). Ignore `M` (modifications to internals).
 4. Also check if `docs/ai/architecture.md` itself was modified this session
 
-If there are structural changes under covered paths AND architecture.md was NOT modified this session:
+If there are structural changes under covered paths AND architecture.md was NOT already updated this session:
 
-> Print in the save output:
-> ```
-> ⚠ Architecture drift suspected: <N> structural changes under paths covered by architecture.md
->   - Added: <files>
->   - Removed: <files>
->   Run /sync-architecture to check if the diagram needs updating.
-> ```
+- **Invoke the `/sync-architecture` skill directly.** Don't print a warning. Don't ask for permission. The user already ran `/save` - they've implicitly signed up for doc maintenance to happen.
+- `/sync-architecture` will update the mermaid block and coverage list, leaving the change unstaged. The user sees the updated diagram when they review the `/save` commit.
+- Include a line in the save output: `Architecture diagram updated (N structural changes since last sync)`. Link to the specific changes briefly.
 
-This is a **reminder, not a block.** The user can ignore it and commit anyway. The point is to surface drift at the moment when it's cheapest to fix.
+If architecture.md WAS already modified this session, the user handled it manually. Skip.
 
-If architecture.md WAS modified this session, assume the user already handled it - skip the warning.
-
-If there are no structural changes, skip this step silently.
+If there are no structural changes, skip silently.
 
 ## Rules
 

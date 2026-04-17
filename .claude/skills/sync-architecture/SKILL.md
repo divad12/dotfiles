@@ -1,12 +1,14 @@
 ---
 name: sync-architecture
-description: "Check if docs/ai/architecture.md is still in sync with the codebase, and propose mermaid updates if it drifted. Use when the user says 'sync architecture', 'update the architecture diagram', 'check the arch diagram', 'refresh architecture', 'audit the diagram', or is told by /save that architecture may have drifted. Also use after adding, removing, or renaming a top-level component (new API route module, new shared-function module, schema restructure)."
+description: "Update docs/ai/architecture.md when the codebase has drifted. Detects structural changes (new/deleted/renamed modules) under the paths the diagram covers and updates the mermaid block directly - no approval gate. Use when the user says 'sync architecture', 'update the architecture diagram', 'check the arch diagram', 'refresh architecture', 'audit the diagram'. Also auto-invoked by /save and /deep-review when drift is detected. Also use after adding, removing, or renaming a top-level component (new API route module, new shared-function module, schema restructure)."
 user-invocable: true
 ---
 
 # Sync Architecture Diagram
 
-Check whether `docs/ai/architecture.md` still reflects the codebase, and propose a mermaid patch if it drifted. The goal is to make diagram upkeep a **30-second review task**, not a rewrite chore.
+Detect architecture drift and **apply the fix directly** to `docs/ai/architecture.md`. No approval prompt - just edit the file and leave it unstaged so the user sees the diff in `git status` before the next commit. If the edit is wrong, `git checkout docs/ai/architecture.md` reverts in one command.
+
+The goal: keep the diagram in sync with zero friction. Asking for approval on every run turns this into a chore; just updating + trusting git-as-review is the right ratio.
 
 ## Prerequisites
 
@@ -71,39 +73,39 @@ For each structural change, ask:
 
 **If no structural changes found, tell the user the diagram is still in sync and exit.** Don't propose cosmetic edits.
 
-### 5. Propose the diff
+### 5. Apply the update directly
 
-If structural changes exist, present them in this format:
+If structural changes exist, **edit `docs/ai/architecture.md` now**. Do not ask for approval.
+
+What to update:
+- **The mermaid block** - add boxes/arrows for new top-level modules, remove boxes for deleted ones, rename labels for moved modules
+- **The `## This diagram covers` list** - if code changed under a path not in the coverage list, expand the list to include it (paths are additive by default)
+- **The prose below the diagram** - only touch if a prose sentence directly contradicts the new shape (e.g. prose says "two modules" but diagram now shows three). Don't rewrite prose for style.
+
+What to preserve:
+- The banner header (line 1) - never touch
+- Section ordering
+- Any "For deeper detail" pointers at the bottom
+
+### 6. Report what changed
+
+In your skill output, tell the user:
 
 ```
-The diagram says: <current mermaid description>
-The code says:   <what's actually there now>
+Updated docs/ai/architecture.md:
+  - Added box for `src/lib/billing/` (new top-level module since last diagram update)
+  - Removed box for `src/lib/legacy-timing/` (deleted this session)
+  - Expanded coverage list to include `src/lib/billing/**`
 
-Proposed update: <inline diff of the mermaid block>
-
-Reasoning:
-- Added `src/lib/billing/` - new box needed for payment flow
-- Removed `src/lib/legacy-timing/` - remove from diagram
-- ...
+Left unstaged. Review with `git diff docs/ai/architecture.md`. Revert with
+`git checkout docs/ai/architecture.md` if the update is wrong.
 ```
 
-Use the `AskUserQuestion` tool (or the agent's equivalent) to let the user:
-- Approve the proposed patch
-- Edit it
-- Skip this round (tell them what they'd need to add manually)
-
-### 6. Apply the patch
-
-If approved, edit `docs/ai/architecture.md` with the new mermaid block. Preserve:
-- The banner header (line 1)
-- The prose sections below the diagram (only change them if prose also drifted - flag separately)
-- The `## This diagram covers` section itself (unless coverage should expand/contract)
-
-If the coverage list also needs updating (e.g. a new covered directory was added), flag that explicitly and ask.
+Be specific. Every bullet should reference the structural change that triggered it.
 
 ### 7. Don't commit
 
-Leave the edit as a staged or unstaged change. The user decides when to commit - typically bundled with the code change that triggered the drift, or with the next `/save`.
+Leave the edit as an unstaged change. The user commits it bundled with the code change that triggered the drift, or with the next `/save`.
 
 ## When to say "no drift, all good"
 
@@ -125,10 +127,10 @@ And these **real signals**:
 
 ## Scope discipline
 
-- **Architecture is about shape.** This skill updates the shape. It does not rewrite prose unless asked.
-- **Don't re-litigate design decisions.** If the user chose to represent something a certain way in the original diagram, respect that. Propose the minimal patch.
-- **Don't expand coverage silently.** If code changed under a path NOT in the coverage list, note it to the user but don't automatically add it. Coverage is a deliberate choice.
-- **One shot, not a loop.** Present the patch, let the user decide, done. Don't iterate five times trying to perfect it.
+- **Architecture is about shape.** This skill updates the shape. It does not rewrite prose unless a prose sentence directly contradicts the new shape.
+- **Don't re-litigate design decisions.** If the user chose to represent something a certain way in the original diagram, respect that. Make the minimal patch - add/remove/rename boxes, don't redesign the layout.
+- **Expand coverage automatically.** If code changed under a path NOT in the coverage list but clearly belongs (new top-level module), add it to the coverage list. Note what was added in the skill output. The user can trim it back if they disagree.
+- **One shot, not a loop.** Make the update, report what changed, done. Don't iterate trying to perfect it.
 
 ## Failure modes to avoid
 

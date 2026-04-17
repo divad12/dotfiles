@@ -212,6 +212,21 @@ Once all reviews are complete, merge the results:
    - [ ] Issue description - file:line - why it's deferred
    ```
 
+### 3.5. Architecture drift auto-sync
+
+Before applying other fixes, check and update the architecture diagram if drift exists.
+
+If `docs/ai/architecture.md` exists and has a `## This diagram covers` section:
+
+1. Parse the coverage paths
+2. Check if the review diff includes structural changes (`A`/`D`/`R` file statuses) under those paths
+3. Check whether `docs/ai/architecture.md` itself was already modified in this diff
+4. If structural changes exist AND architecture.md wasn't already updated: **invoke `/sync-architecture`**. It edits the diagram directly (no approval gate) and leaves the update unstaged.
+
+Note the architecture update in your consolidated summary as "Architecture diagram auto-synced (N structural changes)" so the user can spot it when reviewing the auto-fixes.
+
+Skip this step silently if there's no `docs/ai/architecture.md`, no coverage section, or no structural changes.
+
 ### 4. Auto-fix everything except deferred items
 
 Apply fixes for all items in "Must fix", "Easy wins", and "Fix these too":
