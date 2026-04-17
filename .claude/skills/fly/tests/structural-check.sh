@@ -22,4 +22,9 @@ grep -q "^## Final Gate$" "$SKILL" || { echo "FAIL: Final Gate section"; exit 1;
 grep -q "^## Deferred File Handling$" "$SKILL" || { echo "FAIL: Deferred File Handling section"; exit 1; }
 grep -q "^## Final Verification$" "$SKILL" || { echo "FAIL: Final Verification section"; exit 1; }
 
+grep -q "^## Rationalization Table$" "$SKILL" || { echo "FAIL: Rationalization Table section"; exit 1; }
+grep -q "^## Red Flags - STOP$" "$SKILL" || { echo "FAIL: Red Flags section"; exit 1; }
+grep -q "^## The Iron Rule$" "$SKILL" || { echo "FAIL: The Iron Rule section"; exit 1; }
+grep -qi "checklist is the contract" "$SKILL" || { echo "FAIL: commitment contract language"; exit 1; }
+
 echo "OK: fly structural check passed"

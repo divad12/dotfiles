@@ -221,3 +221,44 @@ After final verification passes:
 1. Print final report: tasks completed, commits made, deferred items (if any), time taken.
 2. **DO NOT auto-invoke `/ship` or `/superpowers:finishing-a-development-branch`.** Explicit user command only.
 3. Suggest next step: "Ready to ship? Run `/ship` when you've reviewed any deferred items."
+
+## Rationalization Table
+
+`/fly` exists because LLM coordinators rationalize shortcuts under context pressure. Before skipping any step, check this table:
+
+| Excuse | Reality |
+|--------|---------|
+| "This task is trivial, no review needed" | The checklist has review gate checkboxes for every task. Skipping violates the contract. |
+| "I already did the spec review conceptually" | The Outcome slot requires a written summary. Mental review doesn't fill the slot. |
+| "Finding is minor, skip it" | Resolution slot MUST be filled. Valid Actions: Fixed / FIXME / Deferred. Not "ignored", not "skipped", not empty. |
+| "Fix-implementer reported BLOCKED, move on" | Upgrade model one tier and retry FIRST. If still BLOCKED, write to `-deferred.md`. Never silent skip. |
+| "Context pressure, let me batch some tasks myself" | Batching is preflight's decision, encoded in the checklist. Do NOT invent new batches at execution time. |
+| "Running the review feels redundant, code looks fine" | "Looks fine" is not a review. Dispatch the reviewer subagent. Fill the slot. |
+| "The plan doesn't have TDD steps, so I'll skip TDD" | Either the checklist has `[INJECTED]` TDD steps, OR the implementer dispatch has a TDD override instruction. Do TDD. |
+| "I'll fix all review findings at the end in one batch" | Each review's Resolution must be filled before moving to the next gate. No accumulating findings across gates. |
+| "Verification block is just a formality" | Verification catches tasks you forgot. Tick each box only after actually verifying its condition (grep for unticked boxes, check SHA slots aren't `<fill>`, etc.). |
+| "Deep-review on this phase is slow, let me skip" | Preflight decided which phases get deep-review to satisfy the invariant. Skipping breaks the invariant. |
+
+## Red Flags - STOP
+
+If you catch yourself thinking any of these, STOP and re-read the Rationalization Table:
+
+- "Just this one review can be skipped"
+- "The finding is so minor it's not worth fixing"
+- "I'll come back to this slot later"
+- "This is close enough to complete"
+- "Let me batch these myself since preflight didn't"
+- "Reviewer said 'mostly fine', that counts as approved"
+- "I'll fill in the SHA slot later from memory"
+- "Ticking the verification box is fine, I'm sure it's done"
+- "The implementer said DONE, no need to verify each step checkbox"
+
+**All of these mean: you are about to violate the checklist contract. Do the work.**
+
+## The Iron Rule
+
+**The checklist is the contract. Every checkbox must be ticked by verifying its condition. Every slot must be filled with actual content. No exceptions, no rationalizations.**
+
+If `/fly` completes without every box ticked and every slot filled, the final verification will catch the gap and halt. Do not try to work around the verification - fix the missing work. The verification exists because commitment contracts only hold when they're enforced.
+
+If you genuinely believe a step is wrong or impossible, surface the issue explicitly to the user. Do not silently skip.
