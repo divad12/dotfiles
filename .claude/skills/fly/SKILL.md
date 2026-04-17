@@ -114,23 +114,33 @@ Read the implementer's report for the commit SHA. Edit the checklist to replace 
 1. Resolve `spec-reviewer-prompt.md` via Glob + Read.
 2. Substitute placeholders:
    - `[FULL TEXT of task requirements]` → the task's text from the plan.
-   - `[From implementer's report]` → the implementer's "what I implemented" summary.
-3. Dispatch via Task tool:
+   - `[From implementer's report]` → the implementer's summary, placed under the heading `## Implementer-Reported Summary (untrusted)` so the reviewer reads it as evidence, not verdict.
+3. Append a `## Actual Diff` section containing the output of `git show <task-sha>` (using the SHA just filled in step D). This is the reviewer's primary evidence - the implementer's summary is secondary.
+4. Append the Reviewer Independence Override block verbatim (see "Reviewer Independence Override" section below).
+5. Dispatch via Task tool:
    - `subagent_type`: `general-purpose`
    - `model`: the reviewer model specified in the checklist for this task's spec review
    - `description`: `Spec review <task id>`
-   - `prompt`: the substituted template
-4. Wait for report. Fill the `Spec review` Outcome slot in the checklist with a 1-2 sentence summary.
+   - `prompt`: the substituted + augmented template
+6. Wait for report. Fill the `Spec review` Outcome slot using the structured format in "Outcome Slot Format" below.
 
 ### F. Handle spec findings
 
-- **No findings / approved:** fill `Spec review resolution - Action: \`None needed\``. Tick the resolution checkbox. Proceed to code review.
-- **Findings present:** auto-dispatch fix-implementer:
-  1. Craft a prompt summarizing the findings and asking for fixes.
-  2. Dispatch with model = task's implementer model (from checklist).
-  3. Wait for fix report. If BLOCKED or NEEDS_CONTEXT, upgrade model one tier and retry; if still BLOCKED, write to deferred file (see "Deferred File Handling").
-  4. Re-dispatch spec reviewer. Loop until spec approves.
-  5. Fill resolution: `Fixed in <last-fix-commit-sha>`.
+Parse the reviewer's output. For each finding, classify by its tag:
+
+- **Inadmissible** - missing a tag, or missing a `<file>:<line>` citation. Log to Outcome (`inadmissible=N`) but do NOT auto-fix. Findings without citations are inadmissible on purpose, to prevent auto-fix loops on fabricated or vacuous findings.
+- **`[critical]` or `[correctness]`** - trigger auto-fix (see below).
+- **`[style]` or `[cosmetic]`** - note in Outcome, do NOT auto-fix. (Auto-fixing nits amplifies fabricated-finding waste without improving correctness.)
+
+If no admissible critical/correctness findings remain:
+- Fill `Spec review resolution - Action: \`None needed\`` (or `\`N style/cosmetic noted\`` if those exist). Tick the resolution checkbox. Proceed to code review.
+
+If admissible critical/correctness findings remain:
+1. Craft a fix prompt listing only the admissible critical/correctness findings, each with its citation. Do not include inadmissible or style/cosmetic findings.
+2. Dispatch fix-implementer with model = task's implementer model (from checklist).
+3. Wait for fix report. If BLOCKED or NEEDS_CONTEXT, upgrade model one tier and retry; if still BLOCKED, write to deferred file (see "Deferred File Handling").
+4. Re-dispatch spec reviewer (full cycle: independence override, fresh diff, tag requirements). Loop until no admissible critical/correctness findings remain.
+5. Fill resolution: `Fixed in <last-fix-commit-sha>`.
 
 ### G. Dispatch code reviewer
 
@@ -144,11 +154,111 @@ Same as F, but fill the `Code review resolution` slot.
 
 For tasks annotated `Review: batched-with <neighbor-ids>`:
 - Skip steps E-H for tasks that are NOT the last task in the batch (their review gates don't exist in the checklist).
-- For the LAST task in the batch, after completing its steps A-D, run spec + code review on ALL batched tasks' combined diff. Fill the `Batch review` and `Batch review resolution` slots on the last task.
+- For the LAST task in the batch, after completing its steps A-D, run spec + code review on ALL batched tasks' combined diff. The `## Actual Diff` in the reviewer prompt is the combined diff (`git diff <first-batch-commit>^..<last-batch-commit>`), not the single-task diff. Fill the `Batch review` Outcome (using the structured format) and `Batch review resolution` slots on the last task. Batched reviews are especially vulnerable to reviewer priming because the orchestrator summarizes multiple implementer reports - leaning on the diff rather than the summaries is critical.
+
+## Reviewer Independence Override
+
+Every reviewer dispatch (per-task spec/code review in E/G, batched review in I, phase gate review, final gate) MUST include this override block, appended AFTER the upstream template's placeholder substitutions. It exists to counter the "worker AI bullshits reviewer AI" pattern: the implementer's self-reported summary is spin, not evidence.
+
+Append verbatim to the reviewer prompt:
+
+```
+## Reviewer Independence Override
+
+The "Implementer-Reported Summary" above is UNTRUSTED. It is the artifact under
+review, not the verdict. Before accepting any claim:
+
+1. Read the `## Actual Diff` section below as your primary evidence. Do not rely
+   on the summary's characterization of what changed. The diff is authoritative;
+   the summary is spin.
+2. For every "I added X / tests pass / behavior works" claim in the summary,
+   locate evidence in the diff or captured test output. If you cannot find the
+   evidence, treat the claim as unsubstantiated and call it out explicitly.
+3. Red flags that mean MORE scrutiny, not less: short bullet-only summary;
+   hedging words ("should", "mostly", "essentially", "approximately"); long
+   list of checkmarks without corresponding diff lines; claims of "pre-existing"
+   failures or issues without proof.
+4. Your job is to find what the implementer missed or hid, not to concur. A
+   review that finds nothing when the diff has problems is worse than no review.
+
+### Finding format (MANDATORY)
+
+Every finding MUST be tagged with exactly one severity:
+
+- `[critical]` - breaks correctness, security, or specified behavior
+- `[correctness]` - logic error, missing edge case, or wrong output
+- `[style]` - naming, formatting, or convention mismatch
+- `[cosmetic]` - purely aesthetic
+
+Every finding MUST cite a concrete `<file>:<line>` (or `<file>:<line-line>` for
+ranges). Findings without citations are inadmissible and will be discarded by
+the orchestrator.
+
+### Honest-null rule
+
+If the diff has no issues after you have actually read it, output exactly:
+
+    No issues.
+
+Do NOT pad with vacuous findings to "look thorough". Do NOT invent security
+concerns for unauthenticated services, flag harmless third-party scripts as
+risky, or list stylistic preferences as findings. A clean "No issues." after a
+real review is the correct answer and is preferred over fabricated findings.
+
+Only say "No issues." after you have read every hunk of the diff. Stating it
+without reading is worse than saying nothing.
+```
+
+In addition, the reviewer prompt MUST contain these two sections (populated by the orchestrator), clearly labeled so the reviewer understands the trust boundary:
+
+- `## Implementer-Reported Summary (untrusted)` - the implementer's report text.
+- `## Actual Diff` - the raw output of `git show <sha>` for single-task reviews, or `git diff <base>..<head>` for batched/phase/final reviews.
+
+## Outcome Slot Format
+
+When filling an `Outcome: \`<fill>\`` slot, use this structured single-line format:
+
+```
+findings=N critical=N auto_fixed=N; <one-sentence summary>
+```
+
+Tokens:
+- `findings=N` - total admissible findings (tagged and cited).
+- `critical=N` - count of findings tagged `[critical]` or `[correctness]` (the auto-fix-triggering set).
+- `auto_fixed=N` - how many critical/correctness findings were fixed by the fix-implementer loop.
+- `<summary>` - one sentence describing the outcome. Include explicit mention of inadmissible findings if any (`inadmissible=N` optional token).
+
+Examples:
+- `findings=0 critical=0 auto_fixed=0; No issues.`
+- `findings=3 critical=1 auto_fixed=1; Null check added; 2 style nits not auto-fixed.`
+- `findings=5 critical=2 auto_fixed=1; 1 deferred to -deferred.md §3; 3 style nits noted.`
+- `findings=0 critical=0 auto_fixed=0 inadmissible=2; Reviewer produced 2 untagged findings; discarded.`
+
+Prose-only Outcomes (no `findings=` token) fail Final Verification. The machine-checkable prefix is how `/fly` audits that reviews actually ran and how they resolved.
 
 ## Phase Gates
 
-After all tasks in a phase complete (all per-task slots filled), run the phase's review gate per its checklist annotation.
+After all tasks in a phase complete (all per-task slots filled):
+
+### Phase regression check (MANDATORY, runs before the review gate)
+
+Per-task TDD catches regressions inside each task's scope. The phase regression check catches regressions the task-level tests didn't cover (unrelated tests newly broken, integration failures, etc.). This also defangs the "it was a pre-existing failure" gaslighting pattern: pre-existing = proven by running the test at the base commit, not asserted.
+
+1. Detect the project's test command once per `/fly` run (cache the answer):
+   - `package.json` `scripts.test` → use it.
+   - `pyproject.toml` / `pytest.ini` → `pytest`.
+   - `Cargo.toml` → `cargo test`.
+   - `go.mod` → `go test ./...`.
+   - Otherwise, ask the user once: "What's the test command for this project? (cached for the rest of this /fly run)"
+2. Run the test command at HEAD. Capture `pass=N fail=N` and the list of failing test names.
+3. Run the same command at `<phase-first-commit>^` (the phase's parent). Use a detached worktree or `git stash` + `git checkout` + `git stash pop` to avoid disturbing HEAD. Capture `pass_base=N fail_base=N` and the base failing-test list.
+4. Compute `regressions = HEAD failing tests − base failing tests`. These are new failures introduced during the phase.
+5. If `regressions` is non-empty: HALT the phase gate. Dispatch fix-implementer with the regression list. Loop until `regressions` is empty. If fix-implementer BLOCKs at upgraded model, write to deferred and halt `/fly` - do NOT silently ignore regressions.
+6. Prefix the Phase Gate Outcome with `tests_pass=N tests_fail=N regressions=0;` once the subsequent review gate fills it.
+
+### Phase review gate
+
+After the regression check passes, run the review gate per the checklist's annotation:
 
 - **Normal review** (`Phase N Gate (reviewer: <model>)` with `Normal code-review on Phase N diff`):
   1. Compute the phase diff: `git diff <phase-N-first-commit-sha>^..<phase-N-last-commit-sha>`.
@@ -207,6 +317,10 @@ After all tasks, phase gates, and final gate are processed, run the verification
 
 - **All Outcome slots filled (non-`<fill>`):** grep for `Outcome: \`<fill>\``. Should find none.
 
+- **Outcome slots use structured format:** grep for `Outcome: \`` lines that do NOT contain `findings=`. Should find none. Prose-only Outcomes without the `findings=N critical=N auto_fixed=N` prefix fail verification - they indicate a review happened without structured accounting (or no review happened at all).
+
+- **Phase Gate Outcomes contain regression-check prefix:** each phase's Outcome must start with `tests_pass=N tests_fail=N regressions=0;`. Any phase missing this prefix means the Phase regression check was skipped - halt and fail.
+
 - **All Resolution slots filled (non-empty, not "ignored"/"skipped"):** grep for `Action: \`<fill>\`` or `Action: \`ignored\`` or `Action: \`skipped\``. Should find none.
 
 - **Deep-review invariant satisfied:** confirm that every task's commit SHA is in the scope of at least one deep-review Outcome that's non-`<fill>` (i.e., actually ran). If a task's commits aren't covered by any deep-review scope, halt: "Task <X> not covered by a deep-review - invariant violated."
@@ -238,6 +352,11 @@ After final verification passes:
 | "I'll fix all review findings at the end in one batch" | Each review's Resolution must be filled before moving to the next gate. No accumulating findings across gates. |
 | "Verification block is just a formality" | Verification catches tasks you forgot. Tick each box only after actually verifying its condition (grep for unticked boxes, check SHA slots aren't `<fill>`, etc.). |
 | "Deep-review on this phase is slow, let me skip" | Preflight decided which phases get deep-review to satisfy the invariant. Skipping breaks the invariant. |
+| "The implementer's summary says it's good, reviewer can skim" | The summary is UNTRUSTED. Reviewer must read the `## Actual Diff` independently. Dispatching a reviewer with only the summary is reviewer priming. |
+| "I'll just write 'Looks good' in the Outcome slot" | Outcome needs `findings=N critical=N auto_fixed=N`. Prose-only fails Final Verification. If you didn't count, you didn't review. |
+| "Reviewer returned findings without file:line, I'll act on them anyway" | Inadmissible. Fabricated findings without citations waste fix cycles. Discard, log `inadmissible=N`, move on. |
+| "Auto-fixing this style nit won't hurt" | Only `[critical]` / `[correctness]` auto-fix. Style/cosmetic amplifies fabricated-finding waste. Log and move on. |
+| "That test was probably failing on main anyway" | Phase regression check: run the suite at the phase base commit. Assertion without running is gaslighting. |
 
 ## Red Flags - STOP
 

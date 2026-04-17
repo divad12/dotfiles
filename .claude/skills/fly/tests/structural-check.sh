@@ -27,6 +27,22 @@ grep -q "^## Red Flags - STOP$" "$SKILL" || { echo "FAIL: Red Flags section"; ex
 grep -q "^## The Iron Rule$" "$SKILL" || { echo "FAIL: The Iron Rule section"; exit 1; }
 grep -qi "checklist is the contract" "$SKILL" || { echo "FAIL: commitment contract language"; exit 1; }
 
+# Reviewer Independence Override (Patch A) + finding tag taxonomy (Patch B)
+grep -q "^## Reviewer Independence Override$" "$SKILL" || { echo "FAIL: Reviewer Independence Override section"; exit 1; }
+grep -qi "implementer.s summary.*untrusted" "$SKILL" || { echo "FAIL: independence language"; exit 1; }
+grep -q "Actual Diff" "$SKILL" || { echo "FAIL: Actual Diff heading in override"; exit 1; }
+grep -q "\[critical\]" "$SKILL" || { echo "FAIL: critical finding tag"; exit 1; }
+grep -q "\[correctness\]" "$SKILL" || { echo "FAIL: correctness finding tag"; exit 1; }
+grep -q "\[cosmetic\]" "$SKILL" || { echo "FAIL: cosmetic finding tag"; exit 1; }
+grep -qi "findings without citations are inadmissible" "$SKILL" || { echo "FAIL: citations inadmissible rule"; exit 1; }
+
+# Phase regression check (Patch D)
+grep -q "^### Phase regression check" "$SKILL" || { echo "FAIL: Phase regression check subsection"; exit 1; }
+
+# Structured Outcome slot format (Patch E)
+grep -q "^## Outcome Slot Format$" "$SKILL" || { echo "FAIL: Outcome Slot Format section"; exit 1; }
+grep -q "findings=N critical=N auto_fixed=N" "$SKILL" || { echo "FAIL: structured outcome format"; exit 1; }
+
 echo "OK: fly structural check passed"
 
 # Integration test: dry-run /fly on sample checklist.
