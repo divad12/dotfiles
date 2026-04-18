@@ -44,6 +44,37 @@ Announce the detected mode at start:
 - Mid-flight: "Flying <checklist>. Mode: resuming from Task <X.Y>."
 - Complete: "Already complete. Nothing to do."
 
+## Octopus Mode Detection
+
+After state detection, grep the checklist for `Octopus:` tokens in `## Phase` headers:
+
+- **Any found** → octopus mode. The checklist carries per-phase `Octopus: <status> (coordinator: <model>)` tokens, and fly acts as a main-side dispatcher for per-phase subagents (see "Octopus Main Loop" below). Single-orchestrator code paths for per-task loops still run, but they run INSIDE the phase subagents, not in main.
+- **None found** → single-orchestrator mode (unchanged behavior). Fly walks tasks and phase gates itself.
+
+Announce the detected octopus mode alongside the state announcement:
+- "Flying <checklist>. Mode: fresh run | single_orchestrator."
+- "Flying <checklist>. Mode: resuming from Task <X.Y> | octopus_single_session."
+- "Flying <checklist>. Mode: resuming | octopus_multi_session."
+
+Mode name strings (use verbatim): `single_orchestrator`, `octopus_single_session`, `octopus_multi_session`. The single/multi distinction is derived from phase count: if phase count exceeds `phase_session_cap` (10), mode is `octopus_multi_session`; otherwise `octopus_single_session`. Preflight's terminal summary surfaces the same strings.
+
+## Phase-Scoped Invocation (`--phase=N`)
+
+Fly accepts a `--phase=N` scope argument in its invocation string (e.g., passed by main via the Skill tool `args` parameter, or appearing as an explicit token in the prompt after the checklist path). When present, fly operates in phase-scoped mode:
+
+- Walks only Phase N's tasks using the existing per-task loop (A-I, unchanged).
+- Runs Phase N's phase gate (normal or `/deep-review` per checklist) after all tasks complete.
+- Honors the existing mid-flight pickup logic: if some slots in Phase N are already filled (from a prior failed dispatch), resume from the first gap.
+- Emits the 4-line receipt (see "Receipt Format" below) as the final report back to main.
+
+Phase-scoped fly does NOT:
+- Run the final gate.
+- Run the final verification sweep.
+- Update any `Octopus:` status headers (main owns those).
+- Enter the octopus main loop (no nesting).
+
+All /fly discipline (review-artifact mandate, HALT heuristics, Rationalization Table, reviewer independence override, structured Outcome format) applies unchanged inside the phase scope.
+
 ## Template Resolution
 
 Template Resolution applies ONLY to per-task and phase-level dispatches of implementer, spec-reviewer, and code-quality-reviewer subagents. It does NOT apply to deep-review gate dispatches - those invoke the `/deep-review` skill via the Skill tool, without templates. See "Phase Gates - Deep-review" and "Final Gate" for that pattern; do not apply Template Resolution there.
@@ -69,6 +100,151 @@ NOT resolved via this mechanism:
 - Fix-implementer dispatches - reuse the implementer template, just substituting different placeholders.
 
 If Glob returns no match for an in-scope template, the plugin cache doesn't contain it (upstream rename, new plugin version, cache cleared). Halt and tell the user: "Upstream templates not found at <pattern>. Check plugin install or update the Glob pattern."
+
+## Octopus Main Loop
+
+Runs ONLY when mode is octopus (checklist has `Octopus:` tokens) AND `--phase=N` is NOT set. Phase-scoped fly skips this section entirely and runs the per-task loop directly against its assigned phase.
+
+After announcing mode, main enters the octopus loop:
+
+```
+session_phase_count = 0
+for each phase in checklist (top-to-bottom):
+    parse Octopus: status from phase header
+    if status == "done":
+        continue
+    if session_phase_count >= phase_session_cap (10):
+        halt with session-window message; exit fly cleanly.
+
+    flip phase header: "pending" or "in-flight:<old>" -> "in-flight:<new-id>"
+        (new id: short timestamp + short random suffix; audit breadcrumb only)
+    dispatch phase subagent via Task tool:
+        subagent_type: general-purpose
+        model: coordinator model from phase header (VERBATIM, no drift, HALT if disagree)
+        description: "Octopus phase <N>: <phase name>"
+        prompt: per "Phase Subagent Prompt Template" below
+    await receipt
+
+    parse receipt line 1:
+        must match "Phase <N> done." or treat as failure
+        if missing, malformed, or begins "Phase <N> HALTED:":
+            retry up to 2x (fresh dispatch)
+            on third failure: HALT, surface to user.
+
+    run Per-Phase Reconciliation (see below)
+    if reconciliation fails:
+        retry dispatch up to 2x (mid-flight pickup resumes from first gap)
+        on third failure: HALT, surface gap list to user.
+
+    flip phase header: "in-flight:<id>" -> "done"
+    session_phase_count += 1
+
+# all phases done; proceed to final gate + final verification (unchanged).
+```
+
+### Model selection for phase subagent dispatch (VERBATIM, no drift)
+
+The phase subagent dispatch's `model` parameter is copied EXACTLY from the phase header's `coordinator: <model>` annotation. Same rule as task-implementer and reviewer model dispatch: preflight decided the coordinator model; main does not upgrade or downgrade.
+
+If main believes the coordinator model is wrong for this phase, HALT. Tell the user: "Phase <N> checklist says coordinator: <X>, but the phase appears to need <Y> because <reason>. Edit the checklist and re-run?" Do NOT silently drift.
+
+### Phase Subagent Prompt Template
+
+```
+You are executing /fly in phase-scoped mode for a large plan.
+
+CONTEXT:
+  Checklist path: <abs path>
+  Plan path:      <abs path>
+  Phase ID:       <N>
+  Working dir:    <cwd>
+
+INSTRUCTION:
+  Invoke the /fly skill via your Skill tool. Pass the checklist path and
+  the phase-scope argument `--phase=<N>`. Fly's phase-scoped loop will:
+    1. Read checklist and plan.
+    2. Walk the tasks in Phase <N>.
+    3. Run Phase <N>'s phase gate after all tasks complete.
+    4. Return the 4-line receipt.
+
+  Do NOT run the final gate, the final verification sweep, or update the
+  phase's `Octopus:` status header. The main /fly session owns those.
+
+  All /fly discipline (review-artifact mandate, HALT heuristics, Rationalization
+  Table, reviewer independence override, structured Outcome format) applies
+  unchanged inside your scope.
+
+  Write your receipt as the last thing you report back. Receipt format
+  (exact, 4 lines):
+
+    Phase <N> done.
+    Commits: <first-sha>..<last-sha> (<count>)
+    Deferred: <0 | N - see <plan>-deferred.md §A-§Z>
+    HALTs hit: <none | list>
+```
+
+The phase subagent's Skill tool invocation re-enters /fly, which on re-entry detects the `--phase=N` argument and runs the phase-scoped loop (no octopus main loop nesting - `--phase=N` bypasses the octopus main loop).
+
+### Per-Phase Reconciliation (main-side integrity gate)
+
+Reconciliation is the integrity gate that makes octopus trustworthy. The receipt is a breadcrumb; the real evidence is the checklist state and review artifact files on disk. Main never reads review files for content - reconciliation is pure grep/stat.
+
+After each phase subagent returns a clean `Phase <N> done.` receipt line, main slices the checklist from `## Phase N:` to the next `## Phase` header (or to the Final Gate / Fly Verification block) and runs these checks against that slice:
+
+1. Grep for `- [ ]` in the slice. Expected: none.
+2. Grep for `` `<fill>` `` in the slice. Expected: none.
+3. Grep for `findings=` lines missing a `review:` token. Expected: none.
+4. For each `review: <path>` token in the slice:
+   - File exists at `<path>`.
+   - File is non-trivial (>500 bytes OR contains at least one `### Finding` header OR an explicit `No issues.` line).
+   - `stat` mtime is AFTER the timestamp of the commit SHA referenced in the same task/phase-gate entry.
+   - `findings-count` in the file's YAML header equals `grep -c "^### Finding " <path>`.
+5. Phase Gate Outcome starts with `tests_pass=N tests_fail=N regressions=0;` prefix (Phase regression check ran).
+6. Deep-review invariant: if this phase has a `/deep-review` gate, its Phase Gate Outcome's `review:` path points to a `.normalized.md` file (per the /deep-review normalization pass rule).
+
+**Outcome:**
+
+- All clean → flip header `in-flight:<id>` → `done`. Move to next phase.
+- Gap detected → re-dispatch SAME phase subagent (fresh subagent, but fly's existing mid-flight pickup logic resumes from first gap). Bounded retry: 2 re-dispatches max. Third failure → HALT, surface gap list to user.
+
+### Session-Window Heuristic
+
+Main tracks `session_phase_count` - the number of phases this main session has flipped to `Octopus: done`. Constant: `phase_session_cap = 10`.
+
+After reaching `phase_session_cap`, halt cleanly with:
+
+```
+Session window done: processed <K> phases this session.
+Remaining phases: <list of phase IDs with Octopus: pending or in-flight>.
+Start a fresh Claude Code session and re-run:
+  /fly <checklist-path>
+```
+
+Do NOT dispatch more phases this session. Between sessions is a hard human-in-the-loop boundary; no auto-continuation across Claude Code sessions. The authoritative resume state lives in the checklist's `Octopus:` headers, so the next session picks up at the first phase not marked `done`.
+
+### Receipt Format
+
+Both emit (phase-scoped fly) and parse (main). Exact format, four lines:
+
+```
+Phase <N> done.
+Commits: <first-sha>..<last-sha> (<count>)
+Deferred: <0 | N - see <plan>-deferred.md §A-§Z>
+HALTs hit: <none | list>
+```
+
+- Line 1: literal `Phase <N> done.` If the phase halted without completing, emit instead `Phase <N> HALTED: <reason>` and main treats the receipt as a failure.
+- Line 2: first and last commit SHAs of the phase (from the phase's task commits). Count is total commits in the phase.
+- Line 3: deferred-count summary. `0` if no deferrals. Otherwise `N - see <plan>-deferred.md §A-§Z` where A-Z is the range of deferred entries this phase appended.
+- Line 4: HALT heuristics tripped during the phase. `none` is the expected case. Anything else is a human-interest signal, not an auto-action trigger for main.
+
+Main greps receipt line 1 for `Phase <N> done.` prefix to determine success vs failure. Success path proceeds to reconciliation (reconciliation is the actual gate).
+
+Phase-scoped fly emits the receipt as its final text response, after the phase gate Outcome is filled and before returning control to main.
+
+### Handoff File (advisory)
+
+When preflight detects multi-session tier, it writes `<plan-dir>/<plan-basename>-handoff.md` as advisory session-by-session guidance. Fly does not write or update this file - its authoritative state is the checklist's `Octopus:` headers. Fly resumes from the first non-done phase regardless of how the user chunked sessions.
 
 ## Per-Task Loop
 
@@ -168,6 +344,8 @@ Every admissible finding lands in one bucket. No "skipped" / "ignored" / "wontfi
 **Deferred-write (only `[defer]` findings + any `[fix]` that legitimately blocked):**
 
 Each deferred finding gets its own `§N` entry with priority in the heading and the specific defer reason (which of the 3 criteria). If you find yourself writing many defer entries in a single review, that's a signal - either the reviewer is mis-disposing (re-dispatch), or the scope of this task genuinely needs the user's attention (halt, surface).
+
+**Before filling the Outcome slot with findings=0: run the Null-Result Meta-Check.** If the admissible findings count is 0, you MUST dispatch the meta-verifier per "Null-Result Meta-Check" section below before writing `findings=0` to the Outcome slot. Only a CONFIRMED meta-check allows the null Outcome; SUSPICIOUS forces re-dispatch of the real reviewer. See that section for the exact flow.
 
 **Fill the Outcome slot** using the structured format:
 
@@ -421,6 +599,89 @@ Examples:
 
 Prose-only Outcomes (no `findings=` token OR no `review:` token) fail Final Verification.
 
+## Null-Result Meta-Check (findings=0 verifier)
+
+Every `findings=0` outcome MUST pass a meta-check before the Outcome slot gets filled. This closes the specific fabrication vector where an orchestrator under pressure writes a rubber-stamp review file (`findings-count: 0`, body literal `No issues.`) without ever dispatching the real reviewer. The existing review-artifact mandate, YAML header, and mtime checks all pass for a fabricated file because the same orchestrator wrote them.
+
+### When this fires
+
+After every reviewer dispatch (step E spec review, step G code review, step I batched review, phase gate normal review, phase gate deep-review post-normalization, final gate), if the admissible findings count is 0, run the meta-check BEFORE filling the Outcome slot.
+
+- If findings > 0: no meta-check needed. The fix loop itself is evidence the review engaged (fabricated findings would fail the fix-implementer cycle).
+- If findings = 0: dispatch the meta-verifier described below. Proceed only on CONFIRMED.
+
+Applies in every mode: single-orchestrator fly, phase-scoped fly (`--phase=N`). Main octopus loop does NOT run the meta-check itself because main never fills task-level Outcomes in octopus mode; the phase subagent does, and the phase subagent runs phase-scoped fly which inherits this requirement.
+
+### Meta-verifier dispatch
+
+- `subagent_type`: `general-purpose`
+- `model`: `haiku` (narrow verification task; upgrade to sonnet only on retry)
+- `description`: `Verify null review for <task-or-scope>`
+- `prompt`: see "Meta-verifier prompt" below
+
+Substitutions:
+- `<review-file-contents>`: the full text of the review file the reviewer wrote.
+- `<diff>`: output of `git show <sha>` for a single-commit review, or `git diff <base>..<head>` for phase/final scope.
+- `<diff-line-count>`, `<diff-file-count>`: compute from the diff.
+
+### Meta-verifier prompt
+
+```
+You are a meta-verifier for a claimed null review.
+
+Another reviewer submitted a review file claiming findings=0 (no issues).
+Your job: determine whether that reviewer actually engaged with the diff, or
+whether the review is boilerplate/fabricated.
+
+## Review file under verification
+
+<review-file-contents>
+
+## Actual diff under review (size: <diff-line-count> lines, <diff-file-count> files)
+
+<diff>
+
+Evaluate:
+
+1. YAML header: does commit-sha match the diff? Does files-touched (if present)
+   match the diff's file list?
+2. Body content: does it reference specific files, functions, or line numbers
+   from the diff? Does it show evidence the reviewer read the actual code
+   (concrete observations, names from the diff, engagement with what changed)?
+3. OR does the body look like boilerplate: generic praise, "No issues found",
+   "Code looks good", with no diff-specific references?
+4. Diff-size sanity: for diffs under 10 lines, a brief legitimate null review
+   is plausible as long as it mentions WHAT it looked at. Do not penalize
+   brevity when the diff is trivial.
+
+Respond with EXACTLY ONE of:
+
+  CONFIRMED: <one sentence on the engagement evidence you found>
+
+  SUSPICIOUS: <one sentence on why the review looks fabricated or boilerplate>
+
+Err toward SUSPICIOUS when diff-specific engagement evidence is thin on a
+non-trivial diff. A legitimate null review on a 100-line diff still references
+what was checked.
+```
+
+### Handling the response
+
+- **CONFIRMED**: fill the Outcome slot as normal. Proceed to next step.
+- **SUSPICIOUS**: treat as if the original review never happened.
+  1. Re-dispatch the REAL reviewer (not the meta-verifier) with a stricter prompt. Append this text to the original reviewer prompt template: `THIS IS YOUR SECOND ATTEMPT. A meta-check flagged the prior null-result review as suspicious: <reason from meta-verifier>. Read every hunk in the diff and either emit findings or emit an explicit engagement trail listing the files and functions you verified.`
+  2. If the second review also returns findings=0, re-run the meta-check on the new file.
+  3. If meta-check returns CONFIRMED on the second attempt, proceed normally.
+  4. If meta-check returns SUSPICIOUS on the second attempt, HALT. Surface to user with: paths of both review files, both meta-verifier reasons, and the diff. Do NOT fill the Outcome slot. Let the user resolve (manual review, upgrade reviewer model, etc.).
+
+### Cost and scope
+
+One haiku dispatch per findings=0 outcome. A phase with 5 clean task reviews + 1 clean phase gate = 6 haiku calls. Negligible against a single fabricated review slipping through.
+
+### Does NOT replace existing HALT heuristics
+
+The "3 consecutive `findings=0` Outcomes" HALT still fires even after meta-check CONFIRMED the individual reviews. Meta-check catches per-outcome fabrication; the consecutive-nulls HALT catches a pattern that warrants human spot-check regardless.
+
 ## Phase Gates
 
 After all tasks in a phase complete (all per-task slots filled):
@@ -448,8 +709,9 @@ After the regression check passes, run the review gate per the checklist's annot
 - **Normal review** (`Phase N Gate (reviewer: <model>)` with `Normal code-review on Phase N diff`):
   1. Compute the phase diff: `git diff <phase-N-first-commit-sha>^..<phase-N-last-commit-sha>`.
   2. Dispatch code reviewer via `code-quality-reviewer-prompt.md` template, with the phase diff as the subject.
-  3. Fill Outcome slot with summary.
-  4. If findings: same auto-fix loop as per-task reviews. Fill Resolution.
+  3. **If admissible findings = 0, run the Null-Result Meta-Check** (see section above) BEFORE filling the Outcome slot. Only CONFIRMED allows a null Outcome.
+  4. Fill Outcome slot with summary.
+  5. If findings: same auto-fix loop as per-task reviews. Fill Resolution.
 
 - **Deep-review** (`Phase N Gate (reviewer: ...)` with `/deep-review on Phase N diff`):
 
@@ -489,21 +751,25 @@ After the regression check passes, run the review gate per the checklist's annot
        ```
 
   2. When the subagent returns, process its numbered findings list EXACTLY as in step F (classify, auto-fix critical/correctness, deferred-write everything else, reconciliation invariant). Do NOT accept a prose summary in place of enumerated findings - if the subagent returned prose, re-dispatch asking for the enumerated form.
-  3. Fill the Phase Gate Outcome using the structured format, prefixed with the regression check metrics from above:
+  3. **If normalized admissible findings = 0, run the Null-Result Meta-Check** on the normalized deep-review file BEFORE filling the Outcome slot. Only CONFIRMED allows a null Outcome.
+  4. Fill the Phase Gate Outcome using the structured format, prefixed with the regression check metrics from above:
 
          tests_pass=N tests_fail=N regressions=0; findings=N fixed=N deferred=N; <summary>
 
-  4. Note: `/deep-review` has its own auto-fix mechanism internally. If the subagent reports that certain findings were already auto-fixed inside `/deep-review`, count those in `fixed`. Findings the skill itself flagged as deferred go into `/fly`'s deferred.md (same file - don't create a separate one).
+  5. Note: `/deep-review` has its own auto-fix mechanism internally. If the subagent reports that certain findings were already auto-fixed inside `/deep-review`, count those in `fixed`. Findings the skill itself flagged as deferred go into `/fly`'s deferred.md (same file - don't create a separate one).
 
 ## Final Gate
+
+Final Gate runs ONLY in main (single-orchestrator mode) or in the main octopus loop AFTER all phases are `Octopus: done`. Phase-scoped fly (`--phase=N`) NEVER runs the Final Gate - main owns it.
 
 After all phases complete, check the checklist's final gate:
 
 - If `## Final Gate: /deep-review over <scope>` exists:
   1. Dispatch a subagent to invoke `/deep-review` via the Skill tool, same pattern as the deep-review Phase Gate above (see "Dispatch pattern: subagent → Skill tool"). Scope per the checklist annotation.
   2. Process returned findings with the accounting invariant (`findings = fixed + deferred`). Default disposition is `[fix]`; only legitimately-defer findings go to deferred.md.
-  3. Fill Outcome slot using the structured format: `findings=N fixed=N deferred=N; <summary>`.
-  4. Fill Resolution slot per the outcome (Fixed / deferred references / mix).
+  3. **If normalized admissible findings = 0, run the Null-Result Meta-Check** on the normalized final-gate review file BEFORE filling the Outcome slot. Only CONFIRMED allows a null Outcome.
+  4. Fill Outcome slot using the structured format: `findings=N fixed=N deferred=N; <summary>`.
+  5. Fill Resolution slot per the outcome (Fixed / deferred references / mix).
 
 - If `**Final gate not needed - all phases have deep-review coverage.**` exists: skip; nothing to do.
 
@@ -548,6 +814,8 @@ If the deferred file doesn't exist yet, create it with the header before appendi
 
 ## Final Verification
 
+Final Verification runs ONLY in main (single-orchestrator mode) or in the main octopus loop AFTER all phases are `Octopus: done` and the Final Gate is processed. Phase-scoped fly (`--phase=N`) NEVER runs the Final Verification sweep - main owns it.
+
 After all tasks, phase gates, and final gate are processed, run the verification block at the bottom of the checklist. Tick each item by actually verifying:
 
 - **All plan-step and [INJECTED] checkboxes ticked:** grep the checklist for `- \[ \]` occurrences before the verification block. Should find none. If any found, halt: "Task <X> step <N> not ticked - did the implementer actually complete it?"
@@ -577,6 +845,12 @@ After all tasks, phase gates, and final gate are processed, run the verification
 - **Deep-review invariant satisfied:** confirm that every task's commit SHA is in the scope of at least one deep-review Outcome that's non-`<fill>` (i.e., actually ran). If a task's commits aren't covered by any deep-review scope, halt: "Task <X> not covered by a deep-review - invariant violated."
 
 - **If `<plan-basename>-deferred.md` exists, surface contents to user:** read the file and include its full contents in the final report. Explicitly tell the user "deferred items need manual review before shipping."
+
+- **(Octopus mode only) All phases marked `Octopus: done`:** the checklist's Fly Verification block in octopus mode has an additional line:
+
+      - [ ] All phases marked `Octopus: done`
+
+  Tick this box only after grepping the checklist and confirming no `Octopus: pending` or `Octopus: in-flight:` remains. Any surviving non-`done` status means a phase didn't complete - halt and report which phases are still pending/in-flight. Single-orchestrator checklists do not contain this line; skip the check.
 
 Tick each verification checkbox only after confirming the condition.
 
@@ -620,6 +894,12 @@ After final verification passes:
 | "findings = 10, fixed = 2, deferred = 0, let me note '8 style findings' in the summary" | INVARIANT VIOLATION: findings = fixed + deferred. 8 findings disappeared. Halt. |
 | "The reviewer tagged this [defer] so I'll defer it" | Check the "Why defer" reason. If it doesn't cite one of the 3 criteria (user decision / phase-sized / extremely risky), reject and re-dispatch - the reviewer misdisposed. |
 | "Most of these should defer because they're out of scope" | If the reviewer is producing a high defer rate, the reviewer is wrong or the task scope is wrong. Re-dispatch or halt. Silent acceptance of mass-defer defeats the fix-inline principle. |
+| "Phase subagent's receipt says done, skip reconciliation" | Reconciliation is the integrity gate. Receipt is a breadcrumb, not evidence. Grep the slice. |
+| "Phase subagent returned but slot X is still `<fill>`, close enough" | That's a reconciliation failure. Re-dispatch. No drift. |
+| "Main is busy; reuse prior phase's receipt" | No. Each phase has its own dispatch, receipt, reconciliation. |
+| "findings=0, skip meta-check, just write 'No issues.' to the review file and the Outcome" | NO. findings=0 MANDATES the Null-Result Meta-Check. Writing a rubber-stamp review file without dispatching a real reviewer is the exact fabrication vector the meta-check exists to catch. Dispatch haiku meta-verifier. |
+| "I read the diff myself, it's clearly fine, no need for a real reviewer" | Your read is not a reviewer dispatch. The review artifact file must exist and must be produced by a dispatched reviewer subagent. Orchestrator inspection is not a substitute. |
+| "Meta-verifier said SUSPICIOUS but I'm sure the review was fine" | SUSPICIOUS triggers re-dispatch of the REAL reviewer. Override attempts destroy the contract. Re-dispatch, or HALT and surface to user. |
 
 ## Red Flags - STOP
 
@@ -645,6 +925,13 @@ If you catch yourself thinking any of these, STOP and re-read the Rationalizatio
 - "Invoking /deep-review as a full skill is heavy, let me just replicate its prompts"
 - "The reviewer tagged [defer] so I'll defer it" (without checking the defer reason)
 - "The task said use sonnet but haiku will be fine" (downgrade drift is as bad as upgrade drift)
+- "Phase subagent said done, reconciliation is just a formality" (reconciliation is the gate; grep the slice)
+- "Just flip this phase to Octopus: done without running reconciliation first"
+- "Session cap is a soft limit, one more phase won't hurt"
+- "This phase's coordinator model looks weak, let me upgrade it" (same rule as task/reviewer models - HALT and ask, don't drift)
+- "findings=0, I'll just write the review file myself and skip the meta-check"
+- "Writing 'No issues.' to the file is basically the same as dispatching a reviewer"
+- "Meta-verifier is SUSPICIOUS but I trust the original review, overriding"
 
 **All of these mean: you are about to violate the checklist contract. Do the work.**
 
