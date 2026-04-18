@@ -128,17 +128,20 @@ Read the implementer's report for the commit SHA. Edit the checklist to replace 
 ### E. Dispatch spec reviewer
 
 1. Resolve `spec-reviewer-prompt.md` via Glob + Read.
-2. Substitute placeholders:
+2. Choose the review file path per "Review Artifact Files": `<plan-dir>/reviews/task-<id>-spec.md`. Create `reviews/` if missing.
+3. Substitute placeholders:
    - `[FULL TEXT of task requirements]` → the task's text from the plan.
-   - `[From implementer's report]` → the implementer's summary, placed under the heading `## Implementer-Reported Summary (untrusted)` so the reviewer reads it as evidence, not verdict.
-3. Append a `## Actual Diff` section containing the output of `git show <task-sha>` (using the SHA just filled in step D). This is the reviewer's primary evidence - the implementer's summary is secondary.
-4. Append the Reviewer Independence Override block verbatim (see "Reviewer Independence Override" section below).
-5. Dispatch via Task tool:
+   - `[From implementer's report]` → the implementer's summary, placed under the heading `## Implementer-Reported Summary (untrusted)`.
+4. Append a `## Actual Diff` section containing the output of `git show <task-sha>`.
+5. Append the Reviewer Independence Override block verbatim, with `<review-file-path>` replaced by the absolute path chosen in step 2.
+6. Dispatch via Task tool:
    - `subagent_type`: `general-purpose`
    - `model`: the reviewer model specified in the checklist for this task's spec review
    - `description`: `Spec review <task id>`
    - `prompt`: the substituted + augmented template
-6. Wait for report. Fill the `Spec review` Outcome slot using the structured format in "Outcome Slot Format" below.
+7. Wait for report. Verify the review file exists at the assigned path. If missing, re-dispatch with stricter language; if it fails again, halt.
+8. Read the review file. Its `### Finding N:` sections are the source of truth - NOT the reviewer's text response summary.
+9. Fill the `Spec review` Outcome slot using the structured format (must include the `review:` reference).
 
 ### F. Handle spec findings
 
@@ -180,7 +183,10 @@ Optional: `inadmissible=N`. Invariant: `findings == fixed + deferred`.
 
 ### G. Dispatch code reviewer
 
-Same as E, but resolve `code-quality-reviewer-prompt.md` and fill the `Code review` slot.
+Same as E, but:
+- Resolve `code-quality-reviewer-prompt.md` instead of spec-reviewer.
+- Review file path: `<plan-dir>/reviews/task-<id>-code.md`.
+- Fill the `Code review` Outcome and Resolution slots.
 
 ### H. Handle code findings
 
@@ -189,14 +195,33 @@ Same as F, but fill the `Code review resolution` slot.
 ### I. Batched tasks
 
 For tasks annotated `Review: batched-with <neighbor-ids>`:
-- Skip steps E-H for tasks that are NOT the last task in the batch (their review gates don't exist in the checklist).
-- For the LAST task in the batch, after completing its steps A-D, run spec + code review on ALL batched tasks' combined diff. The `## Actual Diff` in the reviewer prompt is the combined diff (`git diff <first-batch-commit>^..<last-batch-commit>`), not the single-task diff. Fill the `Batch review` Outcome (using the structured format) and `Batch review resolution` slots on the last task. Batched reviews are especially vulnerable to reviewer priming because the orchestrator summarizes multiple implementer reports - leaning on the diff rather than the summaries is critical.
+- Skip steps E-H for tasks that are NOT the last task in the batch.
+- For the LAST task in the batch, run spec + code review on the combined diff (`git diff <first-batch-commit>^..<last-batch-commit>`). Review file paths: `<plan-dir>/reviews/batch-<first-id>-<last-id>-spec.md` and `-code.md`. Fill the `Batch review` slots on the last task.
+
+### Combined review shortcut (when phase gate = /deep-review)
+
+If the phase containing this task has `Phase N Gate (reviewer: ...) with /deep-review on Phase N diff`, per-task reviews switch to a single combined spec+code reviewer to save dispatches. The phase's deep-review will do the deep pass.
+
+1. Dispatch ONE reviewer (not separate spec + code). Use the `code-quality-reviewer-prompt.md` template and include spec concerns in the prompt: "Also check whether the commit satisfies the plan's task requirements, not just code quality."
+2. Review file path: `<plan-dir>/reviews/task-<id>-combined.md`.
+3. Fill BOTH the Spec review and Code review slots from the same file with identical findings count (or leave Spec review with `findings=0 fixed=0 deferred=0 (combined with code review, see task-<id>-combined.md); Combined review.` and put the full results in Code review).
+4. This shortcut is only valid when the phase's annotated gate is `/deep-review`. Phases with normal gates still get separate spec + code reviews.
+
+### Suspicious-pattern HALT
+
+After every review processing step, check:
+
+- **3 consecutive `findings=0` Outcomes**: Legitimate "no issues" reviews are rare. Three in a row is a red flag for fabricated reviews. Halt and surface: "3 reviews in a row found nothing. Please verify the last 3 review files exist and look reasonable: `<paths>`. Continue? (y/n)"
+- **Missing review file after announced dispatch**: If a reviewer dispatch returns but the review file wasn't written, the reviewer either failed or was never actually dispatched. Re-dispatch with stricter prompt (add "THIS IS YOUR SECOND ATTEMPT - you MUST Write to `<path>` as your final tool call or your review will be discarded"). If it fails a second time, halt.
+- **Outcome count doesn't match file**: If `findings=N` in Outcome ≠ `grep -c "^### Finding " <file>`, halt.
+
+These heuristics exist because cumulative context pressure makes the orchestrator lazy in predictable ways. The checks are cheap; the false-positive cost is a y/n prompt.
 
 ## Reviewer Independence Override
 
-Every reviewer dispatch (per-task spec/code review in E/G, batched review in I, phase gate review, final gate) MUST include this override block, appended AFTER the upstream template's placeholder substitutions. It exists so the reviewer reads the diff independently rather than trusting the implementer's self-report.
+Every reviewer dispatch (per-task spec/code review in E/G, batched review in I, phase gate review, final gate) MUST include this override block, appended AFTER the upstream template's placeholder substitutions. It exists so the reviewer (1) reads the diff independently, and (2) writes its output to a file so the orchestrator cannot fabricate review results.
 
-Append verbatim to the reviewer prompt:
+Append verbatim to the reviewer prompt (substitute `<review-file-path>` with the path the orchestrator assigns - see "Review Artifact Files" below):
 
 ```
 ## Reviewer Independence Override
@@ -211,9 +236,15 @@ review, not the verdict. Before accepting any claim:
    unsubstantiated.
 3. Your job is to find what the implementer missed or hid, not to concur.
 
-### Finding format (MANDATORY)
+### Finding enumeration (MANDATORY)
 
-Output each finding as its own numbered section. Start at 1, sequential.
+Emit EVERY raw finding from EVERY angle of your analysis as its own numbered
+section. Do NOT output a "consolidated" or "summary" list that collapses
+multiple observations. Do NOT downgrade, merge, or omit findings between your
+body text and your final list. If you notice something anywhere in your
+review - structure, naming, duplication, missing test, edge case, doc drift,
+collateral change, convention mismatch, whatever - it gets its own
+`### Finding N:` entry.
 
     ### Finding N: <short title>
 
@@ -273,6 +304,28 @@ Project/user rules override generic review conventions.
 
 If the diff has no issues after you read it, output exactly `No issues.`
 Only say this after you have actually read every hunk.
+
+### MANDATORY: write review to file as your final tool call
+
+Your final tool call MUST be a Write (or equivalent) to:
+
+    <review-file-path>
+
+The file's contents: everything after this Override block - your full review,
+every `### Finding N:` section, and either `No issues.` or the finding list.
+Start the file with a YAML header:
+
+    ---
+    review-type: <spec | code | batch | phase-N | final>
+    task-or-scope: <e.g. Task 7.4 | Phase 12 | Final>
+    reviewer-model: <your model name>
+    commit-sha: <the sha or range under review>
+    findings-count: <integer>
+    ---
+
+Return a brief summary (1-2 sentences + total finding count) in your text
+response, but the file is the authoritative artifact. If you do not write the
+file, your review is discarded and will be re-dispatched.
 ```
 
 In addition, the reviewer prompt MUST contain these two sections, clearly labeled so the reviewer understands the trust boundary:
@@ -280,31 +333,93 @@ In addition, the reviewer prompt MUST contain these two sections, clearly labele
 - `## Implementer-Reported Summary (untrusted)` - the implementer's report text.
 - `## Actual Diff` - raw output of `git show <sha>` for single-task reviews, or `git diff <base>..<head>` for batched/phase/final reviews.
 
+## Review Artifact Files
+
+Every review MUST produce a durable on-disk artifact. This is the SHA-equivalent for reviews: the orchestrator cannot claim `findings=0` without a file on disk saying so, and the user can audit the file after the fact.
+
+### Path convention
+
+    <plan-dir>/reviews/<task-or-scope>-<review-type>.md
+
+Examples:
+- `docs/specs/m3/reviews/task-7.4-spec.md`
+- `docs/specs/m3/reviews/task-7.4-code.md`
+- `docs/specs/m3/reviews/batch-10.2-10.3-combined.md`
+- `docs/specs/m3/reviews/phase-7-gate.md`
+- `docs/specs/m3/reviews/phase-11-deep-review.md`
+- `docs/specs/m3/reviews/final-deep-review.md`
+
+`<plan-dir>` is the directory containing the plan and checklist files. Create the `reviews/` subdirectory on first write.
+
+### Orchestrator assigns the path before dispatch
+
+In each reviewer dispatch, the orchestrator substitutes the `<review-file-path>` placeholder with a concrete absolute path. The reviewer writes to that path.
+
+### Post-dispatch verification
+
+After the reviewer returns:
+
+1. Check the file exists at the assigned path. If missing → the review did not actually run (or the reviewer disobeyed). Re-dispatch with a sterner prompt; if it fails again, halt and surface to the user.
+2. Read the file and use its findings list as the SOURCE OF TRUTH. Not the summary in the reviewer's text response.
+3. Confirm the file's YAML header's `findings-count` matches the number of `### Finding N:` sections inside.
+
+### For deep-reviews: normalization pass
+
+`/deep-review` runs multiple parallel sub-reviewers (Codex review, Chrome MCP UI review, rule compliance, simplification, collateral change audit, Claude's own diff analysis). Each sub-reviewer has its own findings. The `/deep-review` skill consolidates them, and in that consolidation, findings are routinely dropped or merged - the well-known body-vs-summary gap.
+
+For deep-review files ONLY, run an extra normalization pass:
+
+1. Dispatch a small subagent (model: haiku) with the deep-review file contents. Prompt:
+
+   ```
+   This file is the output of a /deep-review. Multiple sub-reviewers contributed
+   findings. Your job: extract EVERY distinct observation from anywhere in the
+   file - body text, summary, consolidated list, sub-reviewer sections - and
+   emit them as a flat numbered list using the same `### Finding N:` format
+   the top of the file specifies. Do NOT filter, merge, or downgrade. If a
+   sub-reviewer mentioned something in prose but didn't put it in their
+   consolidated list, it STILL becomes a finding. Preserve priority tags but
+   re-number sequentially starting from 1.
+
+   Write the normalized list to: <deep-review-file>.normalized.md
+
+   Return just the finding count.
+   ```
+
+2. Use the normalized file as the source of truth for step F processing, not the original deep-review file.
+3. If the normalized count > original deep-review's claimed count, that's expected and fine (the skill was under-reporting). Log the delta in the Outcome (`(normalized: +N)` token).
+
+This normalization pass does NOT run for per-task reviews. A single reviewer's single file is already flat.
+
 ## Outcome Slot Format
 
 When filling an `Outcome: \`<fill>\`` slot, use this structured single-line format:
 
 ```
-findings=N fixed=N deferred=N; <one-sentence summary>
+findings=N fixed=N deferred=N (review: <path>); <one-sentence summary>
 ```
 
 Tokens:
 - `findings=N` - total admissible findings (numbered, prioritized, disposition-tagged, cited).
 - `fixed=N` - how many findings were fixed by the fix-implementer loop. Includes findings of any priority; disposition is `[fix]`.
 - `deferred=N` - how many findings were written to `-deferred.md`. Only findings where disposition is legitimately `[defer]` (user decision / phase-sized / extremely risky), plus any `[fix]` findings that genuinely BLOCKED even after model upgrade.
+- `review: <path>` - MANDATORY reference to the review artifact file (e.g. `review: reviews/task-7.4-code.md`). This is the SHA-equivalent: no artifact = no review happened. For deep-reviews, use the normalized file path: `review: reviews/phase-11-deep-review.normalized.md`.
 - `<summary>` - one sentence describing the outcome.
 - Optional priority breakdown for readability: `(crit=N maj=N min=N cos=N)`.
 - Optional: `inadmissible=N` for findings discarded for missing number/priority/disposition/citation.
+- Optional: `(normalized: +N)` for deep-review outcomes where the normalization pass surfaced more findings than the consolidated list.
 
-**Invariant:** `findings == fixed + deferred`. If they don't match, the orchestrator lost a finding - halt and reconcile before filling.
+**Invariants:**
+- `findings == fixed + deferred`. If they don't match, the orchestrator lost a finding - halt.
+- `review:` path points to a file that exists, has the matching YAML header, and has exactly `findings` `### Finding N:` sections.
 
 Examples:
-- `findings=0 fixed=0 deferred=0; No issues.`
-- `findings=10 fixed=10 deferred=0 (crit=1 maj=3 min=4 cos=2); All inline.`
-- `findings=12 fixed=11 deferred=1; 11 inline; §5 deferred (needs user UX decision on error surface pattern).`
-- `findings=5 fixed=0 deferred=0 inadmissible=5; All findings missing disposition tag - reviewer re-dispatched.`
+- `findings=0 fixed=0 deferred=0 (review: reviews/task-7.4-code.md); No issues.`
+- `findings=10 fixed=10 deferred=0 (review: reviews/task-11.1-code.md, crit=1 maj=3 min=4 cos=2); All inline.`
+- `findings=12 fixed=11 deferred=1 (review: reviews/phase-12-deep-review.normalized.md, normalized: +4); 11 inline; §5 deferred (user UX decision).`
+- `findings=5 fixed=0 deferred=0 inadmissible=5 (review: reviews/task-9.2-code.md); All findings missing disposition; reviewer re-dispatched.`
 
-Prose-only Outcomes (no `findings=` token) fail Final Verification. The machine-checkable prefix is how `/fly` audits that reviews actually ran, how they resolved, and that no finding was silently dropped.
+Prose-only Outcomes (no `findings=` token OR no `review:` token) fail Final Verification.
 
 ## Phase Gates
 
@@ -441,9 +556,19 @@ After all tasks, phase gates, and final gate are processed, run the verification
 
 - **All Outcome slots filled (non-`<fill>`):** grep for `Outcome: \`<fill>\``. Should find none.
 
-- **Outcome slots use structured format:** grep for `Outcome: \`` lines that do NOT contain `findings=`. Should find none. Prose-only Outcomes without the `findings=N fixed=N deferred=N` prefix fail verification - they indicate a review happened without structured accounting (or no review happened at all).
+- **Outcome slots use structured format:** grep for `Outcome: \`` lines that do NOT contain `findings=`. Should find none. Prose-only Outcomes without the `findings=N fixed=N deferred=N` prefix fail verification.
 
-- **Findings accounting invariant:** for every Outcome, parse the tokens and confirm `findings == fixed + deferred`. If mismatch, findings were dropped. Halt and ask the user to reconcile.
+- **Outcome slots reference a review artifact:** every Outcome must contain a `review: <path>` token. Grep for `findings=` lines missing `review:`. Should find none.
+
+- **Review artifact files exist:** for every `review: <path>` token, check that `<path>` resolves to an existing file that is non-trivial (>500 bytes or contains at least one `### Finding` header or an explicit `No issues.` line).
+
+- **Review file mtime after task commit:** for per-task reviews, `stat <review-file>` mtime must be AFTER the commit SHA's timestamp. If earlier, the file predates the code and cannot be a review of it.
+
+- **Findings count matches review file:** for every Outcome, `grep -c "^### Finding " <review-path>` must equal the Outcome's `findings=N` value. Mismatch = silent finding loss.
+
+- **Findings accounting invariant:** `findings == fixed + deferred`. Halt on mismatch.
+
+- **Fabrication-pattern scan:** count `findings=0` Outcomes across the checklist. If the ratio exceeds 50% of all reviews, warn the user: "High rate of 'no issues' reviews - please spot-check review files."
 
 - **Phase Gate Outcomes contain regression-check prefix:** each phase's Outcome must start with `tests_pass=N tests_fail=N regressions=0;`. Any phase missing this prefix means the Phase regression check was skipped - halt and fail.
 

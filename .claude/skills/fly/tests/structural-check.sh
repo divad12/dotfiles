@@ -50,6 +50,23 @@ grep -qi "disposition.*\[fix\]\|disposition.*fix.*defer\|\[fix\].*\[defer\]" "$S
 grep -qi "default.*\[fix\]\|fix by default\|default disposition.*fix" "$SKILL" || { echo "FAIL: fix-by-default rule"; exit 1; }
 grep -qi "project.rule\|project/user rules override\|abide by the rules" "$SKILL" || { echo "FAIL: project-rule language"; exit 1; }
 
+# Review artifact files (write-witness for reviews)
+grep -q "^## Review Artifact Files$" "$SKILL" || { echo "FAIL: Review Artifact Files section"; exit 1; }
+grep -qi "write.*review.*to.*file\|Your final tool call MUST be a Write\|reviewer.*writes.*file" "$SKILL" || { echo "FAIL: reviewer-writes-file mandate"; exit 1; }
+grep -q "review: <path>\|review: <path\|reviews/task-\|reviews/phase-" "$SKILL" || { echo "FAIL: review path convention"; exit 1; }
+
+# Suspicious-pattern halt heuristics
+grep -qi "3 consecutive\|three.*consecutive\|3 reviews in a row\|Suspicious-pattern" "$SKILL" || { echo "FAIL: halt heuristic for consecutive zero findings"; exit 1; }
+
+# Combined review shortcut for deep-review-gated phases
+grep -qi "Combined review shortcut\|combined spec+code reviewer\|combined review" "$SKILL" || { echo "FAIL: combined review shortcut"; exit 1; }
+
+# Normalization pass for deep-reviews
+grep -qi "normalization pass\|normalized.md\|normalize" "$SKILL" || { echo "FAIL: normalization pass language"; exit 1; }
+
+# Enumerate every raw finding
+grep -qi "EVERY raw finding\|every distinct observation\|do NOT output a .consolidated" "$SKILL" || { echo "FAIL: enumerate-every-finding language"; exit 1; }
+
 # Deep-review subagent dispatch invoking Skill tool
 grep -qi "invoke.*deep-review.*skill.*via.*Skill tool\|invoke the .deep-review. skill via" "$SKILL" || { echo "FAIL: deep-review Skill tool invocation"; exit 1; }
 
