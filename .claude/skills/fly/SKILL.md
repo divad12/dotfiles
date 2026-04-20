@@ -194,8 +194,6 @@ Every admissible finding lands in one bucket. No "skipped" / "ignored" / "wontfi
 
 Each deferred finding gets its own `§N` entry with priority in the heading and the specific defer reason (which of the 3 criteria). If you find yourself writing many defer entries in a single review, that's a signal - either the reviewer is mis-disposing (re-dispatch), or the scope of this task genuinely needs the user's attention (halt, surface).
 
-**Before filling the Outcome slot with findings=0: run the Null-Result Meta-Check.** If the admissible findings count is 0, you MUST dispatch the meta-verifier per "Null-Result Meta-Check" section below before writing `findings=0` to the Outcome slot. Only a CONFIRMED meta-check allows the null Outcome; SUSPICIOUS forces re-dispatch of the real reviewer. See that section for the exact flow.
-
 **Fill the Outcome slot** using the structured format:
 
     findings=N fixed=N deferred=N; <summary>
@@ -238,7 +236,6 @@ If the phase containing this task has `Phase N Gate (reviewer: ...) with /deep-r
 
 After every review processing step, check:
 
-- **3 consecutive `findings=0` Outcomes**: Legitimate "no issues" reviews are rare. Three in a row is a red flag for fabricated reviews. Halt and surface: "3 reviews in a row found nothing. Please verify the last 3 review files exist and look reasonable: `<paths>`. Continue? (y/n)"
 - **Missing review file after announced dispatch**: If a reviewer dispatch returns but the review file wasn't written, the reviewer either failed or was never actually dispatched. Re-dispatch with stricter prompt (add "THIS IS YOUR SECOND ATTEMPT - you MUST Write to `<path>` as your final tool call or your review will be discarded"). If it fails a second time, halt.
 - **Outcome count doesn't match file**: If `findings=N` in Outcome ≠ `grep -c "^### Finding " <file>`, halt.
 
@@ -448,87 +445,6 @@ Examples:
 
 Prose-only Outcomes (no `findings=` token OR no `review:` token) fail Final Verification.
 
-## Null-Result Meta-Check (findings=0 verifier)
-
-Every `findings=0` outcome MUST pass meta-check before Outcome slot gets filled. Closes fabrication vector where orchestrator under pressure writes rubber-stamp review file (`findings-count: 0`, body literal `No issues.`) without dispatching real reviewer. Existing review-artifact mandate, YAML header, and mtime checks all pass for fabricated file because same orchestrator wrote them.
-
-### When this fires
-
-After every reviewer dispatch (step E spec review, step G code review, step I batched review, phase gate normal review, phase gate deep-review post-normalization, final gate), if admissible findings count is 0, run meta-check BEFORE filling Outcome slot.
-
-- If findings > 0: no meta-check needed. Fix loop itself is evidence review engaged (fabricated findings would fail fix-implementer cycle).
-- If findings = 0: dispatch meta-verifier described below. Proceed only on CONFIRMED.
-
-### Meta-verifier dispatch
-
-- `subagent_type`: `general-purpose`
-- `model`: `haiku` (narrow verification task; upgrade to sonnet only on retry)
-- `description`: `Verify null review for <task-or-scope>`
-- `prompt`: see "Meta-verifier prompt" below
-
-Substitutions:
-- `<review-file-contents>`: full text of review file reviewer wrote.
-- `<diff>`: output of `git show <sha>` for single-commit review, or `git diff <base>..<head>` for phase/final scope.
-- `<diff-line-count>`, `<diff-file-count>`: compute from diff.
-
-### Meta-verifier prompt
-
-```
-You are a meta-verifier for a claimed null review.
-
-Another reviewer submitted a review file claiming findings=0 (no issues).
-Your job: determine whether that reviewer actually engaged with the diff, or
-whether the review is boilerplate/fabricated.
-
-## Review file under verification
-
-<review-file-contents>
-
-## Actual diff under review (size: <diff-line-count> lines, <diff-file-count> files)
-
-<diff>
-
-Evaluate:
-
-1. YAML header: does commit-sha match the diff? Does files-touched (if present)
-   match the diff's file list?
-2. Body content: does it reference specific files, functions, or line numbers
-   from the diff? Does it show evidence the reviewer read the actual code
-   (concrete observations, names from the diff, engagement with what changed)?
-3. OR does the body look like boilerplate: generic praise, "No issues found",
-   "Code looks good", with no diff-specific references?
-4. Diff-size sanity: for diffs under 10 lines, a brief legitimate null review
-   is plausible as long as it mentions WHAT it looked at. Do not penalize
-   brevity when the diff is trivial.
-
-Respond with EXACTLY ONE of:
-
-  CONFIRMED: <one sentence on the engagement evidence you found>
-
-  SUSPICIOUS: <one sentence on why the review looks fabricated or boilerplate>
-
-Err toward SUSPICIOUS when diff-specific engagement evidence is thin on a
-non-trivial diff. A legitimate null review on a 100-line diff still references
-what was checked.
-```
-
-### Handling the response
-
-- **CONFIRMED**: fill Outcome slot as normal. Proceed to next step.
-- **SUSPICIOUS**: treat as if original review never happened.
-  1. Re-dispatch REAL reviewer (not meta-verifier) with stricter prompt. Append to original reviewer prompt template: `THIS IS YOUR SECOND ATTEMPT. A meta-check flagged the prior null-result review as suspicious: <reason from meta-verifier>. Read every hunk in the diff and either emit findings or emit an explicit engagement trail listing the files and functions you verified.`
-  2. If second review also returns findings=0, re-run meta-check on new file.
-  3. If meta-check returns CONFIRMED on second attempt, proceed normally.
-  4. If meta-check returns SUSPICIOUS on second attempt, HALT. Surface to user with: paths of both review files, both meta-verifier reasons, and diff. Do NOT fill Outcome slot. Let user resolve (manual review, upgrade reviewer model, etc.).
-
-### Cost and scope
-
-One haiku dispatch per findings=0 outcome. Phase with 5 clean task reviews + 1 clean phase gate = 6 haiku calls. Negligible against single fabricated review slipping through.
-
-### Does NOT replace existing HALT heuristics
-
-"3 consecutive `findings=0` Outcomes" HALT still fires even after meta-check CONFIRMED individual reviews. Meta-check catches per-outcome fabrication; consecutive-nulls HALT catches pattern that warrants human spot-check regardless.
-
 ## Per-Task Integrity Gate
 
 After filling BOTH Outcome slots for a task (end of step H for the standard spec + code path, end of step I for batched tasks, or end of the combined-review shortcut), fly MUST invoke the integrity-check script before moving on. This is mandatory, not optional.
@@ -615,9 +531,8 @@ After regression check passes, run review gate per checklist's annotation:
 - **Normal review** (`Phase N Gate (reviewer: <model>)` with `Normal code-review on Phase N diff`):
   1. Compute phase diff: `git diff <phase-N-first-commit-sha>^..<phase-N-last-commit-sha>`.
   2. Dispatch code reviewer via `code-quality-reviewer-prompt.md` template, with phase diff as subject.
-  3. **If admissible findings = 0, run Null-Result Meta-Check** (see section above) BEFORE filling Outcome slot. Only CONFIRMED allows null Outcome.
-  4. Fill Outcome slot with summary.
-  5. If findings: same auto-fix loop as per-task reviews. Fill Resolution.
+  3. Fill Outcome slot with summary.
+  4. If findings: same auto-fix loop as per-task reviews. Fill Resolution.
 
 - **Deep-review** (`Phase N Gate (reviewer: ...)` with `/deep-review on Phase N diff`):
 
@@ -657,12 +572,11 @@ After regression check passes, run review gate per checklist's annotation:
        ```
 
   2. When subagent returns, process its numbered findings list EXACTLY as in step F (classify, auto-fix critical/correctness, deferred-write everything else, reconciliation invariant). Do NOT accept prose summary in place of enumerated findings. If subagent returned prose, re-dispatch asking for enumerated form.
-  3. **If normalized admissible findings = 0, run Null-Result Meta-Check** on normalized deep-review file BEFORE filling Outcome slot. Only CONFIRMED allows null Outcome.
-  4. Fill Phase Gate Outcome using structured format, prefixed with regression check metrics:
+  3. Fill Phase Gate Outcome using structured format, prefixed with regression check metrics:
 
          tests_pass=N tests_fail=N regressions=0; findings=N fixed=N deferred=N; <summary>
 
-  5. Note: `/deep-review` has own auto-fix mechanism internally. If subagent reports certain findings already auto-fixed inside `/deep-review`, count those in `fixed`. Findings skill itself flagged as deferred go into `/fly`'s deferred.md (same file, don't create separate one).
+  4. Note: `/deep-review` has own auto-fix mechanism internally. If subagent reports certain findings already auto-fixed inside `/deep-review`, count those in `fixed`. Findings skill itself flagged as deferred go into `/fly`'s deferred.md (same file, don't create separate one).
 
 ## Final Gate
 
@@ -671,9 +585,8 @@ After all phases complete and all per-task and phase gates have been processed, 
 - If `## Final Gate: /deep-review over <scope>` exists:
   1. Dispatch subagent to invoke `/deep-review` via Skill tool, same pattern as deep-review Phase Gate above (see "Dispatch pattern: subagent → Skill tool"). Scope per checklist annotation.
   2. Process returned findings with accounting invariant (`findings = fixed + deferred`). Default disposition is `[fix]`; only legitimately-defer findings go to deferred.md.
-  3. **If normalized admissible findings = 0, run Null-Result Meta-Check** on normalized final-gate review file BEFORE filling Outcome slot. Only CONFIRMED allows null Outcome.
-  4. Fill Outcome slot using structured format: `findings=N fixed=N deferred=N; <summary>`.
-  5. Fill Resolution slot per outcome (Fixed / deferred references / mix).
+  3. Fill Outcome slot using structured format: `findings=N fixed=N deferred=N; <summary>`.
+  4. Fill Resolution slot per outcome (Fixed / deferred references / mix).
 
 - If `**Final gate not needed - all phases have deep-review coverage.**` exists: skip; nothing to do.
 
@@ -786,7 +699,6 @@ After final verification passes:
 | "findings = 10, fixed = 2, deferred = 0, let me note '8 style findings' in the summary" | INVARIANT VIOLATION: findings = fixed + deferred. 8 findings disappeared. Halt. |
 | "The reviewer tagged this [defer] so I'll defer it" | Check "Why defer" reason. If doesn't cite one of 3 criteria (user decision / phase-sized / extremely risky), reject and re-dispatch. Reviewer misdisposed. |
 | "Most of these should defer because they're out of scope" | If reviewer is producing high defer rate, reviewer is wrong or task scope is wrong. Re-dispatch or halt. Silent acceptance of mass-defer defeats fix-inline principle. |
-| "findings=0, skip meta-check, just write 'No issues.' to the review file and the Outcome" | NO. findings=0 MANDATES Null-Result Meta-Check. Writing rubber-stamp review file without dispatching real reviewer is exact fabrication vector meta-check exists to catch. Dispatch haiku meta-verifier. |
 | "I read the diff myself, it's clearly fine, no need for a real reviewer" | Your read is not reviewer dispatch. Review artifact file must exist and must be produced by dispatched reviewer subagent. Orchestrator inspection is not substitute. |
 | "Meta-verifier said SUSPICIOUS but I'm sure the review was fine" | SUSPICIOUS triggers re-dispatch of REAL reviewer. Override attempts destroy contract. Re-dispatch, or HALT and surface to user. |
 | "findings=0, skip the integrity gate, I just filled the slot and it's fine" | NO. The integrity gate is mandatory after every task. It reads CC's subagent transcript to verify the reviewer actually ran. Self-report is not proof. |
@@ -817,7 +729,6 @@ If you catch yourself thinking any of these, STOP and re-read Rationalization Ta
 - "Invoking /deep-review as a full skill is heavy, let me just replicate its prompts"
 - "The reviewer tagged [defer] so I'll defer it" (without checking the defer reason)
 - "The task said use sonnet but haiku will be fine" (downgrade drift is as bad as upgrade drift)
-- "findings=0, I'll just write the review file myself and skip the meta-check"
 - "Writing 'No issues.' to the file is basically the same as dispatching a reviewer"
 - "Meta-verifier is SUSPICIOUS but I trust the original review, overriding"
 - "findings=0, skip the integrity gate, I just filled the slot and it's fine"

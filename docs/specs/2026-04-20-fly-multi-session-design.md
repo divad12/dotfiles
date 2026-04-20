@@ -238,7 +238,6 @@ The per-task integrity gate enforces this mechanically after every task; final v
 - State detection (fresh run / mid-flight / complete).
 - Template Resolution (for implementer + reviewer prompts).
 - Per-task loop A-I (implementer, reviews, fix loops).
-- Null-Result Meta-Check (every findings=0 outcome).
 - Reviewer Independence Override block.
 - Review Artifact Files path conventions.
 - Outcome Slot Format (`findings=N fixed=N deferred=N (review: <path>); <summary>`).
@@ -284,16 +283,16 @@ The full script is ~110 lines of bash. It is deterministic, uses only `find`, `l
 Final stack, in order of defense:
 
 1. **Per-task integrity gate** (script, after each task).
-2. **Null-result meta-check** (haiku subagent, per findings=0 outcome).
-3. **End-of-phase reconciliation** (existing, checks phase slice in checklist).
-4. **Periodic SKILL.md re-read** (every 10 tasks).
-5. **Final verification sweep** (existing, end-of-file).
+2. **End-of-phase reconciliation** (existing, checks phase slice in checklist).
+3. **Periodic SKILL.md re-read** (every 10 tasks).
+4. **Final verification sweep** (existing, end-of-file).
 
 Dropped from earlier designs:
-- 3-consecutive-nulls HALT (redundant with meta-check + integrity gate).
-- Periodic Iron Rule echo (self-report, weaker than re-read + integrity gate).
-- Session task cap (moved into preflight as the 20-task file cap; fly doesn't enforce independently).
-- Transcript grep of main's JSONL (subsumed by subagent-transcript check).
+- **Null-result meta-check** (dispatched haiku verifier per findings=0). Redundant with integrity gate: real reviewer subagents running in fresh context rarely rubber-stamp after engaging with the diff, and the integrity gate's `>=3 tool calls + Write to review path + file size/content gate` already catches the cases meta-check covered. Dropped to reduce per-null cost, false-positive noise on legitimately-clean reviews, and orchestrator transcript clutter.
+- **3-consecutive-nulls HALT**. Pattern-level fallback for the pre-integrity-gate era. Redundant with per-task integrity gate.
+- **Periodic Iron Rule echo** (self-report, weaker than re-read + integrity gate).
+- **Session task cap** (moved into preflight as the 20-task file cap; fly doesn't enforce independently).
+- **Transcript grep of main's JSONL** (subsumed by subagent-transcript check).
 
 ## Out of Scope / Deferred
 
@@ -308,7 +307,7 @@ Dropped from earlier designs:
 - **2026-04-17 design**: extends it. Single-orchestrator fly behavior for ≤20 task plans is identical to 2026-04-17. Only additions: integrity gate + re-read + reworded rule.
 - **2026-04-18 design**: supersedes it. All octopus-mode machinery is removed. The rationale (context pressure, fabrication under load) still applies; the structural fix is now multi-file split + integrity gate instead of phase subagents.
 - **Review-artifact mandate (2026-04-17 amendment)**: unchanged. Integrity gate builds on it.
-- **HALT heuristics (2026-04-17 amendment)**: unchanged (suspicious-pattern HALTs, 3-consecutive-nulls removed but other triggers stay).
+- **HALT heuristics (2026-04-17 amendment)**: 3-consecutive-nulls HALT removed (redundant with integrity gate). Other suspicious-pattern triggers unchanged (missing review file, Outcome/file count mismatch).
 - **`/deep-review` invocation via subagent + Skill tool**: unchanged. Still valid because deep-review doesn't itself nest Task dispatches.
 
 ## Implementation Notes
@@ -325,5 +324,5 @@ Dropped from earlier designs:
 
 1. Review and approve this spec.
 2. Test on a medium-sized plan (20-40 tasks) to exercise the split logic end-to-end.
-3. Observe integrity-gate HALTs in practice; tune `single_file_cap` or meta-check thresholds if drift is observed before the cap.
+3. Observe integrity-gate HALTs in practice; tune `single_file_cap` if drift is observed before the cap.
 4. Consider formalizing the integrity-check script's contract with a small test suite under `.claude/skills/fly/tests/integrity/`.
