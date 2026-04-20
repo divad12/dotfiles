@@ -1,6 +1,10 @@
 # Fly Octopus: Per-Phase Subagent Dispatch for Large Plans
 
-**Status:** Design
+> **SUPERSEDED (2026-04-20):** This design is no longer active. Empirical testing surfaced two unrecoverable blockers: (1) general-purpose subagents cannot nest-dispatch the Task tool, breaking phase subagent coordination, and (2) `opus-1m` is not in the Task tool model enum. In-process octopus is impossible on Claude Code. See the superseding design at `docs/specs/2026-04-20-fly-multi-session-design.md` for the replacement approach (preflight splits large plans into multiple checklist files; fly runs each in a fresh CC session with per-task integrity gate).
+>
+> The content below is retained for audit trail.
+
+**Status:** Superseded by 2026-04-20-fly-multi-session-design.md
 **Date:** 2026-04-18
 **Supersedes/extends:** `docs/specs/2026-04-17-preflight-and-fly-design.md` ("Octopus recursion" in Out of Scope is promoted to in-scope here)
 

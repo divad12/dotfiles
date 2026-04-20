@@ -44,36 +44,17 @@ Announce the detected mode at start:
 - Mid-flight: "Flying <checklist>. Mode: resuming from Task <X.Y>."
 - Complete: "Already complete. Nothing to do."
 
-## Octopus Mode Detection
+## Multi-File Checklist Support
 
-After state detection, grep the checklist for `Octopus:` tokens in `## Phase` headers:
+`/fly` executes exactly ONE checklist file per invocation. That file is complete and self-contained: its own tasks, its own phase gates, and (if present) its own final gate.
 
-- **Any found** → octopus mode. The checklist carries per-phase `Octopus: <status> (coordinator: <model>)` tokens, and fly acts as a main-side dispatcher for per-phase subagents (see "Octopus Main Loop" below). Single-orchestrator code paths for per-task loops still run, but they run INSIDE the phase subagents, not in main.
-- **None found** → single-orchestrator mode (unchanged behavior). Fly walks tasks and phase gates itself.
+When a plan is large enough that preflight splits it, preflight emits multiple checklist files alongside the plan, typically named like:
 
-Announce the detected octopus mode alongside the state announcement:
-- "Flying <checklist>. Mode: fresh run | single_orchestrator."
-- "Flying <checklist>. Mode: resuming from Task <X.Y> | octopus_single_session."
-- "Flying <checklist>. Mode: resuming | octopus_multi_session."
+- `<plan>-checklist-1.md`
+- `<plan>-checklist-2.md`
+- `<plan>-checklist-3.md`
 
-Mode name strings (use verbatim): `single_orchestrator`, `octopus_single_session`, `octopus_multi_session`. The single/multi distinction is derived from phase count: if phase count exceeds `phase_session_cap` (10), mode is `octopus_multi_session`; otherwise `octopus_single_session`. Preflight's terminal summary surfaces the same strings.
-
-## Phase-Scoped Invocation (`--phase=N`)
-
-Fly accepts a `--phase=N` scope argument in its invocation string (e.g., passed by main via the Skill tool `args` parameter, or appearing as an explicit token in the prompt after the checklist path). When present, fly operates in phase-scoped mode:
-
-- Walks only Phase N's tasks using the existing per-task loop (A-I, unchanged).
-- Runs Phase N's phase gate (normal or `/deep-review` per checklist) after all tasks complete.
-- Honors the existing mid-flight pickup logic: if some slots in Phase N are already filled (from a prior failed dispatch), resume from the first gap.
-- Emits the 4-line receipt (see "Receipt Format" below) as the final report back to main.
-
-Phase-scoped fly does NOT:
-- Run the final gate.
-- Run the final verification sweep.
-- Update any `Octopus:` status headers (main owns those).
-- Enter the octopus main loop (no nesting).
-
-All /fly discipline (review-artifact mandate, HALT heuristics, Rationalization Table, reviewer independence override, structured Outcome format) applies unchanged inside the phase scope.
+In that case, the user runs `/fly <checklist-N>` once per file, in order, each in a fresh Claude Code session. Each invocation is a complete run over its own file. Fly does not cross-reference other checklist files, does not attempt to read sibling checklists, and does not coordinate state between them. The checklist file you were handed is the universe for this invocation.
 
 ## Template Resolution
 
@@ -100,151 +81,6 @@ NOT resolved via this mechanism:
 - Fix-implementer dispatches - reuse the implementer template, just substituting different placeholders.
 
 If Glob returns no match for an in-scope template, the plugin cache doesn't contain it (upstream rename, new plugin version, cache cleared). Halt and tell the user: "Upstream templates not found at <pattern>. Check plugin install or update the Glob pattern."
-
-## Octopus Main Loop
-
-Runs ONLY when mode is octopus (checklist has `Octopus:` tokens) AND `--phase=N` is NOT set. Phase-scoped fly skips this section entirely and runs the per-task loop directly against its assigned phase.
-
-After announcing mode, main enters the octopus loop:
-
-```
-session_phase_count = 0
-for each phase in checklist (top-to-bottom):
-    parse Octopus: status from phase header
-    if status == "done":
-        continue
-    if session_phase_count >= phase_session_cap (10):
-        halt with session-window message; exit fly cleanly.
-
-    flip phase header: "pending" or "in-flight:<old>" -> "in-flight:<new-id>"
-        (new id: short timestamp + short random suffix; audit breadcrumb only)
-    dispatch phase subagent via Task tool:
-        subagent_type: general-purpose
-        model: coordinator model from phase header (VERBATIM, no drift, HALT if disagree)
-        description: "Octopus phase <N>: <phase name>"
-        prompt: per "Phase Subagent Prompt Template" below
-    await receipt
-
-    parse receipt line 1:
-        must match "Phase <N> done." or treat as failure
-        if missing, malformed, or begins "Phase <N> HALTED:":
-            retry up to 2x (fresh dispatch)
-            on third failure: HALT, surface to user.
-
-    run Per-Phase Reconciliation (see below)
-    if reconciliation fails:
-        retry dispatch up to 2x (mid-flight pickup resumes from first gap)
-        on third failure: HALT, surface gap list to user.
-
-    flip phase header: "in-flight:<id>" -> "done"
-    session_phase_count += 1
-
-# all phases done; proceed to final gate + final verification (unchanged).
-```
-
-### Model selection for phase subagent dispatch (VERBATIM, no drift)
-
-The phase subagent dispatch's `model` parameter is copied EXACTLY from the phase header's `coordinator: <model>` annotation. Same rule as task-implementer and reviewer model dispatch: preflight decided the coordinator model; main does not upgrade or downgrade.
-
-If main believes the coordinator model is wrong for this phase, HALT. Tell the user: "Phase <N> checklist says coordinator: <X>, but the phase appears to need <Y> because <reason>. Edit the checklist and re-run?" Do NOT silently drift.
-
-### Phase Subagent Prompt Template
-
-```
-You are executing /fly in phase-scoped mode for a large plan.
-
-CONTEXT:
-  Checklist path: <abs path>
-  Plan path:      <abs path>
-  Phase ID:       <N>
-  Working dir:    <cwd>
-
-INSTRUCTION:
-  Invoke the /fly skill via your Skill tool. Pass the checklist path and
-  the phase-scope argument `--phase=<N>`. Fly's phase-scoped loop will:
-    1. Read checklist and plan.
-    2. Walk the tasks in Phase <N>.
-    3. Run Phase <N>'s phase gate after all tasks complete.
-    4. Return the 4-line receipt.
-
-  Do NOT run the final gate, the final verification sweep, or update the
-  phase's `Octopus:` status header. The main /fly session owns those.
-
-  All /fly discipline (review-artifact mandate, HALT heuristics, Rationalization
-  Table, reviewer independence override, structured Outcome format) applies
-  unchanged inside your scope.
-
-  Write your receipt as the last thing you report back. Receipt format
-  (exact, 4 lines):
-
-    Phase <N> done.
-    Commits: <first-sha>..<last-sha> (<count>)
-    Deferred: <0 | N - see <plan>-deferred.md §A-§Z>
-    HALTs hit: <none | list>
-```
-
-The phase subagent's Skill tool invocation re-enters /fly, which on re-entry detects the `--phase=N` argument and runs the phase-scoped loop (no octopus main loop nesting - `--phase=N` bypasses the octopus main loop).
-
-### Per-Phase Reconciliation (main-side integrity gate)
-
-Reconciliation is the integrity gate that makes octopus trustworthy. The receipt is a breadcrumb; the real evidence is the checklist state and review artifact files on disk. Main never reads review files for content - reconciliation is pure grep/stat.
-
-After each phase subagent returns a clean `Phase <N> done.` receipt line, main slices the checklist from `## Phase N:` to the next `## Phase` header (or to the Final Gate / Fly Verification block) and runs these checks against that slice:
-
-1. Grep for `- [ ]` in the slice. Expected: none.
-2. Grep for `` `<fill>` `` in the slice. Expected: none.
-3. Grep for `findings=` lines missing a `review:` token. Expected: none.
-4. For each `review: <path>` token in the slice:
-   - File exists at `<path>`.
-   - File is non-trivial (>500 bytes OR contains at least one `### Finding` header OR an explicit `No issues.` line).
-   - `stat` mtime is AFTER the timestamp of the commit SHA referenced in the same task/phase-gate entry.
-   - `findings-count` in the file's YAML header equals `grep -c "^### Finding " <path>`.
-5. Phase Gate Outcome starts with `tests_pass=N tests_fail=N regressions=0;` prefix (Phase regression check ran).
-6. Deep-review invariant: if this phase has a `/deep-review` gate, its Phase Gate Outcome's `review:` path points to a `.normalized.md` file (per the /deep-review normalization pass rule).
-
-**Outcome:**
-
-- All clean → flip header `in-flight:<id>` → `done`. Move to next phase.
-- Gap detected → re-dispatch SAME phase subagent (fresh subagent, but fly's existing mid-flight pickup logic resumes from first gap). Bounded retry: 2 re-dispatches max. Third failure → HALT, surface gap list to user.
-
-### Session-Window Heuristic
-
-Main tracks `session_phase_count` - the number of phases this main session has flipped to `Octopus: done`. Constant: `phase_session_cap = 10`.
-
-After reaching `phase_session_cap`, halt cleanly with:
-
-```
-Session window done: processed <K> phases this session.
-Remaining phases: <list of phase IDs with Octopus: pending or in-flight>.
-Start a fresh Claude Code session and re-run:
-  /fly <checklist-path>
-```
-
-Do NOT dispatch more phases this session. Between sessions is a hard human-in-the-loop boundary; no auto-continuation across Claude Code sessions. The authoritative resume state lives in the checklist's `Octopus:` headers, so the next session picks up at the first phase not marked `done`.
-
-### Receipt Format
-
-Both emit (phase-scoped fly) and parse (main). Exact format, four lines:
-
-```
-Phase <N> done.
-Commits: <first-sha>..<last-sha> (<count>)
-Deferred: <0 | N - see <plan>-deferred.md §A-§Z>
-HALTs hit: <none | list>
-```
-
-- Line 1: literal `Phase <N> done.` If the phase halted without completing, emit instead `Phase <N> HALTED: <reason>` and main treats the receipt as a failure.
-- Line 2: first and last commit SHAs of the phase (from the phase's task commits). Count is total commits in the phase.
-- Line 3: deferred-count summary. `0` if no deferrals. Otherwise `N - see <plan>-deferred.md §A-§Z` where A-Z is the range of deferred entries this phase appended.
-- Line 4: HALT heuristics tripped during the phase. `none` is the expected case. Anything else is a human-interest signal, not an auto-action trigger for main.
-
-Main greps receipt line 1 for `Phase <N> done.` prefix to determine success vs failure. Success path proceeds to reconciliation (reconciliation is the actual gate).
-
-Phase-scoped fly emits the receipt as its final text response, after the phase gate Outcome is filled and before returning control to main.
-
-### Handoff File (advisory)
-
-When preflight detects multi-session tier, it writes `<plan-dir>/<plan-basename>-handoff.md` as advisory session-by-session guidance. Fly does not write or update this file - its authoritative state is the checklist's `Octopus:` headers. Fly resumes from the first non-done phase regardless of how the user chunked sessions.
 
 ## Per-Task Loop
 
@@ -506,14 +342,14 @@ response, but the file is the authoritative artifact. If you do not write the
 file, your review is discarded and will be re-dispatched.
 ```
 
-In addition, the reviewer prompt MUST contain these two sections, clearly labeled so the reviewer understands the trust boundary:
+Reviewer prompt MUST also contain these two sections, clearly labeled:
 
-- `## Implementer-Reported Summary (untrusted)` - the implementer's report text.
+- `## Implementer-Reported Summary (untrusted)` - implementer's report text.
 - `## Actual Diff` - raw output of `git show <sha>` for single-task reviews, or `git diff <base>..<head>` for batched/phase/final reviews.
 
 ## Review Artifact Files
 
-Every review MUST produce a durable on-disk artifact. This is the SHA-equivalent for reviews: the orchestrator cannot claim `findings=0` without a file on disk saying so, and the user can audit the file after the fact.
+Every review MUST produce durable on-disk artifact. SHA-equivalent for reviews: orchestrator cannot claim `findings=0` without file on disk saying so; user can audit after the fact.
 
 ### Path convention
 
@@ -527,27 +363,27 @@ Examples:
 - `docs/specs/m3/reviews/phase-11-deep-review.md`
 - `docs/specs/m3/reviews/final-deep-review.md`
 
-`<plan-dir>` is the directory containing the plan and checklist files. Create the `reviews/` subdirectory on first write.
+`<plan-dir>` is directory containing plan and checklist files. Create `reviews/` subdirectory on first write.
 
-### Orchestrator assigns the path before dispatch
+### Orchestrator assigns path before dispatch
 
-In each reviewer dispatch, the orchestrator substitutes the `<review-file-path>` placeholder with a concrete absolute path. The reviewer writes to that path.
+In each reviewer dispatch, orchestrator substitutes `<review-file-path>` placeholder with concrete absolute path. Reviewer writes to that path.
 
 ### Post-dispatch verification
 
-After the reviewer returns:
+After reviewer returns:
 
-1. Check the file exists at the assigned path. If missing → the review did not actually run (or the reviewer disobeyed). Re-dispatch with a sterner prompt; if it fails again, halt and surface to the user.
-2. Read the file and use its findings list as the SOURCE OF TRUTH. Not the summary in the reviewer's text response.
-3. Confirm the file's YAML header's `findings-count` matches the number of `### Finding N:` sections inside.
+1. Check file exists at assigned path. If missing → review did not actually run (or reviewer disobeyed). Re-dispatch with sterner prompt; if fails again, halt and surface to user.
+2. Read file and use its findings list as SOURCE OF TRUTH. Not summary in reviewer's text response.
+3. Confirm file's YAML header's `findings-count` matches number of `### Finding N:` sections inside.
 
 ### For deep-reviews: normalization pass
 
-`/deep-review` runs multiple parallel sub-reviewers (Codex review, Chrome MCP UI review, rule compliance, simplification, collateral change audit, Claude's own diff analysis). Each sub-reviewer has its own findings. The `/deep-review` skill consolidates them, and in that consolidation, findings are routinely dropped or merged - the well-known body-vs-summary gap.
+`/deep-review` runs multiple parallel sub-reviewers (Codex review, Chrome MCP UI review, rule compliance, simplification, collateral change audit, Claude's own diff analysis). Each sub-reviewer has own findings. `/deep-review` skill consolidates them; in that consolidation, findings routinely dropped or merged. Well-known body-vs-summary gap.
 
-For deep-review files ONLY, run an extra normalization pass:
+For deep-review files ONLY, run extra normalization pass:
 
-1. Dispatch a small subagent (model: haiku) with the deep-review file contents. Prompt:
+1. Dispatch small subagent (model: haiku) with deep-review file contents. Prompt:
 
    ```
    This file is the output of a /deep-review. Multiple sub-reviewers contributed
@@ -564,14 +400,14 @@ For deep-review files ONLY, run an extra normalization pass:
    Return just the finding count.
    ```
 
-2. Use the normalized file as the source of truth for step F processing, not the original deep-review file.
-3. If the normalized count > original deep-review's claimed count, that's expected and fine (the skill was under-reporting). Log the delta in the Outcome (`(normalized: +N)` token).
+2. Use normalized file as source of truth for step F processing, not original deep-review file.
+3. If normalized count > original deep-review's claimed count, that's expected and fine (skill was under-reporting). Log delta in Outcome (`(normalized: +N)` token).
 
-This normalization pass does NOT run for per-task reviews. A single reviewer's single file is already flat.
+This normalization pass does NOT run for per-task reviews. Single reviewer's single file is already flat.
 
 ## Outcome Slot Format
 
-When filling an `Outcome: \`<fill>\`` slot, use this structured single-line format:
+When filling `Outcome: \`<fill>\`` slot, use structured single-line format:
 
 ```
 findings=N fixed=N deferred=N (review: <path>); <one-sentence summary>
@@ -579,17 +415,17 @@ findings=N fixed=N deferred=N (review: <path>); <one-sentence summary>
 
 Tokens:
 - `findings=N` - total admissible findings (numbered, prioritized, disposition-tagged, cited).
-- `fixed=N` - how many findings were fixed by the fix-implementer loop. Includes findings of any priority; disposition is `[fix]`.
-- `deferred=N` - how many findings were written to `-deferred.md`. Only findings where disposition is legitimately `[defer]` (user decision / phase-sized / extremely risky), plus any `[fix]` findings that genuinely BLOCKED even after model upgrade.
-- `review: <path>` - MANDATORY reference to the review artifact file (e.g. `review: reviews/task-7.4-code.md`). This is the SHA-equivalent: no artifact = no review happened. For deep-reviews, use the normalized file path: `review: reviews/phase-11-deep-review.normalized.md`.
-- `<summary>` - one sentence describing the outcome.
-- Optional priority breakdown for readability: `(crit=N maj=N min=N cos=N)`.
+- `fixed=N` - findings fixed by fix-implementer loop. Includes any priority; disposition is `[fix]`.
+- `deferred=N` - findings written to `-deferred.md`. Only legitimately `[defer]` dispositions (user decision / phase-sized / extremely risky), plus any `[fix]` findings that genuinely BLOCKED after model upgrade.
+- `review: <path>` - MANDATORY reference to review artifact file (e.g. `review: reviews/task-7.4-code.md`). SHA-equivalent: no artifact = no review happened. For deep-reviews, use normalized file path: `review: reviews/phase-11-deep-review.normalized.md`.
+- `<summary>` - one sentence describing outcome.
+- Optional priority breakdown: `(crit=N maj=N min=N cos=N)`.
 - Optional: `inadmissible=N` for findings discarded for missing number/priority/disposition/citation.
-- Optional: `(normalized: +N)` for deep-review outcomes where the normalization pass surfaced more findings than the consolidated list.
+- Optional: `(normalized: +N)` for deep-review outcomes where normalization pass surfaced more findings than consolidated list.
 
 **Invariants:**
-- `findings == fixed + deferred`. If they don't match, the orchestrator lost a finding - halt.
-- `review:` path points to a file that exists, has the matching YAML header, and has exactly `findings` `### Finding N:` sections.
+- `findings == fixed + deferred`. If mismatch, orchestrator lost finding. Halt.
+- `review:` path points to file that exists, has matching YAML header, and has exactly `findings` `### Finding N:` sections.
 
 Examples:
 - `findings=0 fixed=0 deferred=0 (review: reviews/task-7.4-code.md); No issues.`
@@ -601,16 +437,14 @@ Prose-only Outcomes (no `findings=` token OR no `review:` token) fail Final Veri
 
 ## Null-Result Meta-Check (findings=0 verifier)
 
-Every `findings=0` outcome MUST pass a meta-check before the Outcome slot gets filled. This closes the specific fabrication vector where an orchestrator under pressure writes a rubber-stamp review file (`findings-count: 0`, body literal `No issues.`) without ever dispatching the real reviewer. The existing review-artifact mandate, YAML header, and mtime checks all pass for a fabricated file because the same orchestrator wrote them.
+Every `findings=0` outcome MUST pass meta-check before Outcome slot gets filled. Closes fabrication vector where orchestrator under pressure writes rubber-stamp review file (`findings-count: 0`, body literal `No issues.`) without dispatching real reviewer. Existing review-artifact mandate, YAML header, and mtime checks all pass for fabricated file because same orchestrator wrote them.
 
 ### When this fires
 
-After every reviewer dispatch (step E spec review, step G code review, step I batched review, phase gate normal review, phase gate deep-review post-normalization, final gate), if the admissible findings count is 0, run the meta-check BEFORE filling the Outcome slot.
+After every reviewer dispatch (step E spec review, step G code review, step I batched review, phase gate normal review, phase gate deep-review post-normalization, final gate), if admissible findings count is 0, run meta-check BEFORE filling Outcome slot.
 
-- If findings > 0: no meta-check needed. The fix loop itself is evidence the review engaged (fabricated findings would fail the fix-implementer cycle).
-- If findings = 0: dispatch the meta-verifier described below. Proceed only on CONFIRMED.
-
-Applies in every mode: single-orchestrator fly, phase-scoped fly (`--phase=N`). Main octopus loop does NOT run the meta-check itself because main never fills task-level Outcomes in octopus mode; the phase subagent does, and the phase subagent runs phase-scoped fly which inherits this requirement.
+- If findings > 0: no meta-check needed. Fix loop itself is evidence review engaged (fabricated findings would fail fix-implementer cycle).
+- If findings = 0: dispatch meta-verifier described below. Proceed only on CONFIRMED.
 
 ### Meta-verifier dispatch
 
@@ -620,9 +454,9 @@ Applies in every mode: single-orchestrator fly, phase-scoped fly (`--phase=N`). 
 - `prompt`: see "Meta-verifier prompt" below
 
 Substitutions:
-- `<review-file-contents>`: the full text of the review file the reviewer wrote.
-- `<diff>`: output of `git show <sha>` for a single-commit review, or `git diff <base>..<head>` for phase/final scope.
-- `<diff-line-count>`, `<diff-file-count>`: compute from the diff.
+- `<review-file-contents>`: full text of review file reviewer wrote.
+- `<diff>`: output of `git show <sha>` for single-commit review, or `git diff <base>..<head>` for phase/final scope.
+- `<diff-line-count>`, `<diff-file-count>`: compute from diff.
 
 ### Meta-verifier prompt
 
@@ -667,63 +501,109 @@ what was checked.
 
 ### Handling the response
 
-- **CONFIRMED**: fill the Outcome slot as normal. Proceed to next step.
-- **SUSPICIOUS**: treat as if the original review never happened.
-  1. Re-dispatch the REAL reviewer (not the meta-verifier) with a stricter prompt. Append this text to the original reviewer prompt template: `THIS IS YOUR SECOND ATTEMPT. A meta-check flagged the prior null-result review as suspicious: <reason from meta-verifier>. Read every hunk in the diff and either emit findings or emit an explicit engagement trail listing the files and functions you verified.`
-  2. If the second review also returns findings=0, re-run the meta-check on the new file.
-  3. If meta-check returns CONFIRMED on the second attempt, proceed normally.
-  4. If meta-check returns SUSPICIOUS on the second attempt, HALT. Surface to user with: paths of both review files, both meta-verifier reasons, and the diff. Do NOT fill the Outcome slot. Let the user resolve (manual review, upgrade reviewer model, etc.).
+- **CONFIRMED**: fill Outcome slot as normal. Proceed to next step.
+- **SUSPICIOUS**: treat as if original review never happened.
+  1. Re-dispatch REAL reviewer (not meta-verifier) with stricter prompt. Append to original reviewer prompt template: `THIS IS YOUR SECOND ATTEMPT. A meta-check flagged the prior null-result review as suspicious: <reason from meta-verifier>. Read every hunk in the diff and either emit findings or emit an explicit engagement trail listing the files and functions you verified.`
+  2. If second review also returns findings=0, re-run meta-check on new file.
+  3. If meta-check returns CONFIRMED on second attempt, proceed normally.
+  4. If meta-check returns SUSPICIOUS on second attempt, HALT. Surface to user with: paths of both review files, both meta-verifier reasons, and diff. Do NOT fill Outcome slot. Let user resolve (manual review, upgrade reviewer model, etc.).
 
 ### Cost and scope
 
-One haiku dispatch per findings=0 outcome. A phase with 5 clean task reviews + 1 clean phase gate = 6 haiku calls. Negligible against a single fabricated review slipping through.
+One haiku dispatch per findings=0 outcome. Phase with 5 clean task reviews + 1 clean phase gate = 6 haiku calls. Negligible against single fabricated review slipping through.
 
 ### Does NOT replace existing HALT heuristics
 
-The "3 consecutive `findings=0` Outcomes" HALT still fires even after meta-check CONFIRMED the individual reviews. Meta-check catches per-outcome fabrication; the consecutive-nulls HALT catches a pattern that warrants human spot-check regardless.
+"3 consecutive `findings=0` Outcomes" HALT still fires even after meta-check CONFIRMED individual reviews. Meta-check catches per-outcome fabrication; consecutive-nulls HALT catches pattern that warrants human spot-check regardless.
+
+## Per-Task Integrity Gate
+
+After filling BOTH Outcome slots for a task (end of step H for the standard spec + code path, end of step I for batched tasks, or end of the combined-review shortcut), fly MUST invoke the integrity-check script before moving on. This is mandatory, not optional.
+
+### Why this exists
+
+Under context pressure, the orchestrator can forge review artifact files directly (write a plausible file with a `findings-count: 0` YAML header and a `No issues.` body) without ever dispatching a reviewer subagent. All the existing mtime, size, and YAML-header checks pass because the orchestrator is the one writing the file. Self-report cannot catch this failure mode; on-disk evidence from Claude Code's own per-subagent JSONL transcripts can.
+
+The integrity-check script reads the CC subagent transcripts at `~/.claude/projects/<encoded-cwd>/<session>/subagents/agent-*.jsonl` and verifies that a real subagent actually wrote to the review file path AND did non-trivial work (at least 3 tool calls, consistent with reading the diff and writing the review).
+
+### Invocation
+
+Resolve the script path first. The skill ships at `.claude/skills/fly/integrity-check.sh` (in this dotfiles repo it lives under `~/.claude/skills/fly/integrity-check.sh`; inside a project using a plugin install it may live under the plugin cache). Use Glob if unsure:
+
+`~/.claude/skills/fly/integrity-check.sh` (primary path)
+
+Invoke via a single Bash tool call, passing the task id, the plan directory (the directory containing the checklist file), and the task's commit SHA:
+
+```
+bash <path-to-integrity-check.sh> <task-id> <plan-dir> <task-sha>
+```
+
+Output is one line on stdout:
+
+- `PASS` (exit 0) - integrity verified. Proceed to the next task.
+- `HALT: <reason>` (exit 1) - integrity failed. STOP immediately. Do NOT try to patch the symptom (e.g., re-dispatching the reviewer, re-writing the file, tweaking slots). Surface the HALT reason to the user verbatim. This is drift detection; the user needs to see it.
+
+### Batched tasks
+
+For tasks annotated `Review: batched-with <neighbor-ids>` that are NOT the last task in the batch: the script returns `PASS` silently because no review files are expected on non-last batched tasks. The phase gate (phase regression check + phase review gate) catches missing batch reviews. Run the integrity gate against the batch's LAST task id, where the review files actually live.
+
+### Agent-agnostic caveat
+
+The script is Claude Code specific. It depends on the `~/.claude/projects/.../subagents/agent-*.jsonl` layout. On non-CC agents it will HALT with `cannot locate CC project dir`; that is acceptable because the entire subagent dispatch mechanism `/fly` uses is already CC-specific.
+
+## Periodic SKILL.md Re-read
+
+Late-session drift is a predictable failure mode: rules that were fresh at task 1 get compressed away by task 15, and the orchestrator silently starts skipping or paraphrasing them. To counter that, fly maintains a counter of completed tasks (tasks whose full step sequence A through I has been ticked) in the current session.
+
+At every 10th completed task - before starting task 11, task 21, task 31, and so on:
+
+1. Re-read this SKILL.md file via the Read tool.
+2. Continue. No other action required.
+
+Purpose: refresh the discipline rules in context so that late-session tasks receive the same rigor as early-session tasks. This is a structural reminder, not a literal test. The cost is one Read tool call per ten tasks. Preflight's split target is 20 tasks per checklist, so this triggers at most twice per `/fly` run (task 10 and task 20).
 
 ## Phase Gates
 
-After all tasks in a phase complete (all per-task slots filled):
+After all tasks in phase complete (all per-task slots filled):
 
-### Phase regression check (MANDATORY, runs before the review gate)
+### Phase regression check (MANDATORY, runs before review gate)
 
-Per-task TDD catches regressions inside each task's scope. The phase regression check catches regressions the task-level tests didn't cover (unrelated tests newly broken, integration failures, etc.). This also defangs the "it was a pre-existing failure" gaslighting pattern: pre-existing = proven by running the test at the base commit, not asserted.
+Per-task TDD catches regressions inside each task's scope. Phase regression check catches regressions task-level tests didn't cover (unrelated tests newly broken, integration failures, etc.). Also defangs "it was a pre-existing failure" gaslighting: pre-existing = proven by running test at base commit, not asserted.
 
-1. Detect the project's test command once per `/fly` run (cache the answer):
+1. Detect project's test command once per `/fly` run (cache the answer):
    - `package.json` `scripts.test` → use it.
    - `pyproject.toml` / `pytest.ini` → `pytest`.
    - `Cargo.toml` → `cargo test`.
    - `go.mod` → `go test ./...`.
-   - Otherwise, ask the user once: "What's the test command for this project? (cached for the rest of this /fly run)"
-2. Run the test command at HEAD. Capture `pass=N fail=N` and the list of failing test names.
-3. Run the same command at `<phase-first-commit>^` (the phase's parent). Use a detached worktree or `git stash` + `git checkout` + `git stash pop` to avoid disturbing HEAD. Capture `pass_base=N fail_base=N` and the base failing-test list.
-4. Compute `regressions = HEAD failing tests − base failing tests`. These are new failures introduced during the phase.
-5. If `regressions` is non-empty: HALT the phase gate. Dispatch fix-implementer with the regression list. Loop until `regressions` is empty. If fix-implementer BLOCKs at upgraded model, write to deferred and halt `/fly` - do NOT silently ignore regressions.
-6. Prefix the Phase Gate Outcome with `tests_pass=N tests_fail=N regressions=0;` once the subsequent review gate fills it.
+   - Otherwise, ask user once: "What's the test command for this project? (cached for rest of this /fly run)"
+2. Run test command at HEAD. Capture `pass=N fail=N` and list of failing test names.
+3. Run same command at `<phase-first-commit>^` (phase's parent). Use detached worktree or `git stash` + `git checkout` + `git stash pop` to avoid disturbing HEAD. Capture `pass_base=N fail_base=N` and base failing-test list.
+4. Compute `regressions = HEAD failing tests − base failing tests`. These are new failures introduced during phase.
+5. If `regressions` non-empty: HALT phase gate. Dispatch fix-implementer with regression list. Loop until `regressions` empty. If fix-implementer BLOCKs at upgraded model, write to deferred and halt `/fly`. Do NOT silently ignore regressions.
+6. Prefix Phase Gate Outcome with `tests_pass=N tests_fail=N regressions=0;` once subsequent review gate fills it.
 
 ### Phase review gate
 
-After the regression check passes, run the review gate per the checklist's annotation:
+After regression check passes, run review gate per checklist's annotation:
 
 - **Normal review** (`Phase N Gate (reviewer: <model>)` with `Normal code-review on Phase N diff`):
-  1. Compute the phase diff: `git diff <phase-N-first-commit-sha>^..<phase-N-last-commit-sha>`.
-  2. Dispatch code reviewer via `code-quality-reviewer-prompt.md` template, with the phase diff as the subject.
-  3. **If admissible findings = 0, run the Null-Result Meta-Check** (see section above) BEFORE filling the Outcome slot. Only CONFIRMED allows a null Outcome.
+  1. Compute phase diff: `git diff <phase-N-first-commit-sha>^..<phase-N-last-commit-sha>`.
+  2. Dispatch code reviewer via `code-quality-reviewer-prompt.md` template, with phase diff as subject.
+  3. **If admissible findings = 0, run Null-Result Meta-Check** (see section above) BEFORE filling Outcome slot. Only CONFIRMED allows null Outcome.
   4. Fill Outcome slot with summary.
   5. If findings: same auto-fix loop as per-task reviews. Fill Resolution.
 
 - **Deep-review** (`Phase N Gate (reviewer: ...)` with `/deep-review on Phase N diff`):
 
-  `/fly` MUST actually invoke the `/deep-review` skill via the Skill tool. Paraphrasing the skill's 6-review structure into a bespoke reviewer prompt is NOT equivalent - it loses what the skill has been tuned to do (parallel Codex review, Chrome MCP UI review, rule compliance audit, simplification pass, collateral change audit, Claude's own diff analysis), and it destroys the audit trail (the user can't tell whether the real skill ran).
+  `/fly` MUST actually invoke `/deep-review` skill via Skill tool. Paraphrasing skill's 6-review structure into bespoke reviewer prompt is NOT equivalent. Loses what skill has been tuned to do (parallel Codex review, Chrome MCP UI review, rule compliance audit, simplification pass, collateral change audit, Claude's own diff analysis), and destroys audit trail (user can't tell whether real skill ran).
 
   **Dispatch pattern: subagent → Skill tool**
 
-  To keep the main `/fly` context clean, dispatch a subagent whose single job is to invoke the skill. Subagents dispatched via Task have access to the Task tool themselves, so `/deep-review`'s parallel sub-dispatches work from within the subagent.
+  To keep main `/fly` context clean, dispatch subagent whose single job is to invoke the skill. Subagents dispatched via Task have access to Task tool themselves, so `/deep-review`'s parallel sub-dispatches work from within subagent.
 
   1. Dispatch via Task tool:
      - `subagent_type`: `general-purpose`
-     - `model`: the phase gate reviewer model from the checklist (verbatim, no upgrade)
+     - `model`: phase gate reviewer model from checklist (verbatim, no upgrade)
      - `description`: `Deep-review Phase N diff`
      - `prompt`: something like:
 
@@ -750,44 +630,42 @@ After the regression check passes, run the review gate per the checklist's annot
        **Suggested fix:** ...
        ```
 
-  2. When the subagent returns, process its numbered findings list EXACTLY as in step F (classify, auto-fix critical/correctness, deferred-write everything else, reconciliation invariant). Do NOT accept a prose summary in place of enumerated findings - if the subagent returned prose, re-dispatch asking for the enumerated form.
-  3. **If normalized admissible findings = 0, run the Null-Result Meta-Check** on the normalized deep-review file BEFORE filling the Outcome slot. Only CONFIRMED allows a null Outcome.
-  4. Fill the Phase Gate Outcome using the structured format, prefixed with the regression check metrics from above:
+  2. When subagent returns, process its numbered findings list EXACTLY as in step F (classify, auto-fix critical/correctness, deferred-write everything else, reconciliation invariant). Do NOT accept prose summary in place of enumerated findings. If subagent returned prose, re-dispatch asking for enumerated form.
+  3. **If normalized admissible findings = 0, run Null-Result Meta-Check** on normalized deep-review file BEFORE filling Outcome slot. Only CONFIRMED allows null Outcome.
+  4. Fill Phase Gate Outcome using structured format, prefixed with regression check metrics:
 
          tests_pass=N tests_fail=N regressions=0; findings=N fixed=N deferred=N; <summary>
 
-  5. Note: `/deep-review` has its own auto-fix mechanism internally. If the subagent reports that certain findings were already auto-fixed inside `/deep-review`, count those in `fixed`. Findings the skill itself flagged as deferred go into `/fly`'s deferred.md (same file - don't create a separate one).
+  5. Note: `/deep-review` has own auto-fix mechanism internally. If subagent reports certain findings already auto-fixed inside `/deep-review`, count those in `fixed`. Findings skill itself flagged as deferred go into `/fly`'s deferred.md (same file, don't create separate one).
 
 ## Final Gate
 
-Final Gate runs ONLY in main (single-orchestrator mode) or in the main octopus loop AFTER all phases are `Octopus: done`. Phase-scoped fly (`--phase=N`) NEVER runs the Final Gate - main owns it.
-
-After all phases complete, check the checklist's final gate:
+After all phases complete and all per-task and phase gates have been processed, check the checklist's final gate:
 
 - If `## Final Gate: /deep-review over <scope>` exists:
-  1. Dispatch a subagent to invoke `/deep-review` via the Skill tool, same pattern as the deep-review Phase Gate above (see "Dispatch pattern: subagent → Skill tool"). Scope per the checklist annotation.
-  2. Process returned findings with the accounting invariant (`findings = fixed + deferred`). Default disposition is `[fix]`; only legitimately-defer findings go to deferred.md.
-  3. **If normalized admissible findings = 0, run the Null-Result Meta-Check** on the normalized final-gate review file BEFORE filling the Outcome slot. Only CONFIRMED allows a null Outcome.
-  4. Fill Outcome slot using the structured format: `findings=N fixed=N deferred=N; <summary>`.
-  5. Fill Resolution slot per the outcome (Fixed / deferred references / mix).
+  1. Dispatch subagent to invoke `/deep-review` via Skill tool, same pattern as deep-review Phase Gate above (see "Dispatch pattern: subagent → Skill tool"). Scope per checklist annotation.
+  2. Process returned findings with accounting invariant (`findings = fixed + deferred`). Default disposition is `[fix]`; only legitimately-defer findings go to deferred.md.
+  3. **If normalized admissible findings = 0, run Null-Result Meta-Check** on normalized final-gate review file BEFORE filling Outcome slot. Only CONFIRMED allows null Outcome.
+  4. Fill Outcome slot using structured format: `findings=N fixed=N deferred=N; <summary>`.
+  5. Fill Resolution slot per outcome (Fixed / deferred references / mix).
 
 - If `**Final gate not needed - all phases have deep-review coverage.**` exists: skip; nothing to do.
 
 ## Deferred File Handling
 
-`<plan-basename>-deferred.md` holds findings that legitimately cannot be fixed inline. **Deferred is the exception, not the default.** Default is fix-inline; deferral requires justification.
+`<plan-basename>-deferred.md` holds findings that legitimately cannot be fixed inline. **Deferred is exception, not default.** Default is fix-inline; deferral requires justification.
 
-A finding qualifies for deferral only if at least one of these applies:
+Finding qualifies for deferral only if at least one applies:
 
-1. **Needs user decision** - fix depends on product/UX semantics or architectural direction only the user can supply.
-2. **Phase-sized effort** - fix alone would consume as much time as an entire plan phase (major refactor, schema migration, large architectural change).
+1. **Needs user decision** - fix depends on product/UX semantics or architectural direction only user can supply.
+2. **Phase-sized effort** - fix alone would consume as much time as entire plan phase (major refactor, schema migration, large architectural change).
 3. **Extremely risky** - security-adjacent, data-integrity, unclear blast radius on unfamiliar code, hard-to-reverse.
 
-Also: a `[fix]` finding that fix-implementer BLOCKED on after model upgrade can legitimately defer, IF evaluation shows it actually meets one of the three criteria. A failed fix attempt on a tractable problem is not a defer - halt and surface to the user instead.
+Also: `[fix]` finding that fix-implementer BLOCKED on after model upgrade can legitimately defer, IF evaluation shows it meets one of three criteria. Failed fix attempt on tractable problem is not defer. Halt and surface to user instead.
 
-"It's just a style nit" is NOT a defer criterion. If it's worth mentioning, it's worth fixing.
+"It's just a style nit" is NOT defer criterion. If worth mentioning, worth fixing.
 
-Each finding gets its OWN `§N` entry. Format:
+Each finding gets OWN `§N` entry. Format:
 
 ```markdown
 # Deferred Items: <feature>
@@ -803,56 +681,48 @@ Each finding gets its OWN `§N` entry. Format:
 **Suggested fix:** <from reviewer's output>
 ```
 
-When writing a deferred item:
-1. Assign the next available `§N`.
-2. Include priority in the heading.
-3. Update the Resolution slot in the checklist: `Action: Deferred to <plan-basename>-deferred.md §N`.
+When writing deferred item:
+1. Assign next available `§N`.
+2. Include priority in heading.
+3. Update Resolution slot in checklist: `Action: Deferred to <plan-basename>-deferred.md §N`.
 
-If the deferred file doesn't exist yet, create it with the header before appending `§1`.
+If deferred file doesn't exist yet, create it with header before appending `§1`.
 
-**Watch your defer rate.** If you find yourself writing more than 1-2 defer entries per review, pause: either the reviewer is mis-disposing findings (re-dispatch to re-evaluate), or the task genuinely needs the user's attention (halt `/fly` and surface to the user instead of accumulating defers silently).
+**Watch defer rate.** If writing more than 1-2 defer entries per review, pause: either reviewer is mis-disposing findings (re-dispatch), or task genuinely needs user's attention (halt `/fly` and surface instead of accumulating defers silently).
 
 ## Final Verification
 
-Final Verification runs ONLY in main (single-orchestrator mode) or in the main octopus loop AFTER all phases are `Octopus: done` and the Final Gate is processed. Phase-scoped fly (`--phase=N`) NEVER runs the Final Verification sweep - main owns it.
+After all tasks, phase gates, and final gate have been processed, run the verification block at the bottom of the checklist. Tick each item by actually verifying:
 
-After all tasks, phase gates, and final gate are processed, run the verification block at the bottom of the checklist. Tick each item by actually verifying:
-
-- **All plan-step and [INJECTED] checkboxes ticked:** grep the checklist for `- \[ \]` occurrences before the verification block. Should find none. If any found, halt: "Task <X> step <N> not ticked - did the implementer actually complete it?"
+- **All plan-step and [INJECTED] checkboxes ticked:** grep checklist for `- \[ \]` occurrences before verification block. Should find none. If any found, halt: "Task <X> step <N> not ticked - did the implementer actually complete it?"
 
 - **All SHA slots filled:** grep for `SHA: \`<fill>\``. Should find none.
 
 - **All Outcome slots filled (non-`<fill>`):** grep for `Outcome: \`<fill>\``. Should find none.
 
-- **Outcome slots use structured format:** grep for `Outcome: \`` lines that do NOT contain `findings=`. Should find none. Prose-only Outcomes without the `findings=N fixed=N deferred=N` prefix fail verification.
+- **Outcome slots use structured format:** grep for `Outcome: \`` lines that do NOT contain `findings=`. Should find none. Prose-only Outcomes without `findings=N fixed=N deferred=N` prefix fail verification.
 
-- **Outcome slots reference a review artifact:** every Outcome must contain a `review: <path>` token. Grep for `findings=` lines missing `review:`. Should find none.
+- **Outcome slots reference review artifact:** every Outcome must contain `review: <path>` token. Grep for `findings=` lines missing `review:`. Should find none.
 
-- **Review artifact files exist:** for every `review: <path>` token, check that `<path>` resolves to an existing file that is non-trivial (>500 bytes or contains at least one `### Finding` header or an explicit `No issues.` line).
+- **Review artifact files exist:** for every `review: <path>` token, check `<path>` resolves to existing file that is non-trivial (>500 bytes or contains at least one `### Finding` header or explicit `No issues.` line).
 
-- **Review file mtime after task commit:** for per-task reviews, `stat <review-file>` mtime must be AFTER the commit SHA's timestamp. If earlier, the file predates the code and cannot be a review of it.
+- **Review file mtime after task commit:** for per-task reviews, `stat <review-file>` mtime must be AFTER commit SHA's timestamp. If earlier, file predates code and cannot be review of it.
 
-- **Findings count matches review file:** for every Outcome, `grep -c "^### Finding " <review-path>` must equal the Outcome's `findings=N` value. Mismatch = silent finding loss.
+- **Findings count matches review file:** for every Outcome, `grep -c "^### Finding " <review-path>` must equal Outcome's `findings=N` value. Mismatch = silent finding loss.
 
 - **Findings accounting invariant:** `findings == fixed + deferred`. Halt on mismatch.
 
-- **Fabrication-pattern scan:** count `findings=0` Outcomes across the checklist. If the ratio exceeds 50% of all reviews, warn the user: "High rate of 'no issues' reviews - please spot-check review files."
+- **Fabrication-pattern scan:** count `findings=0` Outcomes across checklist. If ratio exceeds 50% of all reviews, warn user: "High rate of 'no issues' reviews - please spot-check review files."
 
-- **Phase Gate Outcomes contain regression-check prefix:** each phase's Outcome must start with `tests_pass=N tests_fail=N regressions=0;`. Any phase missing this prefix means the Phase regression check was skipped - halt and fail.
+- **Phase Gate Outcomes contain regression-check prefix:** each phase's Outcome must start with `tests_pass=N tests_fail=N regressions=0;`. Any phase missing this prefix means Phase regression check was skipped. Halt and fail.
 
 - **All Resolution slots filled (non-empty, not "ignored"/"skipped"):** grep for `Action: \`<fill>\`` or `Action: \`ignored\`` or `Action: \`skipped\``. Should find none.
 
-- **Deep-review invariant satisfied:** confirm that every task's commit SHA is in the scope of at least one deep-review Outcome that's non-`<fill>` (i.e., actually ran). If a task's commits aren't covered by any deep-review scope, halt: "Task <X> not covered by a deep-review - invariant violated."
+- **Deep-review invariant satisfied:** confirm every task's commit SHA is in scope of at least one deep-review Outcome that's non-`<fill>` (i.e., actually ran). If task's commits aren't covered by any deep-review scope, halt: "Task <X> not covered by a deep-review - invariant violated."
 
-- **If `<plan-basename>-deferred.md` exists, surface contents to user:** read the file and include its full contents in the final report. Explicitly tell the user "deferred items need manual review before shipping."
+- **If `<plan-basename>-deferred.md` exists, surface contents to user:** read file and include full contents in final report. Explicitly tell user "deferred items need manual review before shipping."
 
-- **(Octopus mode only) All phases marked `Octopus: done`:** the checklist's Fly Verification block in octopus mode has an additional line:
-
-      - [ ] All phases marked `Octopus: done`
-
-  Tick this box only after grepping the checklist and confirming no `Octopus: pending` or `Octopus: in-flight:` remains. Any surviving non-`done` status means a phase didn't complete - halt and report which phases are still pending/in-flight. Single-orchestrator checklists do not contain this line; skip the check.
-
-Tick each verification checkbox only after confirming the condition.
+Tick each verification checkbox only after confirming condition.
 
 ## Completion
 
@@ -867,43 +737,43 @@ After final verification passes:
 
 | Excuse | Reality |
 |--------|---------|
-| "This task is trivial, no review needed" | The checklist has review gate checkboxes for every task. Skipping violates the contract. |
-| "I already did the spec review conceptually" | The Outcome slot requires a written summary. Mental review doesn't fill the slot. |
+| "This task is trivial, no review needed" | Checklist has review gate checkboxes for every task. Skipping violates contract. |
+| "I already did the spec review conceptually" | Outcome slot requires written summary. Mental review doesn't fill slot. |
 | "Finding is minor, skip it" | Resolution slot MUST be filled. Valid Actions: Fixed / FIXME / Deferred. Not "ignored", not "skipped", not empty. |
 | "Fix-implementer reported BLOCKED, move on" | Upgrade model one tier and retry FIRST. If still BLOCKED, write to `-deferred.md`. Never silent skip. |
-| "Context pressure, let me batch some tasks myself" | Batching is preflight's decision, encoded in the checklist. Do NOT invent new batches at execution time. |
-| "Running the review feels redundant, code looks fine" | "Looks fine" is not a review. Dispatch the reviewer subagent. Fill the slot. |
-| "The plan doesn't have TDD steps, so I'll skip TDD" | Either the checklist has `[INJECTED]` TDD steps, OR the implementer dispatch has a TDD override instruction. Do TDD. |
-| "I'll fix all review findings at the end in one batch" | Each review's Resolution must be filled before moving to the next gate. No accumulating findings across gates. |
+| "Context pressure, let me batch some tasks myself" | Batching is preflight's decision, encoded in checklist. Do NOT invent new batches at execution time. |
+| "Running the review feels redundant, code looks fine" | "Looks fine" is not review. Dispatch reviewer subagent. Fill slot. |
+| "The plan doesn't have TDD steps, so I'll skip TDD" | Either checklist has `[INJECTED]` TDD steps, OR implementer dispatch has TDD override instruction. Do TDD. |
+| "I'll fix all review findings at the end in one batch" | Each review's Resolution must be filled before moving to next gate. No accumulating findings across gates. |
 | "Verification block is just a formality" | Verification catches tasks you forgot. Tick each box only after actually verifying its condition (grep for unticked boxes, check SHA slots aren't `<fill>`, etc.). |
-| "Deep-review on this phase is slow, let me skip" | Preflight decided which phases get deep-review to satisfy the invariant. Skipping breaks the invariant. |
-| "The implementer's summary says it's good, reviewer can skim" | The summary is UNTRUSTED. Reviewer must read the `## Actual Diff` independently. Dispatching a reviewer with only the summary is reviewer priming. |
+| "Deep-review on this phase is slow, let me skip" | Preflight decided which phases get deep-review to satisfy invariant. Skipping breaks it. |
+| "The implementer's summary says it's good, reviewer can skim" | Summary is UNTRUSTED. Reviewer must read `## Actual Diff` independently. Dispatching reviewer with only summary is reviewer priming. |
 | "I'll just write 'Looks good' in the Outcome slot" | Outcome needs `findings=N fixed=N deferred=N`. Prose-only fails Final Verification. If you didn't count, you didn't review. |
 | "Reviewer returned findings without file:line, I'll act on them anyway" | Inadmissible. Fabricated findings without citations waste fix cycles. Discard, log `inadmissible=N`, move on. |
 | "Auto-fixing this style nit won't hurt" | Only `[critical]` / `[correctness]` auto-fix. Style/cosmetic amplifies fabricated-finding waste. Log and move on. |
-| "That test was probably failing on main anyway" | Phase regression check: run the suite at the phase base commit. Assertion without running is gaslighting. |
-| "This task looks harder than sonnet, let me use opus to be safe" | NO. The checklist is the contract. If you think the model is wrong, HALT and ask the user to edit the checklist. Silent upgrades destroy the audit trail - the checklist says sonnet, the dispatch log says opus, reality becomes un-reproducible. |
-| "Opus is better, it won't hurt to upgrade" | Cost and audit: opus costs more, and "we used sonnet" becomes a lie when checklist-vs-dispatch drift. Preflight picked sonnet for a reason. Respect the decision or surface the disagreement to the user. |
-| "I'll use opus for the reviewer because this code is tricky" | Same rule. Reviewer model is in the checklist. Upgrading silently also primes the review outcome (opus reviews differ from sonnet reviews) and defeats preflight's per-gate assignment. |
-| "Defaulting to opus is fine for everything" | It is NOT fine. Preflight assigned per-task models to balance cost, latency, and appropriate rigor. A fly run that always uses opus has ignored the checklist. |
-| "Reviewer returned 20 findings, let me consolidate the main ones" | NO. Every admissible finding gets processed by number. Consolidation into prose loses detail. Fix it or defer it (with a valid defer reason). |
-| "This cosmetic finding can wait for a hygiene pass" | NO. Default disposition is [fix]. Cosmetic nits compound into quality drift, and later tasks copy the smell. Fix it now. Cheaper overall than whack-a-mole later. |
-| "Let me defer this 5-minute extract-helper refactor" | Extract-helper refactors are part of healthy implementation, not a separate track. Only defer if fix is phase-sized, needs user decision, or is extremely risky. |
-| "Let me paraphrase /deep-review's structure into a subagent prompt instead of invoking the skill" | NO. Paraphrasing destroys the skill's tuned behavior (parallel Codex review, Chrome MCP UI review, etc.) and destroys the audit trail. Dispatch a subagent that invokes the skill via Skill tool. |
+| "That test was probably failing on main anyway" | Phase regression check: run suite at phase base commit. Assertion without running is gaslighting. |
+| "This task looks harder than sonnet, let me use opus to be safe" | NO. Checklist is contract. If model is wrong, HALT and ask user to edit checklist. Silent upgrades destroy audit trail. Checklist says sonnet, dispatch log says opus, reality becomes un-reproducible. |
+| "Opus is better, it won't hurt to upgrade" | Cost and audit: opus costs more, and "we used sonnet" becomes lie when checklist-vs-dispatch drift. Preflight picked sonnet for reason. Respect decision or surface disagreement to user. |
+| "I'll use opus for the reviewer because this code is tricky" | Same rule. Reviewer model is in checklist. Upgrading silently primes review outcome (opus reviews differ from sonnet reviews) and defeats preflight's per-gate assignment. |
+| "Defaulting to opus is fine for everything" | NOT fine. Preflight assigned per-task models to balance cost, latency, appropriate rigor. Fly run that always uses opus has ignored checklist. |
+| "Reviewer returned 20 findings, let me consolidate the main ones" | NO. Every admissible finding processed by number. Consolidation into prose loses detail. Fix it or defer it (with valid defer reason). |
+| "This cosmetic finding can wait for a hygiene pass" | NO. Default disposition is [fix]. Cosmetic nits compound into quality drift; later tasks copy the smell. Fix now. Cheaper than whack-a-mole later. |
+| "Let me defer this 5-minute extract-helper refactor" | Extract-helper refactors are part of healthy implementation, not separate track. Only defer if fix is phase-sized, needs user decision, or extremely risky. |
+| "Let me paraphrase /deep-review's structure into a subagent prompt instead of invoking the skill" | NO. Paraphrasing destroys skill's tuned behavior (parallel Codex review, Chrome MCP UI review, etc.) and destroys audit trail. Dispatch subagent that invokes skill via Skill tool. |
 | "The reviewer tagged this [minor] so I won't bother" | Priority doesn't gate fix; disposition does. If it's [fix], fix it regardless of priority. |
 | "findings = 10, fixed = 2, deferred = 0, let me note '8 style findings' in the summary" | INVARIANT VIOLATION: findings = fixed + deferred. 8 findings disappeared. Halt. |
-| "The reviewer tagged this [defer] so I'll defer it" | Check the "Why defer" reason. If it doesn't cite one of the 3 criteria (user decision / phase-sized / extremely risky), reject and re-dispatch - the reviewer misdisposed. |
-| "Most of these should defer because they're out of scope" | If the reviewer is producing a high defer rate, the reviewer is wrong or the task scope is wrong. Re-dispatch or halt. Silent acceptance of mass-defer defeats the fix-inline principle. |
-| "Phase subagent's receipt says done, skip reconciliation" | Reconciliation is the integrity gate. Receipt is a breadcrumb, not evidence. Grep the slice. |
-| "Phase subagent returned but slot X is still `<fill>`, close enough" | That's a reconciliation failure. Re-dispatch. No drift. |
-| "Main is busy; reuse prior phase's receipt" | No. Each phase has its own dispatch, receipt, reconciliation. |
-| "findings=0, skip meta-check, just write 'No issues.' to the review file and the Outcome" | NO. findings=0 MANDATES the Null-Result Meta-Check. Writing a rubber-stamp review file without dispatching a real reviewer is the exact fabrication vector the meta-check exists to catch. Dispatch haiku meta-verifier. |
-| "I read the diff myself, it's clearly fine, no need for a real reviewer" | Your read is not a reviewer dispatch. The review artifact file must exist and must be produced by a dispatched reviewer subagent. Orchestrator inspection is not a substitute. |
-| "Meta-verifier said SUSPICIOUS but I'm sure the review was fine" | SUSPICIOUS triggers re-dispatch of the REAL reviewer. Override attempts destroy the contract. Re-dispatch, or HALT and surface to user. |
+| "The reviewer tagged this [defer] so I'll defer it" | Check "Why defer" reason. If doesn't cite one of 3 criteria (user decision / phase-sized / extremely risky), reject and re-dispatch. Reviewer misdisposed. |
+| "Most of these should defer because they're out of scope" | If reviewer is producing high defer rate, reviewer is wrong or task scope is wrong. Re-dispatch or halt. Silent acceptance of mass-defer defeats fix-inline principle. |
+| "findings=0, skip meta-check, just write 'No issues.' to the review file and the Outcome" | NO. findings=0 MANDATES Null-Result Meta-Check. Writing rubber-stamp review file without dispatching real reviewer is exact fabrication vector meta-check exists to catch. Dispatch haiku meta-verifier. |
+| "I read the diff myself, it's clearly fine, no need for a real reviewer" | Your read is not reviewer dispatch. Review artifact file must exist and must be produced by dispatched reviewer subagent. Orchestrator inspection is not substitute. |
+| "Meta-verifier said SUSPICIOUS but I'm sure the review was fine" | SUSPICIOUS triggers re-dispatch of REAL reviewer. Override attempts destroy contract. Re-dispatch, or HALT and surface to user. |
+| "findings=0, skip the integrity gate, I just filled the slot and it's fine" | NO. The integrity gate is mandatory after every task. It reads CC's subagent transcript to verify the reviewer actually ran. Self-report is not proof. |
+| "I already read the skill, re-reading at task 10 is a waste" | The re-read is a structural reminder, not a literal test. Its purpose is to refresh compressed rules before late-session drift sets in. Do it. |
+| "The integrity gate HALTed but I'm sure the review was real, let me just continue" | HALT means the evidence doesn't support your claim. Do not override. Surface to user. |
 
 ## Red Flags - STOP
 
-If you catch yourself thinking any of these, STOP and re-read the Rationalization Table:
+If you catch yourself thinking any of these, STOP and re-read Rationalization Table:
 
 - "Just this one review can be skipped"
 - "The finding is so minor it's not worth fixing"
@@ -925,20 +795,32 @@ If you catch yourself thinking any of these, STOP and re-read the Rationalizatio
 - "Invoking /deep-review as a full skill is heavy, let me just replicate its prompts"
 - "The reviewer tagged [defer] so I'll defer it" (without checking the defer reason)
 - "The task said use sonnet but haiku will be fine" (downgrade drift is as bad as upgrade drift)
-- "Phase subagent said done, reconciliation is just a formality" (reconciliation is the gate; grep the slice)
-- "Just flip this phase to Octopus: done without running reconciliation first"
-- "Session cap is a soft limit, one more phase won't hurt"
-- "This phase's coordinator model looks weak, let me upgrade it" (same rule as task/reviewer models - HALT and ask, don't drift)
 - "findings=0, I'll just write the review file myself and skip the meta-check"
 - "Writing 'No issues.' to the file is basically the same as dispatching a reviewer"
 - "Meta-verifier is SUSPICIOUS but I trust the original review, overriding"
+- "findings=0, skip the integrity gate, I just filled the slot and it's fine"
+- "Re-reading SKILL.md at task 10 is unnecessary since I already read it"
+- "Integrity gate HALTed but I'm sure the work is fine; override and continue"
 
 **All of these mean: you are about to violate the checklist contract. Do the work.**
 
 ## The Iron Rule
 
-**The checklist is the contract. Every checkbox must be ticked by verifying its condition. Every slot must be filled with actual content. No exceptions, no rationalizations.**
+Every slot value traces to a specific tool call. If you cannot point to
+the Task, Write, Edit, or Bash call that produced it, the slot is unfilled
+and the work is incomplete.
 
-If `/fly` completes without every box ticked and every slot filled, the final verification will catch the gap and halt. Do not try to work around the verification - fix the missing work. The verification exists because commitment contracts only hold when they're enforced.
+- Every `SHA:` slot traces to an implementer subagent's report.
+- Every `Outcome:` slot traces to a review file on disk that a
+  **dispatched reviewer subagent** wrote. The `review:` token names the
+  file; the file's mtime is after the commit SHA timestamp; the file's
+  YAML `commit-sha` matches.
+- Every `Resolution:` slot traces to either a fix-implementer subagent's
+  commit, a FIXME in source, or a `<plan>-deferred.md` section.
 
-If you genuinely believe a step is wrong or impossible, surface the issue explicitly to the user. Do not silently skip.
+Mental review is not a review. A reviewer is a Task dispatch that returns
+and writes a file. If no Task dispatch happened, no review happened.
+
+The per-task integrity gate (invoking `integrity-check.sh`) enforces this
+mechanically after every task. The final verification sweep enforces it
+structurally at the end. Both must pass before `/fly` exits successfully.
