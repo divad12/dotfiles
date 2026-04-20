@@ -313,8 +313,12 @@ Dropped from earlier designs:
 
 ## Implementation Notes
 
-- Script: `.claude/skills/fly/integrity-check.sh` (already written alongside this spec).
-- Skills updated: `.claude/skills/preflight/SKILL.md` (multi-file split logic), `.claude/skills/fly/SKILL.md` (integrity gate + re-read + reworded rule, all octopus content deleted).
+- Four consolidation scripts at `.claude/skills/fly/` drop orchestrator context burn by replacing many inline Bash/Edit tool calls with single invocations whose output is a structured one-line PASS/HALT/ERROR:
+  - `integrity-check.sh <task-id> <plan-dir> <task-sha>` - per-task drift defense (subagent-transcript check + review-file gates).
+  - `final-verify.sh <checklist-path>` - end-of-run verification sweep. Replaces ~15 grep/stat calls with one.
+  - `phase-regression.sh <phase-base-sha> <phase-head-sha>` - phase gate regression check. Detects test command (cached in `.fly-test-cmd`), runs at base + HEAD via `git worktree add`, reports regressions. Replaces ~5 calls per phase.
+  - `tick-steps.sh <checklist-path> <task-id> <step-nums-csv>` - bulk-tick plan-step checkboxes in one `sed` pass instead of N Edit calls.
+- Skills updated: `.claude/skills/preflight/SKILL.md` (multi-file split logic), `.claude/skills/fly/SKILL.md` (integrity gate + re-read + reworded rule + script invocations for final-verify, phase-regression, tick-steps; all octopus content deleted).
 - Test fixtures under `.claude/skills/preflight/tests/expected/` may contain stale `- Octopus: deferred` lines from the 2026-04-17 era; regenerate if running tests.
 
 ## Next Steps

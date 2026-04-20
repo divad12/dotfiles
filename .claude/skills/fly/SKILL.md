@@ -130,8 +130,21 @@ Walk the checklist's tasks in order. For each task:
 
 ### C. Tick plan-step checkboxes
 
-As the implementer reports completed steps, edit the checklist file to tick the corresponding checkboxes:
-- Change `- [ ] Step 1: ...` to `- [x] Step 1: ...`
+Once the implementer reports all completed steps, tick them in one
+batched bash invocation instead of N individual Edit calls:
+
+    bash <path-to-tick-steps.sh> <checklist-path> <task-id> <comma-separated-step-numbers>
+
+Example: if the implementer completed steps 1, 2, 3, 4 of Task 3.2:
+
+    bash ~/.claude/skills/fly/tick-steps.sh docs/specs/plans/2026-04-18-feature-checklist.md 3.2 1,2,3,4
+
+Script output: `OK <N checkboxes ticked>` on success, `ERROR <reason>`
+on failure. On ERROR, do NOT proceed to step D; halt and surface.
+
+Rationale: N Edit calls per task (one per step) bloat orchestrator
+context unnecessarily when the operation is mechanical find-and-replace.
+The script handles all steps in one `sed` pass.
 
 ### D. Fill commit SHA slot
 
@@ -570,17 +583,30 @@ After all tasks in phase complete (all per-task slots filled):
 
 Per-task TDD catches regressions inside each task's scope. Phase regression check catches regressions task-level tests didn't cover (unrelated tests newly broken, integration failures, etc.). Also defangs "it was a pre-existing failure" gaslighting: pre-existing = proven by running test at base commit, not asserted.
 
-1. Detect project's test command once per `/fly` run (cache the answer):
-   - `package.json` `scripts.test` → use it.
-   - `pyproject.toml` / `pytest.ini` → `pytest`.
-   - `Cargo.toml` → `cargo test`.
-   - `go.mod` → `go test ./...`.
-   - Otherwise, ask user once: "What's the test command for this project? (cached for rest of this /fly run)"
-2. Run test command at HEAD. Capture `pass=N fail=N` and list of failing test names.
-3. Run same command at `<phase-first-commit>^` (phase's parent). Use detached worktree or `git stash` + `git checkout` + `git stash pop` to avoid disturbing HEAD. Capture `pass_base=N fail_base=N` and base failing-test list.
-4. Compute `regressions = HEAD failing tests − base failing tests`. These are new failures introduced during phase.
-5. If `regressions` non-empty: HALT phase gate. Dispatch fix-implementer with regression list. Loop until `regressions` empty. If fix-implementer BLOCKs at upgraded model, write to deferred and halt `/fly`. Do NOT silently ignore regressions.
-6. Prefix Phase Gate Outcome with `tests_pass=N tests_fail=N regressions=0;` once subsequent review gate fills it.
+1. Invoke the regression script:
+
+     bash <path-to-phase-regression.sh> <phase-first-commit-sha>^ <phase-last-commit-sha>
+
+   (The caret `^` on the base SHA expands to its parent in the script's git
+   invocations.) Resolve the script path the same way as integrity-check.sh
+   (primary path `~/.claude/skills/fly/phase-regression.sh`, fall back to
+   Glob if installed under a plugin cache).
+
+2. Parse the single-line output:
+
+     tests_pass=N tests_fail=N regressions=K | <test1> | <test2> | ...
+
+   - If regressions=0: phase gate may proceed. Cache the `tests_pass=N
+     tests_fail=N regressions=0;` prefix - it MUST prefix this phase's
+     gate Outcome slot when it gets filled below.
+   - If regressions>0: HALT the phase gate. Dispatch a fix-implementer
+     with the regression list. After fix-implementer returns, re-run the
+     regression script. Loop until regressions=0. If fix-implementer
+     BLOCKs at upgraded model after 2 tries, write to deferred.md AND
+     halt `/fly` - do NOT silently ignore regressions.
+
+3. Prefix the Phase Gate Outcome with the `tests_pass=N tests_fail=N
+   regressions=0;` token when the review gate below fills it.
 
 ### Phase review gate
 
@@ -692,37 +718,33 @@ If deferred file doesn't exist yet, create it with header before appending `§1`
 
 ## Final Verification
 
-After all tasks, phase gates, and final gate have been processed, run the verification block at the bottom of the checklist. Tick each item by actually verifying:
+After all tasks, phase gates, and final gate are processed, run the
+verification block at the bottom of the checklist. Verification is
+performed by a single bash script invocation:
 
-- **All plan-step and [INJECTED] checkboxes ticked:** grep checklist for `- \[ \]` occurrences before verification block. Should find none. If any found, halt: "Task <X> step <N> not ticked - did the implementer actually complete it?"
+    bash <path-to-final-verify.sh> <checklist-path>
 
-- **All SHA slots filled:** grep for `SHA: \`<fill>\``. Should find none.
+Resolve the script path the same way as integrity-check.sh (primary path
+`~/.claude/skills/fly/final-verify.sh`, fall back to Glob if installed
+under a plugin cache). Invoke via a single Bash tool call.
 
-- **All Outcome slots filled (non-`<fill>`):** grep for `Outcome: \`<fill>\``. Should find none.
+Script output:
 
-- **Outcome slots use structured format:** grep for `Outcome: \`` lines that do NOT contain `findings=`. Should find none. Prose-only Outcomes without `findings=N fixed=N deferred=N` prefix fail verification.
+- `PASS` on success: all checks passed. Proceed to tick each verification
+  checkbox in the checklist (via Edit) and emit the Completion message.
+- `HALT: <summary>` on failure: the preceding lines enumerate specific
+  failures (unticked boxes, unfilled slots, mismatched findings counts,
+  missing phase-gate regression prefix, etc.). Do NOT tick verification
+  checkboxes. Surface the full failure list to the user.
+- `WARN: ...` lines are soft signals (e.g., fabrication-pattern rate
+  exceeded). Surface to the user but do not HALT.
+- `DEFERRED:` block contains the full `<plan>-deferred.md` contents;
+  surface to the user as "deferred items need manual review before
+  shipping."
 
-- **Outcome slots reference review artifact:** every Outcome must contain `review: <path>` token. Grep for `findings=` lines missing `review:`. Should find none.
-
-- **Review artifact files exist:** for every `review: <path>` token, check `<path>` resolves to existing file that is non-trivial (>500 bytes or contains at least one `### Finding` header or explicit `No issues.` line).
-
-- **Review file mtime after task commit:** for per-task reviews, `stat <review-file>` mtime must be AFTER commit SHA's timestamp. If earlier, file predates code and cannot be review of it.
-
-- **Findings count matches review file:** for every Outcome, `grep -c "^### Finding " <review-path>` must equal Outcome's `findings=N` value. Mismatch = silent finding loss.
-
-- **Findings accounting invariant:** `findings == fixed + deferred`. Halt on mismatch.
-
-- **Fabrication-pattern scan:** count `findings=0` Outcomes across checklist. If ratio exceeds 50% of all reviews, warn user: "High rate of 'no issues' reviews - please spot-check review files."
-
-- **Phase Gate Outcomes contain regression-check prefix:** each phase's Outcome must start with `tests_pass=N tests_fail=N regressions=0;`. Any phase missing this prefix means Phase regression check was skipped. Halt and fail.
-
-- **All Resolution slots filled (non-empty, not "ignored"/"skipped"):** grep for `Action: \`<fill>\`` or `Action: \`ignored\`` or `Action: \`skipped\``. Should find none.
-
-- **Deep-review invariant satisfied:** confirm every task's commit SHA is in scope of at least one deep-review Outcome that's non-`<fill>` (i.e., actually ran). If task's commits aren't covered by any deep-review scope, halt: "Task <X> not covered by a deep-review - invariant violated."
-
-- **If `<plan-basename>-deferred.md` exists, surface contents to user:** read file and include full contents in final report. Explicitly tell user "deferred items need manual review before shipping."
-
-Tick each verification checkbox only after confirming condition.
+The previous bulleted list of individual checks is preserved in the
+script itself for maintainers; fly's job here is to invoke, parse, and
+react.
 
 ## Completion
 
