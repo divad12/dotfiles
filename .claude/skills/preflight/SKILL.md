@@ -91,19 +91,24 @@ Upgrade rule of thumb: reviewer model sits one tier above the implementer model 
 
 ### Phase review gate
 
-- `normal` - dispatch code-reviewer over the phase diff.
-- `deep-review` - run `/deep-review` over the phase diff (for large or complex phases).
+- `deep-review` (DEFAULT) - run `/deep-review` over the phase diff. Deep-review happens right after the phase completes while context is fresh and fixes are cheap. This is the default for all phases.
+- `normal` - dispatch code-reviewer over the phase diff. Only for trivially small phases (see downgrade rule below).
+
+**Downgrade rule:** a phase may use `normal` review instead of `/deep-review` only if ALL of:
+  - Phase has <= 3 tasks.
+  - All tasks in the phase are haiku-tier.
+  - Phase scope is single-concern (1-2 files, no cross-cutting changes).
+
+If any condition fails, the phase gets `/deep-review`. When in doubt, default to `/deep-review`.
 
 ### Final review gate
 
-- `deep-review` - covers phases that only had normal review.
-- `not needed` - skipped if every phase already had deep-review coverage.
+- `deep-review` - covers phases that only had normal review (i.e., phases that were downgraded by the rule above).
+- `not needed` - skipped if every phase already has `/deep-review` coverage. This is the common case with the default-deep rule.
 
 ### Deep-review coverage invariant
 
-**Every task's code must be in at least one deep-review scope before shipping.** Preflight picks the combination of (per-phase deep-review + final deep-review) that satisfies this.
-
-**Overwhelm rule:** if total tasks exceed the overwhelm threshold (default: 40), a single final deep-review over all phases is too large a scope for reliable auto-fix. In that case, assign per-phase deep-review to every phase and skip the final gate.
+**Every task's code must be in at least one deep-review scope before shipping.** With the default-deep rule, most plans satisfy this automatically (every phase is deep-reviewed, no final gate needed). Final gate is only required when a phase was downgraded to normal review.
 
 ### Multi-file split logic
 
@@ -145,7 +150,6 @@ The plan file is never modified. The injection lives only in the checklist. `/fl
 All thresholds are tunable by editing constants in this skill:
 
 - Phase threshold (when to force phase batching): 15 tasks
-- Overwhelm threshold (when a single final deep-review is too large): 40 tasks
 - Max batch size: 3 tasks
 - Per-file task cap: `single_file_cap = 20` (see Tunable Constants)
 
@@ -169,8 +173,8 @@ Apply the decision logic in "Decisions Preflight Makes" to the parsed plan:
 2. **Per-task model** - read each task's text and classify into haiku/sonnet/opus.
 3. **Review policy** - default `standard`; mark adjacent trivial tasks as `batched-with <neighbors>` (max batch size 3).
 4. **Reviewer models per gate** - apply defaults with per-task upgrades.
-5. **Phase review gates** - choose `normal` or `deep-review` per phase based on phase size/complexity.
-6. **Final review gate** - compute from invariant: needed unless every phase already has deep-review coverage, OR skipped if total tasks > overwhelm threshold (then every phase gets its own deep-review).
+5. **Phase review gates** - default `/deep-review` for every phase. Downgrade to `normal` only for trivially small phases (<=3 haiku tasks, single-concern). See "Phase review gate" for the downgrade rule.
+6. **Final review gate** - needed only if any phase was downgraded to normal (rare with default-deep). Skipped when all phases have `/deep-review` coverage (the common case).
 7. **TDD audit** - for each task, check for failing-test steps; mark tasks needing injection.
 8. **Multi-file split** - if total task count > `single_file_cap`, compute `K` and allocate phases/tasks to files 1..K per the splitting rules.
 
