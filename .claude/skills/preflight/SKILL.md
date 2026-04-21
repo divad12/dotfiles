@@ -33,15 +33,46 @@ Assumes 1M-context opus per session (see note above).
 
 ## Input
 
-Path to plan file (typically `docs/specs/plans/YYYY-MM-DD-<feature>.md`). Works on any markdown plan with task and phase sections.
+Path to plan file. Preferred location: `docs/specs/YYYY-MM-DD-<feature>/plan.md`. Works on any markdown plan with task and phase sections, regardless of where it lives.
+
+## Feature folder convention
+
+All artifacts for a feature live in one folder: `docs/specs/YYYY-MM-DD-<feature>/`
+
+```
+docs/specs/2026-04-18-whatsapp-connector/
+  design.md              (spec from brainstorming)
+  plan.md                (plan from writing-plans)
+  checklist.md           (preflight output; or checklist-1.md, -2.md for splits)
+  deferred.md            (created by fly if findings deferred)
+  reviews/               (review artifact files from fly)
+    task-1.1-spec.md
+    task-1.1-code.md
+    phase-1-gate.md
+    ...
+```
+
+## Auto-relocate on entry
+
+If the plan file is NOT already inside a feature folder (e.g., it's at `docs/specs/plans/2026-04-18-feature.md` from an older convention), preflight:
+
+1. Derives the feature folder: `docs/specs/YYYY-MM-DD-<feature>/` from the plan's filename.
+2. Creates the folder if it doesn't exist.
+3. Moves the plan file into it as `plan.md`.
+4. If a sibling `design.md` or `*-design.md` exists in the old location with a matching date-feature prefix, moves it too as `design.md`.
+5. Prints: `Relocated plan to <new-path>. Feature folder: <folder>.`
+6. Continues with the relocated path.
+
+If the plan is already at `<feature-folder>/plan.md` (or any path inside a feature folder), skip relocation.
 
 ## Output
 
-1. One or more sibling checklist files:
-   - If total tasks <= `single_file_cap`: a single file `<plan-dir>/<plan-basename>-checklist.md`.
-   - If total tasks > `single_file_cap`: `K = ceil(total_tasks / single_file_cap)` files named `<plan-dir>/<plan-basename>-checklist-1.md`, `-checklist-2.md`, ..., `-checklist-K.md`.
-2. Original plan is untouched (audit trail).
-3. Terminal summary printed at end (see "Terminal Summary" section below).
+1. Checklist files inside the feature folder:
+   - If total tasks <= `single_file_cap`: `<feature-folder>/checklist.md`.
+   - If total tasks > `single_file_cap`: `<feature-folder>/checklist-1.md`, `checklist-2.md`, ..., `checklist-K.md`.
+2. Creates `<feature-folder>/reviews/` directory (fly writes review artifacts here).
+3. Original plan is untouched (audit trail).
+4. Terminal summary printed at end (see "Terminal Summary" section below).
 
 ## Overwrite Behavior
 
@@ -113,11 +144,11 @@ If any condition fails, the phase gets `/deep-review`. When in doubt, default to
 ### Multi-file split logic
 
 If `total_task_count <= single_file_cap`:
-- Write ONE checklist file: `<plan-dir>/<plan-basename>-checklist.md` (format below).
+- Write ONE checklist file: `<feature-folder>/checklist.md` (format below).
 
 If `total_task_count > single_file_cap`:
 - Compute `K = ceil(total_task_count / single_file_cap)`.
-- Split into `K` files named `<plan-dir>/<plan-basename>-checklist-1.md` ... `-checklist-K.md`.
+- Split into `K` files named `<feature-folder>/checklist-1.md` ... `checklist-K.md`.
 - Splitting rules:
   1. **Respect plan phase boundaries where possible.** Never split a phase across two files if the whole phase fits within `single_file_cap`.
   2. **Phase larger than the cap.** If a single phase exceeds `single_file_cap` on its own, split it at task boundaries (sequential order). Emit a warning in the terminal summary: `Phase <N> (<T> tasks) exceeds single_file_cap <cap>; split at task boundaries across files <a>-<b>.`
@@ -182,11 +213,12 @@ Apply the decision logic in "Decisions Preflight Makes" to the parsed plan:
 
 Compute output path(s):
 
-- Single-file case: `<plan-dir>/<plan-basename>-checklist.md`.
-- Split case: `<plan-dir>/<plan-basename>-checklist-1.md` ... `-checklist-K.md`.
+- Single-file case: `<feature-folder>/checklist.md`.
+- Split case: `<feature-folder>/checklist-1.md` ... `checklist-K.md`.
 
 Examples:
-- `docs/specs/plans/2026-04-17-export.md` (15 tasks) -> `docs/specs/plans/2026-04-17-export-checklist.md`
+- `docs/specs/2026-04-17-export/plan.md` (15 tasks) -> `docs/specs/2026-04-17-export/checklist.md`
+- `docs/specs/2026-04-17-export/plan.md` (45 tasks) -> `docs/specs/2026-04-17-export/checklist-1.md`, `checklist-2.md`, `checklist-3.md`
 - `docs/specs/plans/2026-04-17-export.md` (45 tasks) -> `-checklist-1.md`, `-checklist-2.md`, `-checklist-3.md`
 
 If any output file exists:

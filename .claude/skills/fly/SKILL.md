@@ -137,7 +137,7 @@ batched bash invocation instead of N individual Edit calls:
 
 Example: if the implementer completed steps 1, 2, 3, 4 of Task 3.2:
 
-    bash ~/.claude/skills/fly/tick-steps.sh docs/specs/plans/2026-04-18-feature-checklist.md 3.2 1,2,3,4
+    bash ~/.claude/skills/fly/tick-steps.sh docs/specs/2026-04-18-feature/checklist.md 3.2 1,2,3,4
 
 Script output: `OK <N checkboxes ticked>` on success, `ERROR <reason>`
 on failure. On ERROR, do NOT proceed to step D; halt and surface.
@@ -366,12 +366,12 @@ Every review MUST produce durable on-disk artifact. SHA-equivalent for reviews: 
     <plan-dir>/reviews/<task-or-scope>-<review-type>.md
 
 Examples:
-- `docs/specs/m3/reviews/task-7.4-spec.md`
-- `docs/specs/m3/reviews/task-7.4-code.md`
-- `docs/specs/m3/reviews/batch-10.2-10.3-combined.md`
-- `docs/specs/m3/reviews/phase-7-gate.md`
-- `docs/specs/m3/reviews/phase-11-deep-review.md`
-- `docs/specs/m3/reviews/final-deep-review.md`
+- `docs/specs/2026-04-18-feature/reviews/task-7.4-spec.md`
+- `docs/specs/2026-04-18-feature/reviews/task-7.4-code.md`
+- `docs/specs/2026-04-18-feature/reviews/batch-10.2-10.3-combined.md`
+- `docs/specs/2026-04-18-feature/reviews/phase-7-gate.md`
+- `docs/specs/2026-04-18-feature/reviews/phase-11-deep-review.md`
+- `docs/specs/2026-04-18-feature/reviews/final-deep-review.md`
 
 `<plan-dir>` is directory containing plan and checklist files. Create `reviews/` subdirectory on first write.
 
