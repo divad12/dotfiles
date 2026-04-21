@@ -22,6 +22,25 @@ Execute a preflight checklist by:
 
 `/fly` does NOT invoke `superpowers:subagent-driven-development` as a skill. It owns its per-task loop and uses that skill's prompt templates by reading them at runtime.
 
+## Helper Scripts
+
+Four bash scripts live adjacent to this SKILL.md in the same directory. Use the "Base directory for this skill" path injected by the runtime to locate them:
+
+```
+<base-dir>/integrity-check.sh   - per-task reviewer-dispatch verification
+<base-dir>/final-verify.sh      - end-of-run checklist sweep
+<base-dir>/phase-regression.sh  - phase gate regression check
+<base-dir>/tick-steps.sh        - bulk-tick plan-step checkboxes
+```
+
+**On first use in a session**, resolve `SCRIPT_DIR` once and cache it:
+
+1. If the runtime injected "Base directory for this skill: <path>", use that path as `SCRIPT_DIR`.
+2. Otherwise, find by name: `SCRIPT_DIR=$(dirname "$(find ~/.claude -name "integrity-check.sh" -path "*/fly/*" 2>/dev/null | head -1)")`
+3. If still empty, HALT: "Fly helper scripts not found. Check skill installation."
+
+All script invocations below use `$SCRIPT_DIR/<script-name>`. Do NOT use Glob or ad-hoc path guessing.
+
 ## Triggers
 
 User invokes `/fly <checklist-path>` - typically in a fresh Claude Code session for clean context.
@@ -133,7 +152,7 @@ Walk the checklist's tasks in order. For each task:
 Once the implementer reports all completed steps, tick them in one
 batched bash invocation instead of N individual Edit calls:
 
-    bash <path-to-tick-steps.sh> <checklist-path> <task-id> <comma-separated-step-numbers>
+    bash $SCRIPT_DIR/tick-steps.sh <checklist-path> <task-id> <comma-separated-step-numbers>
 
 Example: if the implementer completed steps 1, 2, 3, 4 of Task 3.2:
 
@@ -457,14 +476,10 @@ The integrity-check script reads the CC subagent transcripts at `~/.claude/proje
 
 ### Invocation
 
-Resolve the script path first. The skill ships at `.claude/skills/fly/integrity-check.sh` (in this dotfiles repo it lives under `~/.claude/skills/fly/integrity-check.sh`; inside a project using a plugin install it may live under the plugin cache). Use Glob if unsure:
-
-`~/.claude/skills/fly/integrity-check.sh` (primary path)
-
-Invoke via a single Bash tool call, passing the task id, the plan directory (the directory containing the checklist file), and the task's commit SHA:
+Use `$SCRIPT_DIR` resolved per "Helper Scripts" section above. Invoke via single Bash tool call:
 
 ```
-bash <path-to-integrity-check.sh> <task-id> <plan-dir> <task-sha>
+bash $SCRIPT_DIR/integrity-check.sh <task-id> <plan-dir> <task-sha>
 ```
 
 Output is one line on stdout:
@@ -501,12 +516,10 @@ Per-task TDD catches regressions inside each task's scope. Phase regression chec
 
 1. Invoke the regression script:
 
-     bash <path-to-phase-regression.sh> <phase-first-commit-sha>^ <phase-last-commit-sha>
+     bash $SCRIPT_DIR/phase-regression.sh <phase-first-commit-sha>^ <phase-last-commit-sha>
 
    (The caret `^` on the base SHA expands to its parent in the script's git
-   invocations.) Resolve the script path the same way as integrity-check.sh
-   (primary path `~/.claude/skills/fly/phase-regression.sh`, fall back to
-   Glob if installed under a plugin cache).
+   invocations.)
 
 2. Parse the single-line output:
 
@@ -635,11 +648,7 @@ After all tasks, phase gates, and final gate are processed, run the
 verification block at the bottom of the checklist. Verification is
 performed by a single bash script invocation:
 
-    bash <path-to-final-verify.sh> <checklist-path>
-
-Resolve the script path the same way as integrity-check.sh (primary path
-`~/.claude/skills/fly/final-verify.sh`, fall back to Glob if installed
-under a plugin cache). Invoke via a single Bash tool call.
+    bash $SCRIPT_DIR/final-verify.sh <checklist-path>
 
 Script output:
 
