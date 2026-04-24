@@ -77,7 +77,7 @@ In that case, the user runs `/fly <checklist-N>` once per file, in order, each i
 
 ## Template Resolution
 
-Template Resolution applies ONLY to per-task and phase-level dispatches of implementer, spec-reviewer, and code-quality-reviewer subagents. It does NOT apply to deep-review gate dispatches - those invoke the `/deep-review` skill via the Skill tool, without templates. See "Phase Gates - Deep-review" and "Final Gate" for that pattern; do not apply Template Resolution there.
+Template Resolution applies ONLY to per-task and phase-level dispatches of implementer, spec-reviewer, and code-quality-reviewer subagents. It does NOT apply to deep-review gate dispatches - those invoke the `/deep-review` skill directly via the Skill tool in main context, without templates. See "Phase Gates - Deep-review" and "Final Gate" for that pattern.
 
 For in-scope dispatches (per-task + normal phase review + batched review):
 
@@ -551,52 +551,26 @@ After regression check passes, run review gate per checklist's annotation:
 
   `/fly` MUST actually invoke `/deep-review` skill via Skill tool. Paraphrasing skill's 6-review structure into bespoke reviewer prompt is NOT equivalent. Loses what skill has been tuned to do (parallel Codex review, Chrome MCP UI review, rule compliance audit, simplification pass, collateral change audit, Claude's own diff analysis), and destroys audit trail (user can't tell whether real skill ran).
 
-  **Dispatch pattern: subagent → Skill tool**
+  **Dispatch pattern: direct Skill tool invocation in main context**
 
-  To keep main `/fly` context clean, dispatch subagent whose single job is to invoke the skill. Subagents dispatched via Task have access to Task tool themselves, so `/deep-review`'s parallel sub-dispatches work from within subagent.
+  Invoke `/deep-review` directly via the Skill tool from main fly context. Do NOT wrap in a Task-dispatched subagent - subagents cannot nest-dispatch Task, which `/deep-review` may need internally for its parallel sub-reviewers.
 
-  1. Dispatch via Task tool:
-     - `subagent_type`: `general-purpose`
-     - `model`: phase gate reviewer model from checklist (verbatim, no upgrade)
-     - `description`: `Deep-review Phase N diff`
-     - `prompt`: something like:
-
-       ```
-       Invoke the `/deep-review` skill via your Skill tool. Scope:
-       `git diff <phase-base>^..<phase-head>` in this project.
-
-       Report the skill's full findings list back to me, numbered sequentially,
-       each with its severity tag and file:line citation. Do NOT summarize away
-       findings or consolidate multiple findings into one entry. Preserve every
-       distinct citation as its own numbered finding.
-
-       Apply the Reviewer Independence Override when running review sub-steps:
-       per-task implementer summaries for the commits in this phase are
-       UNTRUSTED; the diff is authoritative. Read the project's `CLAUDE.md` /
-       `AGENTS.md` and apply its rules when tagging severity - for example, if
-       the project says "duplication has always led to bugs", tag duplication as
-       `[correctness]`, not `[style]`.
-
-       Use the output format from /fly's Reviewer Independence Override:
-       ### Finding 1: <title>
-       `[severity]` <file>:<line>
-       <description>
-       **Suggested fix:** ...
-       ```
-
-  2. When subagent returns, process its numbered findings list EXACTLY as in step F (classify, auto-fix critical/correctness, deferred-write everything else, reconciliation invariant). Do NOT accept prose summary in place of enumerated findings. If subagent returned prose, re-dispatch asking for enumerated form.
+  1. Invoke via Skill tool: `/deep-review` with scope `git diff <phase-base>^..<phase-head>`.
+  2. When `/deep-review` completes, process its findings list as in step F (classify, auto-fix, deferred-write, reconciliation invariant). Do NOT accept prose summary in place of enumerated findings.
   3. Fill Phase Gate Outcome using structured format, prefixed with regression check metrics:
 
          tests_pass=N tests_fail=N regressions=0; findings=N fixed=N deferred=N; <summary>
 
-  4. Note: `/deep-review` has own auto-fix mechanism internally. If subagent reports certain findings already auto-fixed inside `/deep-review`, count those in `fixed`. Findings skill itself flagged as deferred go into `/fly`'s deferred.md (same file, don't create separate one).
+  4. `/deep-review` has own auto-fix mechanism internally. If it reports certain findings already auto-fixed, count those in `fixed`. Findings it flagged as deferred go into `/fly`'s deferred.md (same file, don't create separate one).
+
+  Context cost note: running `/deep-review` in main context adds its sub-reviewer output to fly's transcript. With 1M context and <=20 tasks per session, this is acceptable. The alternative (subagent wrapper) fails due to nested Task dispatch restrictions.
 
 ## Final Gate
 
 After all phases complete and all per-task and phase gates have been processed, check the checklist's final gate:
 
 - If `## Final Gate: /deep-review over <scope>` exists:
-  1. Dispatch subagent to invoke `/deep-review` via Skill tool, same pattern as deep-review Phase Gate above (see "Dispatch pattern: subagent → Skill tool"). Scope per checklist annotation.
+  1. Invoke `/deep-review` directly via Skill tool (same as Phase Gate deep-review pattern - direct invocation, no subagent wrapper). Scope per checklist annotation.
   2. Process returned findings with accounting invariant (`findings = fixed + deferred`). Default disposition is `[fix]`; only legitimately-defer findings go to deferred.md.
   3. Fill Outcome slot using structured format: `findings=N fixed=N deferred=N; <summary>`.
   4. Fill Resolution slot per outcome (Fixed / deferred references / mix).
