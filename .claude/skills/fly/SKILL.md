@@ -571,20 +571,12 @@ After filling the phase gate Outcome + Resolution, check the phase's
 end-state verification section (written by preflight at the end of each
 phase's task block):
 
-- **tests-only**: No action needed. Phase regression check already ran.
-- **auto-verify**: If dev server is running (check: `curl -s localhost:3000 > /dev/null`
-  or similar), take a screenshot via Chrome MCP or `/qa-test` skill.
-  Report result briefly. If dev server not running, skip.
-- **suggest-verify**: Print the manual test description from the
-  checklist and ask: "Browser verification feasible for this flow.
-  Run /qa-test? (y/n)". If user says y, invoke `/qa-test` with the
-  described scenario. If n, proceed.
-- **manual-only**: Print the manual test description. Do NOT attempt
-  automated verification. User handles this between sessions.
+- **tests-only**: skip (regression check covered it).
+- **auto-verify**: screenshot via `/qa-test` if dev server running; skip if not.
+- **suggest-verify**: print test description, ask "Run /qa-test? (y/n)".
+- **manual-only**: print test description for user. No automation.
 
-Collect all `suggest-verify` and `manual-only` items encountered during
-the run. They feed into the Completion report's manual verification
-section.
+Collect `suggest-verify` and `manual-only` items for the Completion report.
 
 ## Final Gate
 
@@ -667,26 +659,8 @@ react.
 
 After final verification passes:
 1. Print final report: tasks completed, commits made, deferred items (if any), time taken.
-2. Print manual verification section. Collect all `suggest-verify` and
-   `manual-only` items from processed phases and list them:
-
-   ```
-   ## Manual verification needed:
-   - Phase 0 (suggest-verify): "<test description from checklist>"
-   - Phase 3 (manual-only): "<test description from checklist>"
-
-   Automated checks passed:
-   - Phase regression: all phases regressions=0
-   - Per-task integrity: all tasks PASS
-   - Deep-review gate: all phases processed
-   ```
-
-   Only include phases that had `suggest-verify` or `manual-only` tags.
-   If all phases were `tests-only`, print: "All verification automated.
-   No manual testing needed."
-
-3. **DO NOT auto-invoke `/ship` or `/superpowers:finishing-a-development-branch`.** Explicit user command only.
-4. Suggest next step: "Ready to ship? Run `/ship` when you've reviewed any deferred items."
+2. List any `suggest-verify` or `manual-only` items from processed phases. If all phases were `tests-only`, print "All verification automated."
+3. **DO NOT auto-invoke `/ship`.** Suggest: "Ready to ship? Run `/ship` when you've reviewed any deferred items."
 
 ## Rationalization Table
 
