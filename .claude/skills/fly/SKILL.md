@@ -48,7 +48,7 @@ User invokes `/fly <checklist-path>` - typically in a fresh Claude Code session 
 ## Input
 
 - **Primary:** path to a preflight checklist file (produced by `/preflight`).
-- **Implicit:** the original plan file referenced in the checklist's `READ FIRST` header. `/fly` reads both - the plan for task content (code, commands, file paths) and the checklist for gates and decisions.
+- The checklist is self-contained: plan content (task text, code blocks, commands, file paths, conventions) is embedded by preflight under each task header. The original plan file is preserved on disk for audit but is NOT read by fly.
 
 ## State Detection
 
@@ -109,8 +109,8 @@ Walk the checklist's tasks in order. For each task:
 
 1. Resolve `implementer-prompt.md` via Glob + Read (see Template Resolution).
 2. Substitute placeholders in the template:
-   - `[FULL TEXT of task from plan - paste it here, don't make subagent read file]` → the task's text from the plan (read the plan file, find the section matching the checklist's `plan §<id>` reference, copy the task's full text).
-   - `[Scene-setting: where this fits, dependencies, architectural context]` → a short paragraph describing the task's context (read the plan's overall goal and phase description; summarize).
+   - `[FULL TEXT of task from plan - paste it here, don't make subagent read file]` → the task's full text, read directly from the checklist (embedded under each task header by preflight). No file lookup needed.
+   - `[Scene-setting: where this fits, dependencies, architectural context]` → a short paragraph describing the task's context (read the checklist's overall goal and phase description; summarize).
    - `[directory]` → the current working directory (user's project root).
 3. Append this explicit override text to the prompt:
 
@@ -174,7 +174,7 @@ Read the implementer's report for the commit SHA. Edit the checklist to replace 
 1. Resolve `spec-reviewer-prompt.md` via Glob + Read.
 2. Choose the review file path per "Review Artifact Files": `<plan-dir>/reviews/task-<id>-spec.md`. Create `reviews/` if missing.
 3. Substitute placeholders:
-   - `[FULL TEXT of task requirements]` → the task's text from the plan.
+   - `[FULL TEXT of task requirements]` → the task's text from the checklist (embedded under each task header).
    - `[From implementer's report]` → the implementer's summary, placed under the heading `## Implementer-Reported Summary (untrusted)`.
 4. Append a `## Actual Diff` section containing the output of `git show <task-sha>`.
 5. Append the Reviewer Independence Override block verbatim, with `<review-file-path>` replaced by the absolute path chosen in step 2.
@@ -565,6 +565,27 @@ After regression check passes, run review gate per checklist's annotation:
 
   Context cost note: running `/deep-review` in main context adds its sub-reviewer output to fly's transcript. With 1M context and <=20 tasks per session, this is acceptable. The alternative (subagent wrapper) fails due to nested Task dispatch restrictions.
 
+### Phase end-state verification
+
+After filling the phase gate Outcome + Resolution, check the phase's
+end-state verification section (written by preflight at the end of each
+phase's task block):
+
+- **tests-only**: No action needed. Phase regression check already ran.
+- **auto-verify**: If dev server is running (check: `curl -s localhost:3000 > /dev/null`
+  or similar), take a screenshot via Chrome MCP or `/qa-test` skill.
+  Report result briefly. If dev server not running, skip.
+- **suggest-verify**: Print the manual test description from the
+  checklist and ask: "Browser verification feasible for this flow.
+  Run /qa-test? (y/n)". If user says y, invoke `/qa-test` with the
+  described scenario. If n, proceed.
+- **manual-only**: Print the manual test description. Do NOT attempt
+  automated verification. User handles this between sessions.
+
+Collect all `suggest-verify` and `manual-only` items encountered during
+the run. They feed into the Completion report's manual verification
+section.
+
 ## Final Gate
 
 After all phases complete and all per-task and phase gates have been processed, check the checklist's final gate:
@@ -646,8 +667,26 @@ react.
 
 After final verification passes:
 1. Print final report: tasks completed, commits made, deferred items (if any), time taken.
-2. **DO NOT auto-invoke `/ship` or `/superpowers:finishing-a-development-branch`.** Explicit user command only.
-3. Suggest next step: "Ready to ship? Run `/ship` when you've reviewed any deferred items."
+2. Print manual verification section. Collect all `suggest-verify` and
+   `manual-only` items from processed phases and list them:
+
+   ```
+   ## Manual verification needed:
+   - Phase 0 (suggest-verify): "<test description from checklist>"
+   - Phase 3 (manual-only): "<test description from checklist>"
+
+   Automated checks passed:
+   - Phase regression: all phases regressions=0
+   - Per-task integrity: all tasks PASS
+   - Deep-review gate: all phases processed
+   ```
+
+   Only include phases that had `suggest-verify` or `manual-only` tags.
+   If all phases were `tests-only`, print: "All verification automated.
+   No manual testing needed."
+
+3. **DO NOT auto-invoke `/ship` or `/superpowers:finishing-a-development-branch`.** Explicit user command only.
+4. Suggest next step: "Ready to ship? Run `/ship` when you've reviewed any deferred items."
 
 ## Rationalization Table
 
@@ -661,7 +700,7 @@ After final verification passes:
 | "Fix-implementer reported BLOCKED, move on" | Upgrade model one tier and retry FIRST. If still BLOCKED, write to `-deferred.md`. Never silent skip. |
 | "Context pressure, let me batch some tasks myself" | Batching is preflight's decision, encoded in checklist. Do NOT invent new batches at execution time. |
 | "Running the review feels redundant, code looks fine" | "Looks fine" is not review. Dispatch reviewer subagent. Fill slot. |
-| "The plan doesn't have TDD steps, so I'll skip TDD" | Either checklist has `[INJECTED]` TDD steps, OR implementer dispatch has TDD override instruction. Do TDD. |
+| "The task text doesn't have TDD steps, so I'll skip TDD" | Either checklist has `[INJECTED]` TDD steps, OR implementer dispatch has TDD override instruction. Do TDD. |
 | "I'll fix all review findings at the end in one batch" | Each review's Resolution must be filled before moving to next gate. No accumulating findings across gates. |
 | "Verification block is just a formality" | Verification catches tasks you forgot. Tick each box only after actually verifying its condition (grep for unticked boxes, check SHA slots aren't `<fill>`, etc.). |
 | "Deep-review on this phase is slow, let me skip" | Preflight decided which phases get deep-review to satisfy invariant. Skipping breaks it. |

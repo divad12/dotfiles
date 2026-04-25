@@ -7,13 +7,13 @@ user-invocable: true
 
 # Preflight
 
-Transform a plan file into a checklist contract that `/fly` executes.
+Transform a plan file into a self-contained checklist contract that `/fly` executes.
 
 ## Purpose
 
-Transform a plan into a preflight checklist with all execution decisions encoded. The checklist becomes the contract `/fly` executes.
+Transform a plan into a self-contained preflight checklist with all execution decisions and plan content embedded. The checklist becomes the sole source of truth `/fly` executes - fly does not read the plan file separately.
 
-Runs before `/fly`. Does not modify the plan - writes one or more sibling checklist files and prints a terminal summary.
+Runs before `/fly`. Does not modify the plan - writes one or more sibling checklist files and prints a terminal summary. Plan content is embedded into each checklist so fly sessions are self-contained.
 
 > **1M context assumption.** Preflight assumes all `/fly` sessions will run on Claude opus with a 1M-token context window. The per-file task cap (`single_file_cap = 20`) is sized for that budget. If you are running at standard 200K context, halve the cap (tune `single_file_cap` below, or manually split tighter). The terminal summary tells the user the exact `claude --model ...` string to launch each session with.
 
@@ -67,11 +67,11 @@ If the plan is already at `<feature-folder>/plan.md` (or any path inside a featu
 
 ## Output
 
-1. Checklist files inside the feature folder:
+1. Checklist files inside the feature folder (self-contained - fly does not read the plan separately):
    - If total tasks <= `single_file_cap`: `<feature-folder>/checklist.md`.
    - If total tasks > `single_file_cap`: `<feature-folder>/checklist-1.md`, `checklist-2.md`, ..., `checklist-K.md`.
 2. Creates `<feature-folder>/reviews/` directory (fly writes review artifacts here).
-3. Original plan is untouched (audit trail).
+3. Original plan is untouched (audit trail). Plan content is embedded in checklist files; plan.md is preserved for reference only.
 4. Terminal summary printed at end (see "Terminal Summary" section below).
 
 ## Overwrite Behavior
@@ -163,7 +163,7 @@ If `total_task_count > single_file_cap`:
      Next file: <relative-path-to-next-checklist>
      ```
      Omit this line on file `K`.
-  7. **READ FIRST.** Every file's `READ FIRST` reference points to the SAME single plan file (plan is the shared source of truth).
+  7. **Self-contained.** Every file's header states it is self-contained (plan content embedded). The original plan path is noted for audit only.
 
 ### TDD audit
 
@@ -208,6 +208,64 @@ Apply the decision logic in "Decisions Preflight Makes" to the parsed plan:
 6. **Final review gate** - needed only if any phase was downgraded to normal (rare with default-deep). Skipped when all phases have `/deep-review` coverage (the common case).
 7. **TDD audit** - for each task, check for failing-test steps; mark tasks needing injection.
 8. **Multi-file split** - if total task count > `single_file_cap`, compute `K` and allocate phases/tasks to files 1..K per the splitting rules.
+9. **Phase verification tagging** - for each phase, classify as `auto-verify`, `suggest-verify`, `manual-only`, or `tests-only` based on task content. Extract "Phase end-state test" paragraphs from the plan if present.
+10. **Plan content extraction** - for each task, extract the full task text (files, steps, code blocks) from the plan for embedding into the checklist. Extract Shared Context material (goal, conventions, key references) from plan-level sections.
+
+### 2b. Propose session breakdown (interactive - plans with >20 tasks only)
+
+For plans with total tasks exceeding `single_file_cap` (default 20), present the user with a session breakdown before writing any files. For plans with 20 or fewer tasks, skip this step entirely (single session, no split needed).
+
+Present the following to the user:
+
+```
+Plan has <N> tasks across <M> phases:
+
+| Phase | Tasks | Focus |
+|---|---|---|
+| 0 | 8 | <phase name/goal> |
+| 1 | 10 | <phase name/goal> |
+...
+
+Default split (cap = 20 tasks/session) -> <K> sessions:
+| Session | Phases | Tasks |
+|---|---|---|
+| 1 | 0-1 | 18 |
+| 2 | 2-3 | 20 |
+...
+
+<Alternative split> -> <J> sessions:
+| Session | Phases | Tasks | Why split here |
+|---|---|---|---|
+| 1 | 0 | 8 | Clean boundary before UI work |
+| 2 | 1-2 | 15 | Related backend + API |
+...
+
+Tradeoffs:
+| Axis | <K> sessions | <J> sessions |
+|---|---|---|
+| Per-session blast radius | ... | ... |
+| Context budget per session | ... | ... |
+| Ship-ability of each PR | ... | ... |
+
+Recommend <one> because: <1-2 sentences>.
+
+Pick: default (<K>), recommended (<J>), or specify your own grouping?
+```
+
+The alternative split should be computed by analyzing phase boundaries, domain concerns, and natural ship-points (where a PR would make sense). It may have more or fewer sessions than the default.
+
+Wait for the user's response. Then proceed to write files matching the chosen split.
+
+### 2c. Read design.md (if present)
+
+If `design.md` exists in the feature folder alongside the plan:
+
+1. Read it and extract the 2-3 sentence summary from the top (usually the Goal or Overview section).
+2. For phases that involve architectural decisions (new components, state machines, data flow), identify the relevant design.md section for targeted extraction in step 4.
+
+Do NOT dump the full design.md into the checklist. Only extract targeted context that helps implementers understand WHY, not just WHAT.
+
+If no design.md exists, skip this step.
 
 ### 3. Check for existing checklist(s)
 
@@ -245,7 +303,7 @@ Single-file case:
 ```markdown
 # Preflight Checklist: <feature>
 
-> **READ FIRST:** `<plan-path>` - this checklist references plan steps by number; fly needs both files.
+> **Self-contained checklist.** Plan content embedded below. Original plan preserved at `<plan-path>` for audit.
 > Built by `/preflight` on YYYY-MM-DD. Execute with `/fly`.
 ```
 
@@ -254,11 +312,39 @@ Split case (each file 1..K):
 ```markdown
 # Preflight Checklist: <feature> (File X of K)
 
-> **READ FIRST:** `<plan-path>` - this checklist references plan steps by number; fly needs both files.
+> **Self-contained checklist.** Plan content embedded below. Original plan preserved at `<plan-path>` for audit.
 > Built by `/preflight` on YYYY-MM-DD. Execute with `/fly`.
 ```
 
 `<feature>` is the plan file's basename without date prefix or `.md` extension. E.g., `2026-04-17-export.md` -> `Export`.
+
+### Shared Context block
+
+Immediately after the Decisions block, include a Shared Context section that makes the checklist self-contained for fly sessions.
+
+```markdown
+## Shared Context
+
+### What we're building
+<1-2 sentences from plan's Goal paragraph. If design.md exists, incorporate its summary here for richer context.>
+
+### This session (File X of K): <phase names covered>
+<1-2 sentences describing what this session's phases accomplish>
+
+### Conventions (from plan)
+<extracted from plan's Conventions section - TDD rules, test env, mock patterns, run commands, commit cadence>
+
+### Key references (from plan)
+<extracted hook imports, shared types, file structure summaries relevant to this session's phases>
+```
+
+Rules for populating Shared Context:
+- "What we're building" is always present. Source: plan's Goal/Overview paragraph. If `design.md` exists (step 2c), blend in its 2-3 sentence summary.
+- "This session" is always present. In single-file mode, describe the full plan scope. In split mode, describe only this file's phases.
+- "Conventions" is present only if the plan has a Conventions, Setup, or similar section. Extract TDD rules, test environment, mock patterns, run commands, and commit cadence. Omit this subsection entirely if the plan has no such content.
+- "Key references" is present only if the plan references specific imports, shared types, or file structure that implementers need. Omit if none are relevant to this file's phases.
+
+For phases that involve architectural decisions (new components, state machines, data flow), add a brief `Design context:` note under that phase's tasks if design.md was read in step 2c. Keep it to 2-3 sentences extracting the relevant WHY from the design doc.
 
 ### Decisions block
 
@@ -269,6 +355,7 @@ Split case (each file 1..K):
 - Per-task models: <per-phase or per-task summary>
 - Review batching: <list of batched task groups> | none
 - TDD gaps injected: <list of task IDs> | none
+- Phase verification tags: <per-phase summary, e.g., "Phase 0: tests-only, Phase 1: suggest-verify">
 - Split: single file | <K> files (<file-paths>)
 ```
 
@@ -280,8 +367,13 @@ In split mode, the `Split:` line lists the sibling checklist file paths (e.g., `
 ## Phase <N>: <phase name> | Phase gate: <normal review | deep-review> (reviewer: <model>)
 ```
 
+Each task embeds its full plan content inline (the checklist is self-contained):
+
 ```markdown
-### Task <id> (plan §<plan-reference>) | Model: <haiku|sonnet|opus> | Review: <standard | batched-with <neighbor-ids>>
+### Task <id> | Model: <haiku|sonnet|opus> | Review: <standard | batched-with <neighbor-ids>>
+
+**Files:** <file list from plan task>
+<full task text from plan including steps, code blocks, everything - verbatim>
 
 Plan steps:
 - [ ] Step 1: <title extracted from plan>
@@ -295,6 +387,8 @@ Review gates:
 - [ ] Code review resolution - Action: `<fill>`
 ```
 
+The `plan §<id>` reference is no longer used. All plan content lives directly under the task header. Fly reads only the checklist file.
+
 For batched tasks, individual tasks omit their own review gates; the LAST task in the batch carries a shared batch review gate:
 
 ```markdown
@@ -303,7 +397,26 @@ Batch review gate (covers Task <a>, Task <b>, Task <c>):
 - [ ] Batch review resolution - Action: `<fill>`
 ```
 
-Phase gate at the end of each phase block:
+Phase end-state verification block (before the phase gate, at the end of each phase's tasks):
+
+```markdown
+### Phase <N> end-state verification
+- Type: <auto-verify | suggest-verify | manual-only | tests-only>
+- Manual test: <extracted from plan's "Phase end-state test" paragraph, if present>
+- Automated: tests pass (handled by phase-regression.sh)
+```
+
+Verification type tagging rules:
+- `auto-verify`: phase has UI changes AND verification is a simple render check (page loads, component exists).
+- `suggest-verify`: phase has UI changes AND verification needs multi-step interaction.
+- `manual-only`: phase involves live network, external APIs, or deployment ops.
+- `tests-only`: phase is server-only with no UI changes (tests + regression check cover it).
+
+Preflight determines the tag from the phase's task text content (grep for UI component names, API routes, deployment steps, etc.). When in doubt, default to `suggest-verify`.
+
+If the plan has no "Phase end-state test" paragraph for a phase, the "Manual test" line reads: `(none specified in plan - implement based on phase scope)`.
+
+Phase gate at the end of each phase block (after the end-state verification):
 
 ```markdown
 ### Phase <N> Gate (reviewer: <model>)
@@ -360,7 +473,7 @@ After writing the checklist file(s), print to the user.
 ### Single-file case
 
 ```
-Preflight checklist created.
+Preflight checklist created (self-contained - fly reads only the checklist).
 
 File: <absolute-path-to-checklist>
 [<relative-path-to-checklist>](<relative-path-to-checklist>)
@@ -371,6 +484,7 @@ Key decisions:
 - Per-task models: <summary, e.g., "Phase 1 -> haiku, Phase 2 -> sonnet">
 - Review batching: <e.g., "Task 2 + Task 3 batched" or "none">
 - TDD gaps injected: <e.g., "Task 2, Task 3" or "none">
+- Phase verification tags: <summary, e.g., "Phase 0: tests-only, Phase 1: suggest-verify">
 - Split: single file
 
 Warnings (if any):
@@ -387,7 +501,8 @@ Ready to execute? In a fresh session, run:
 ### Split case
 
 ```
-Preflight checklist created.
+Preflight checklist created (self-contained - fly reads only the checklist).
+Session split confirmed by user (step 2b).
 
 Plan has <N> tasks. Splitting into <K> checklist files:
   <relative-path-to-checklist-1.md>   (<tasks> tasks, Phases <start>-<end>)
@@ -401,6 +516,7 @@ Key decisions (plan-wide):
 - Per-task models: <summary>
 - Review batching: <summary or "none">
 - TDD gaps injected: <summary or "none">
+- Phase verification tags: <summary, e.g., "Phase 0: tests-only, Phase 1: suggest-verify, Phase 2: auto-verify">
 - Split: <K> files
 
 Warnings (if any):
