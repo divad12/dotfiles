@@ -107,8 +107,13 @@ done
 # dispatch that wrote to that path with non-trivial tool-use activity.
 for F in "${EXPECTED_FILES[@]}"; do
   # Find subagent jsonl whose transcript contains a Write to this path.
-  # grep -l returns paths; use fixed-string search for file path precision.
-  WRITING_AGENT=$(grep -l "\"file_path\":\"$F\"" "$SUBAGENT_DIR"/agent-*.jsonl 2>/dev/null | head -1)
+  # Check both "file_path" (CC Write tool) and "path" (Desktop Commander write_file).
+  WRITING_AGENT=$(grep -l "\"file_path\":\"$F\"\|\"path\":\"$F\"" "$SUBAGENT_DIR"/agent-*.jsonl 2>/dev/null | head -1)
+  # Also try matching just the filename in case the path format varies
+  if [ -z "$WRITING_AGENT" ]; then
+    BASENAME=$(basename "$F")
+    WRITING_AGENT=$(grep -l "$BASENAME" "$SUBAGENT_DIR"/agent-*.jsonl 2>/dev/null | head -1)
+  fi
   if [ -z "$WRITING_AGENT" ]; then
     echo "HALT: no subagent transcript found that wrote to $F. Reviewer was likely NOT dispatched; review file may have been forged by the orchestrator."
     exit 1

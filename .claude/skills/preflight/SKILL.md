@@ -94,11 +94,11 @@ Preflight reads the plan and produces decisions for every task/phase before any 
 
 Assign one of `haiku` / `sonnet` / `opus` per task based on complexity signals in the task text:
 
-- **haiku** - touches 1-2 files with a complete spec, low integration, simple logic (e.g., config, model definitions, serializer helpers).
-- **sonnet** - multi-file changes, integration concerns, pattern matching (e.g., endpoints, services with dependencies, moderate logic).
+- **sonnet** (DEFAULT) - most tasks. Multi-file changes, integration, pattern matching, endpoints, services. Also use for tasks that seem simple but touch test infrastructure or shared utilities.
+- **haiku** - ONLY for truly trivial single-file tasks with zero integration risk (e.g., adding one config line, updating a version string, pure docs edits). When in doubt, use sonnet. Haiku often gets things wrong on anything non-trivial, wasting a review cycle.
 - **opus** - architecture decisions, broad codebase understanding, subtle correctness concerns, high blast-radius changes.
 
-Err on the cheap side unless signals clearly indicate otherwise; the user can override.
+Default to sonnet. The cost of a haiku mistake + re-dispatch + re-review exceeds the savings from using haiku in the first place.
 
 ### Review policy per task
 

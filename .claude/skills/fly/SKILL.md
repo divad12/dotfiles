@@ -350,7 +350,7 @@ Only say this after you have actually read every hunk.
 
 ### MANDATORY: write review to file as your final tool call
 
-Your final tool call MUST be a Write (or equivalent) to:
+Your final tool call MUST be a Write to (use the built-in Write tool, NOT Desktop Commander write_file or other MCP equivalents - the integrity check script needs to find the Write in your transcript):
 
     <review-file-path>
 
