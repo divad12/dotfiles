@@ -103,16 +103,11 @@ git diff main...HEAD | grep -A2 'interface\|type.*='  # new fields in types
 
 Rule violations found here are **Must Fix**, not suggestions. They represent the exact class of bug that the coding agent is blind to because of context pressure.
 
-#### Review 2: Simplify pass (run inline)
+#### Review 2: Simplify pass (invoke /simplify skill)
 
-Review the same diff with a different lens. Focus on:
+Invoke the `/simplify` skill via the Skill tool. It has its own tuned logic for finding code reuse, unnecessary complexity, dead code, efficiency issues, and API surface bloat. Do NOT replicate its logic inline - the skill is better at it.
 
-- **Code reuse** - duplicated logic that should be extracted into shared functions
-- **Unnecessary complexity** - over-engineered abstractions, premature optimization, unnecessary indirection
-- **Dead code** - unused imports, unreachable branches, commented-out code
-- **Efficiency** - N+1 queries, unnecessary re-renders, redundant API calls, oversized bundles
-- **API surface** - functions/components doing too much, unclear interfaces
-- **Dependencies** - unnecessary new dependencies when existing ones suffice
+The skill operates on recently changed code by default, which matches the deep-review scope.
 
 #### Review 3: Codex review (run as background task)
 
