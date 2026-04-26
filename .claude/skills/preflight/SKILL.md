@@ -103,38 +103,35 @@ Preflight reads the plan and produces decisions for every task/phase before any 
 
 ### Task consolidation pass
 
-Plans from `/superpowers:writing-plans` tend to over-decompose: e.g., "create file X" + "add function Y to X" + "add test for Y" + "wire X into Z" become 4 tasks. Each task = one full subagent dispatch (~50k context load). Combining = one dispatch handles the whole logical unit. Plan stays auditable (each consolidated task is one checklist line), but dispatch count drops.
+**Principle:** plans from `/superpowers:writing-plans` tend to over-decompose. Every task = one full subagent dispatch (~50k context load just to start). Each fly run currently spends a lot of tokens and time on dispatch overhead for tasks that are tightly coupled and could share an implementer. Consolidating tightly-coupled adjacent tasks into one logical unit cuts dispatch count without losing audit trail.
 
-**Identify candidates for consolidation.** Two adjacent tasks (in the same phase) merge if ALL apply:
+Use your judgment. Walk the task list in plan order. Look for adjacent tasks (same phase, no tasks between them) that:
 
-1. **Same files** - both tasks edit the same set of files (or one's files are a subset of the other's), OR they're tightly coupled wire-up (e.g., "create hook" + "use hook in component").
-2. **Sequential** - no other tasks between them in the plan order.
-3. **Combined size estimate** - rough estimate of combined diff stays under ~80 lines. (Estimate from task description: count "create", "add", "modify" verbs and the things they act on.)
-4. **One coherent goal** - a single sentence describes the combined work (e.g., "Add VenueCache schema + indexes + migration"). If the goal sentence reads like "do A and also do B" with conjunction, that's a smell - probably shouldn't merge.
-5. **No review-isolation reason** - NOT security-adjacent, NOT a schema migration that benefits from focused review, NOT user-facing UX wire-up where the reviewer needs to see the change in isolation.
+- Touch the same files, or are tightly coupled wire-up (e.g., "create hook" + "use hook in component"; "add migration" + "add indexes for migration"; "create route" + "wire route to client").
+- Together describe one coherent goal in one sentence (if you find yourself writing "do A and also B and also C" with conjunctions, that's a smell - probably don't merge).
+- Don't have a review-isolation reason to stay separate (security-adjacent, schema migration that benefits from focused review, user-facing UX wire-up that the reviewer needs to see in isolation).
 
-Walk the plan task list in order. For each pair of adjacent tasks, check the criteria. Greedy merge: if (T1, T2) merge AND (merged-T1-T2, T3) also merges, combine all three. Cap merged group at 4 original tasks (anything bigger has likely lost coherence).
+Merge greedily: if A+B should merge AND (A+B)+C should also merge, combine all three. There's no hard cap; trust your judgment on when a merged group has lost coherence.
 
-**Consolidated task model assignment.** Use the highest model tier among the merged tasks (sonnet + sonnet = sonnet; sonnet + opus = opus).
+**Consolidated model:** highest tier among merged tasks.
 
-**Show consolidations to user (interactive).** After computing merge candidates, present:
+**Show user the proposed merges:**
 
 ```
 Plan has <N> tasks. Proposed consolidations (<M> merges):
 
-- Tasks 2.1 + 2.2 + 2.3 → "Add VenueCache schema + indexes + migration" (3 → 1)
-- Tasks 4.1 + 4.2 → "Wire useWarmVenueCache hook + add to event page" (2 → 1)
-- Tasks 7.3 + 7.4 → "Add /warm-cache route + wire to client" (2 → 1)
+- Tasks 2.1 + 2.2 + 2.3 → "Add VenueCache schema + indexes + migration"
+- Tasks 4.1 + 4.2 → "Wire useWarmVenueCache hook + add to event page"
 ...
 
 Final task count: <N> → <M>. Confirm? (y / n / edit per-merge)
 ```
 
-If user confirms: write the consolidated task list (keeping original task IDs as a comma-separated provenance, e.g., `### Task 2.1+2.2+2.3:` so the plan trail is preserved). If user picks "n": use original task list. If "edit": let them remove specific merges.
+On confirmation, write consolidated task list with comma-separated provenance in the IDs (e.g., `### Task 2.1+2.2+2.3:`) so the plan trail stays auditable. On "n", use original list. On "edit", let user remove specific merges.
 
-This step runs BEFORE per-task model assignment, batched-with computation, and convertibility analysis - all of those operate on the post-consolidation task list.
+Run BEFORE per-task model assignment, batched-with, and convertibility analysis - all downstream decisions operate on the post-consolidation list.
 
-If the plan has < 8 tasks, skip this step entirely (consolidation savings don't justify the interactive step).
+Always run, regardless of plan size. Even small plans benefit from saved dispatches.
 
 ### Per-task model assignment
 
@@ -317,7 +314,7 @@ If the plan doesn't have phase sections, collect all tasks as a flat list - phas
 Apply the decision logic in "Decisions Preflight Makes" to the parsed plan:
 
 1. **Phase grouping** - use plan's phases if present; else batch into phases if total tasks > phase threshold; else single phase.
-2. **Task consolidation pass (interactive)** - greedy-merge over-decomposed adjacent tasks per the rules in "Task consolidation pass". Show user the proposed merges; on confirmation, write the consolidated task list. Skip for plans with <8 tasks.
+2. **Task consolidation pass (interactive)** - judgment-based greedy merge of over-decomposed adjacent tasks per "Task consolidation pass". Show user the proposed merges; on confirmation, write the consolidated task list. Always run.
 3. **Per-task model** - read each task's text and classify into haiku/sonnet/opus.
 4. **Review policy** - default `standard`; mark adjacent trivial tasks as `batched-with <neighbors>` (max batch size 3).
 5. **Reviewer models per gate** - apply defaults with per-task upgrades.
