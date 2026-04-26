@@ -189,6 +189,42 @@ For each task in the plan, check whether the task has a `write failing test` + `
 
 The plan file is never modified. The injection lives only in the checklist. `/fly` will instruct implementers to honor both plan steps and `[INJECTED]` checklist-only steps.
 
+### Manual-test convertibility analysis
+
+For each phase, examine the plan's "Phase end-state test" paragraph (and any other manual-verification steps the plan calls out). Apply this principle to every step:
+
+> **Could a competent engineer write a deterministic automated test for this, given mocks/fakes/fixtures/date-injection/cache-busting/etc.?** If yes, write the test. Only truly unmockable steps remain manual.
+
+Examples of mockable: time/date logic (inject `now`, fake timers), cache expiry, external API call counts (mock the client), DB row counts post-action, downstream side effects.
+
+Examples of NOT mockable: real third-party API response shape drift, real perf under load, browser-side runtime where the test environment stubs the real thing (Web Workers in jsdom, IndexedDB quirks), visual/UX smoke.
+
+For each phase:
+
+1. Classify each verification step as **convertible** or **truly-manual**.
+2. If ANY convertible steps exist, inject a synthetic task at the END of the phase (after the last plan-supplied task, before the phase end-state verification block):
+
+   ```
+   Synthetic task: "Write integration test for Phase <N> end-state verification"
+   - Model: sonnet (DEFAULT) — upgrade to opus if any of the convertible steps require subtle setup (e.g., multi-process worker harness, complex mock graph).
+   - Review: standard.
+   - Files: implementer decides based on existing test conventions.
+   - Steps:
+     * Step 1: write failing test covering: <list each convertible step verbatim, with the mock/fake/fixture noted>
+     * Step 2: verify test fails for the right reason
+     * Step 3: implement (only if test fails because the production code is missing the behavior; usually the production code already exists and the test just confirms it - in which case skip to step 4)
+     * Step 4: verify test passes
+     * Step 5: commit
+   ```
+
+   This synthetic task gets treated EXACTLY like any plan task by fly: dispatched by an implementer subagent, reviewed by spec + code reviewers, etc. It's distinguished in the checklist with `[SYNTHETIC: integration-test]` prefix on the task title so reviewers know its provenance.
+
+3. Truly-manual steps stay in the Phase end-state verification block under `Manual test:`. The verification tag becomes:
+   - `tests-only` if ALL verification steps were convertible (no residual manual).
+   - Original tag (`auto-verify`/`suggest-verify`/`manual-only`) if residual manual steps remain.
+
+If a phase has NO verification steps in the plan, skip injection for that phase. If a phase has steps but ALL are truly-manual, skip injection (no test to write) and tag as `manual-only`.
+
 ### Configurable thresholds
 
 All thresholds are tunable by editing constants in this skill:
@@ -222,7 +258,8 @@ Apply the decision logic in "Decisions Preflight Makes" to the parsed plan:
 7. **TDD audit** - for each task, check for failing-test steps; mark tasks needing injection.
 8. **Multi-file split** - if total task count > `single_file_cap`, compute `K` and allocate phases/tasks to files 1..K per the splitting rules.
 9. **Phase verification tagging** - for each phase, classify as `auto-verify`, `suggest-verify`, `manual-only`, or `tests-only` based on task content. Extract "Phase end-state test" paragraphs from the plan if present.
-10. **Plan split preparation** - for multi-session plans (>single_file_cap tasks), prepare per-session plan files. Extract Shared Context material (goal, conventions, key references) from plan-level sections. For each session, determine which tasks and phases belong to it. For single-session plans, no split needed (fly reads plan.md directly).
+10. **Manual-test convertibility analysis** - for each phase, classify each verification step as convertible (write integration test) or truly-manual (cannot be automated). Inject a synthetic integration-test task at end of phase if any steps are convertible. Recompute the phase verification tag based on residual manual steps. See "Manual-test convertibility analysis" above.
+11. **Plan split preparation** - for multi-session plans (>single_file_cap tasks), prepare per-session plan files. Extract Shared Context material (goal, conventions, key references) from plan-level sections. For each session, determine which tasks and phases belong to it. The synthetic integration-test tasks (from step 10) count toward `single_file_cap` and are placed in the same session as the phase they cover. For single-session plans, no split needed (fly reads plan.md directly).
 
 ### 2b. Propose session breakdown (interactive - plans with >20 tasks only)
 
@@ -412,6 +449,32 @@ Review gates:
 
 No **Files:** block, no embedded task text, no code blocks. Fly reads task content from the plan file (plan.md for single-session, plan-N.md for multi-session).
 
+**Synthetic integration-test task** (injected by step 10 if any verification steps were convertible). Lives at the END of the phase's task list, AFTER all plan-supplied tasks and BEFORE the phase end-state verification block:
+
+```markdown
+### Task <N>.synthetic-test [SYNTHETIC: integration-test] | Model: sonnet | Review: standard
+
+Goal: write integration test covering Phase <N> end-state verification (auto-generated from plan's manual test steps).
+
+Convertible steps to cover:
+- <step 1 verbatim from plan, with mock/fake/fixture noted>
+- <step 2 verbatim from plan, with mock/fake/fixture noted>
+- ...
+
+Plan steps:
+- [ ] Step 1: write failing integration test covering the steps above
+- [ ] Step 2: run test, verify FAIL for the right reason
+- [ ] Step 3: implement (only if production code missing - usually skip)
+- [ ] Step 4: run test, verify PASS
+- [ ] Step 5: Commit - SHA: `<fill>`
+
+Review gates:
+- [ ] Spec review (reviewer: <model>) - Outcome: `<fill>`
+- [ ] Spec review resolution - Action: `<fill>`
+- [ ] Code review (reviewer: <model>) - Outcome: `<fill>`
+- [ ] Code review resolution - Action: `<fill>`
+```
+
 For batched tasks, individual tasks omit their own review gates; the LAST task in the batch carries a shared batch review gate:
 
 ```markdown
@@ -420,24 +483,25 @@ Batch review gate (covers Task <a>, Task <b>, Task <c>):
 - [ ] Batch review resolution - Action: `<fill>`
 ```
 
-Phase end-state verification block (before the phase gate, at the end of each phase's tasks):
+Phase end-state verification block (before the phase gate, at the end of each phase's tasks - AFTER any synthetic integration-test task):
 
 ```markdown
 ### Phase <N> end-state verification
 - Type: <auto-verify | suggest-verify | manual-only | tests-only>
-- Manual test: <extracted from plan's "Phase end-state test" paragraph, if present>
+- Automated coverage: synthetic integration test (Task <N>.synthetic-test) covers: <list of convertible steps> | none
+- Residual manual test: <list of truly-manual steps that the integration test cannot cover, with brief rationale per item> | none (all steps automated)
 - Automated: tests pass (handled by phase-regression.sh)
 ```
 
-Verification type tagging rules:
-- `auto-verify`: phase has UI changes AND verification is a simple render check (page loads, component exists).
-- `suggest-verify`: phase has UI changes AND verification needs multi-step interaction.
-- `manual-only`: phase involves live network, external APIs, or deployment ops.
-- `tests-only`: phase is server-only with no UI changes (tests + regression check cover it).
+Verification type tagging rules (re-evaluated AFTER convertibility analysis):
+- `tests-only`: ALL verification steps were convertible to integration tests (no residual manual). Most common outcome with the convertibility analysis.
+- `auto-verify`: residual manual steps exist AND involve a simple browser render check (page loads, component exists).
+- `suggest-verify`: residual manual steps exist AND need multi-step browser interaction.
+- `manual-only`: residual manual steps involve live network, external APIs, real perf under load, or deployment ops that fundamentally cannot be mocked.
 
-Preflight determines the tag from the phase's task text content (grep for UI component names, API routes, deployment steps, etc.). When in doubt, default to `suggest-verify`.
+Preflight determines the tag from the residual-manual list. When in doubt, default to `suggest-verify`.
 
-If the plan has no "Phase end-state test" paragraph for a phase, the "Manual test" line reads: `(none specified in plan - implement based on phase scope)`.
+If the plan has no "Phase end-state test" paragraph for a phase, both lines read: `(none specified in plan)`.
 
 Phase gate at the end of each phase block (after the end-state verification):
 
@@ -507,7 +571,9 @@ Key decisions:
 - Per-task models: <summary, e.g., "Phase 1 -> haiku, Phase 2 -> sonnet">
 - Review batching: <e.g., "Task 2 + Task 3 batched" or "none">
 - TDD gaps injected: <e.g., "Task 2, Task 3" or "none">
-- Phase verification tags: <summary, e.g., "Phase 0: tests-only, Phase 1: suggest-verify">
+- Synthetic integration tests injected: <e.g., "Phase 1, Phase 3" or "none">
+- Residual manual verification: <count, e.g., "0 phases (all automated)" or "Phase 2: 1 step (real Places API drift smoke)">
+- Phase verification tags: <summary, e.g., "Phase 0: tests-only, Phase 1: tests-only, Phase 2: suggest-verify">
 - Split: single file
 
 Warnings (if any):
@@ -539,7 +605,9 @@ Key decisions (plan-wide):
 - Per-task models: <summary>
 - Review batching: <summary or "none">
 - TDD gaps injected: <summary or "none">
-- Phase verification tags: <summary, e.g., "Phase 0: tests-only, Phase 1: suggest-verify, Phase 2: auto-verify">
+- Synthetic integration tests injected: <e.g., "Phase 1, Phase 3" or "none">
+- Residual manual verification: <count, e.g., "0 phases (all automated)" or "Phase 2: 1 step (real Places API drift smoke)">
+- Phase verification tags: <summary, e.g., "Phase 0: tests-only, Phase 1: tests-only, Phase 2: suggest-verify">
 - Split: <K> sessions
 
 Warnings (if any):
