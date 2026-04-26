@@ -246,11 +246,23 @@ Otherwise, read every `## §N` entry. For each, classify into ONE bucket:
 
 For each Bucket A item: dispatch implementer (sonnet default; opus if original BLOCK was sonnet) with prompt "Apply this deferred fix: <finding + suggested fix from deferred.md>. File: <path>. Run tests for affected file(s). Commit with message `fix: §N <short title> (deferred resolution)`." If implementer succeeds + tests pass: append `Status: RESOLVED in <SHA>` line to the §N entry in deferred.md. If implementer fails or tests fail: demote item to Bucket C.
 
-For each Bucket B item: append a one-line follow-up to PROGRESS.md under a `## Deferred follow-ups` section (create section if missing) - format: `§N <title> - <one-sentence what+why> (from <plan-basename>-deferred.md)`. Append `Status: RESOLVED-AS-FOLLOWUP - tracked in PROGRESS.md` to the §N entry in deferred.md.
+For each Bucket B item: prepare a user-facing block (same surfacing as Bucket C - never silently filed). The user decides whether to do it inline now, spawn a separate task for it via the `mcp__ccd_session__spawn_task` tool (chip in CCD UI), or skip. Format:
+
+  ### Follow-up §N: <one-line plain-English title>
+
+  **What it is:** <2-3 sentences in user's terms - what the work would accomplish>
+
+  **Why it's a follow-up:** <why this didn't fit inline - phase-sized estimate, scope rationale>
+
+  **My recommendation:** <one of: "spawn" / "do now" / "skip">. <1-2 sentences why.>
+
+  **Estimated scope:** <e.g., "~3 tasks, 1-2 hour session" or "single small refactor, ~30 min">
+
+  **Where it lives:** `<file>:<line>` (or `§N` in `<plan-basename>-deferred.md` for full reviewer notes)
 
 For each Bucket C item: prepare a user-facing block in plain language (no reviewer jargon). Format:
 
-  ### Deferred §N: <one-line plain-English title>
+  ### Decision §N: <one-line plain-English title>
 
   **What it is:** <2-3 sentences in user's terms - translate file:line citations into "the X feature does Y when Z" framing>
 
@@ -269,22 +281,30 @@ After all buckets processed, print this summary at the end of the task return va
 
   Deferred resolution summary:
   - Auto-resolved: <X> items (<sha-list>)
-  - Tracked as follow-ups in PROGRESS.md: <Y> items
-  - Need your input: <Z> items (see below)
+  - Follow-ups (need your call on do-now / spawn / skip): <Y> items
+  - Decisions needed (need your input on options): <Z> items
 
-  <Bucket C blocks here, or "No items need your input." if Z=0>
+  <If Y > 0:> ## Follow-ups - your call
+  <Bucket B blocks here>
+  Reply per §N with one of: "do now", "spawn", or "skip".
 
-  <If Z > 0:> Reply with letter per §N (e.g., "§1: A, §2: B, §3: skip") to apply.
+  <If Z > 0:> ## Decisions needed
+  <Bucket C blocks here>
+  Reply with letter per §N (e.g., "§1: A, §2: B, §3: skip") to apply.
+
+  <If Y == 0 AND Z == 0:> "No items need your input."
 
 Watch the bucket distribution: if MOST items are Bucket A, note "reviewer was over-deferring; consider tuning". If MOST are Bucket C, the plan touched contested territory - don't artificially reduce Bucket C by reclassifying.
+
+Note: the synthetic task subagent CANNOT call `mcp__ccd_session__spawn_task` itself (subagents lack access to CCD session tools). It returns Bucket B items as data; fly's main context is what offers/invokes the spawn tool when the user picks "spawn".
 
 Plan steps:
 - [ ] Step 1: read deferred.md (or no-op if missing/empty)
 - [ ] Step 2: classify each §N into A/B/C
 - [ ] Step 3: process Bucket A (dispatch implementer per item, update Status)
-- [ ] Step 4: process Bucket B (append PROGRESS.md follow-ups, update Status)
+- [ ] Step 4: format Bucket B blocks (do NOT touch PROGRESS.md - user decides do-now/spawn/skip)
 - [ ] Step 5: format Bucket C blocks
-- [ ] Step 6: print summary; commit deferred.md updates with message `chore: deferred resolution pass`
+- [ ] Step 6: print summary; commit any deferred.md Status updates from Bucket A with message `chore: deferred resolution pass`
 ```
 
 `Review: skip` because (a) Bucket A items are individually committed by their dispatched implementers (which already follow normal review-on-commit paths if configured), (b) Bucket B/C items don't change code (just docs + summary), and (c) Bucket C surfacing IS the review - the user is the reviewer.
