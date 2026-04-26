@@ -225,6 +225,70 @@ For each phase:
 
 If a phase has NO verification steps in the plan, skip injection for that phase. If a phase has steps but ALL are truly-manual, skip injection (no test to write) and tag as `manual-only`.
 
+### Deferred resolution synthetic task
+
+Always inject a single `[SYNTHETIC: deferred-resolution]` task at the very end of the LAST checklist (after the Final Gate, before the Fly Verification block). This task wraps up any items that landed in `<plan>-deferred.md` during fly's run, so fly itself stays mechanical and doesn't burn context classifying/resolving deferred items.
+
+The injected task is a no-op when deferred.md is absent or empty, so it's safe to always inject.
+
+```markdown
+### Task final.deferred-resolution [SYNTHETIC: deferred-resolution] | Model: sonnet | Review: skip
+
+Goal: process any items in `<plan-basename>-deferred.md` so the user only sees items that actually need their decision (with concrete recommendations).
+
+If `<plan-basename>-deferred.md` is missing or contains zero `## §` entries: print "No deferred items." and exit (task is a no-op).
+
+Otherwise, read every `## §N` entry. For each, classify into ONE bucket:
+
+- **Bucket A - auto-resolvable now.** Item is tractable and only landed in deferred.md because (a) fix-implementer BLOCKED earlier and a fresh attempt with a one-tier upgraded model may succeed, (b) reviewer mis-disposed a tractable nit (didn't fit any of the 3 defer criteria - user decision / phase-sized / extremely risky - but slipped through), or (c) item is a small refactor / extract-helper / typo / dead-code removal that doesn't actually need user input.
+- **Bucket B - phase-sized follow-up.** Genuinely too large for inline fix this session, but doesn't need a user decision either - just needs its own future plan/session.
+- **Bucket C - needs user decision.** Genuine UX, scope, business-logic, policy, or hard-to-reverse architectural choice that ONLY the user can make.
+
+For each Bucket A item: dispatch implementer (sonnet default; opus if original BLOCK was sonnet) with prompt "Apply this deferred fix: <finding + suggested fix from deferred.md>. File: <path>. Run tests for affected file(s). Commit with message `fix: §N <short title> (deferred resolution)`." If implementer succeeds + tests pass: append `Status: RESOLVED in <SHA>` line to the §N entry in deferred.md. If implementer fails or tests fail: demote item to Bucket C.
+
+For each Bucket B item: append a one-line follow-up to PROGRESS.md under a `## Deferred follow-ups` section (create section if missing) - format: `§N <title> - <one-sentence what+why> (from <plan-basename>-deferred.md)`. Append `Status: RESOLVED-AS-FOLLOWUP - tracked in PROGRESS.md` to the §N entry in deferred.md.
+
+For each Bucket C item: prepare a user-facing block in plain language (no reviewer jargon). Format:
+
+  ### Deferred §N: <one-line plain-English title>
+
+  **What it is:** <2-3 sentences in user's terms - translate file:line citations into "the X feature does Y when Z" framing>
+
+  **Why it needs you:** <which of the 3 defer criteria + the specific judgment that requires user input>
+
+  **My recommendation:** <Option <letter>>. <1-2 sentences why.>
+
+  **Options:**
+  - **A. <short title>:** <what it would mean + tradeoff>
+  - **B. <short title>:** <what it would mean + tradeoff>
+  - (C if applicable)
+
+  **Where it lives:** `<file>:<line>` (or `§N` in `<plan-basename>-deferred.md` for full reviewer notes)
+
+After all buckets processed, print this summary at the end of the task return value (this is what fly surfaces to user):
+
+  Deferred resolution summary:
+  - Auto-resolved: <X> items (<sha-list>)
+  - Tracked as follow-ups in PROGRESS.md: <Y> items
+  - Need your input: <Z> items (see below)
+
+  <Bucket C blocks here, or "No items need your input." if Z=0>
+
+  <If Z > 0:> Reply with letter per §N (e.g., "§1: A, §2: B, §3: skip") to apply.
+
+Watch the bucket distribution: if MOST items are Bucket A, note "reviewer was over-deferring; consider tuning". If MOST are Bucket C, the plan touched contested territory - don't artificially reduce Bucket C by reclassifying.
+
+Plan steps:
+- [ ] Step 1: read deferred.md (or no-op if missing/empty)
+- [ ] Step 2: classify each §N into A/B/C
+- [ ] Step 3: process Bucket A (dispatch implementer per item, update Status)
+- [ ] Step 4: process Bucket B (append PROGRESS.md follow-ups, update Status)
+- [ ] Step 5: format Bucket C blocks
+- [ ] Step 6: print summary; commit deferred.md updates with message `chore: deferred resolution pass`
+```
+
+`Review: skip` because (a) Bucket A items are individually committed by their dispatched implementers (which already follow normal review-on-commit paths if configured), (b) Bucket B/C items don't change code (just docs + summary), and (c) Bucket C surfacing IS the review - the user is the reviewer.
+
 ### Configurable thresholds
 
 All thresholds are tunable by editing constants in this skill:
@@ -260,6 +324,7 @@ Apply the decision logic in "Decisions Preflight Makes" to the parsed plan:
 9. **Phase verification tagging** - for each phase, classify as `auto-verify`, `suggest-verify`, `manual-only`, or `tests-only` based on task content. Extract "Phase end-state test" paragraphs from the plan if present.
 10. **Manual-test convertibility analysis** - for each phase, classify each verification step as convertible (write integration test) or truly-manual (cannot be automated). Inject a synthetic integration-test task at end of phase if any steps are convertible. Recompute the phase verification tag based on residual manual steps. See "Manual-test convertibility analysis" above.
 11. **Plan split preparation** - for multi-session plans (>single_file_cap tasks), prepare per-session plan files. Extract Shared Context material (goal, conventions, key references) from plan-level sections. For each session, determine which tasks and phases belong to it. The synthetic integration-test tasks (from step 10) count toward `single_file_cap` and are placed in the same session as the phase they cover. For single-session plans, no split needed (fly reads plan.md directly).
+12. **Deferred resolution synthetic task** - always inject one `[SYNTHETIC: deferred-resolution]` task at the very end of the LAST checklist (after Final Gate, before Fly Verification block). See "Deferred resolution synthetic task" above. Counts toward `single_file_cap` for the last session only.
 
 ### 2b. Propose session breakdown (interactive - plans with >20 tasks only)
 
@@ -528,6 +593,24 @@ If every phase already has deep-review:
 ```
 
 In split mode, files 1..K-1 do NOT contain a Final Gate block or the "not needed" sentinel. They end with the next-file pointer instead.
+
+### Deferred resolution task (LAST file only in split mode; always present in single-file mode)
+
+Inserted AFTER the Final Gate block and BEFORE the Fly Verification block. Always injected. See "Deferred resolution synthetic task" in Decisions for the full task body. Brief skeleton:
+
+```markdown
+### Task final.deferred-resolution [SYNTHETIC: deferred-resolution] | Model: sonnet | Review: skip
+
+Goal: classify deferred items into auto-resolvable / phase-sized-followup / needs-user-decision; auto-fix or document the first two; surface only the third to the user with recommendations. (See preflight skill for full prompt.)
+
+Plan steps:
+- [ ] Step 1: read `<plan-basename>-deferred.md` (no-op if missing/empty)
+- [ ] Step 2: classify each §N
+- [ ] Step 3: process Bucket A (auto-resolve)
+- [ ] Step 4: process Bucket B (track in PROGRESS.md)
+- [ ] Step 5: format Bucket C for user
+- [ ] Step 6: print summary; commit deferred.md updates - SHA: `<fill>`
+```
 
 ### Verification block (LAST file only in split mode; always present in single-file mode)
 

@@ -648,9 +648,14 @@ Script output:
   checkboxes. Surface the full failure list to the user.
 - `WARN: ...` lines are soft signals (e.g., fabrication-pattern rate
   exceeded). Surface to the user but do not HALT.
-- `DEFERRED:` block contains the full `<plan>-deferred.md` contents;
-  surface to the user as "deferred items need manual review before
-  shipping."
+- `DEFERRED:` block contains the full `<plan>-deferred.md` contents.
+  Do NOT dump verbatim to the user. The preflight checklist's final
+  `[SYNTHETIC: deferred-resolution]` task handles this: a fresh
+  subagent reads deferred.md, auto-resolves what it can, writes
+  follow-ups to PROGRESS.md, and returns ONLY the user-decision items
+  with recommendations. Surface that subagent's return value to the
+  user as-is. (If the synthetic task hasn't run yet because the
+  checklist was malformed, halt and surface.)
 
 The previous bulleted list of individual checks is preserved in the
 script itself for maintainers; fly's job here is to invoke, parse, and
