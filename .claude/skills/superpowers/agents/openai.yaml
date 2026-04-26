@@ -1,4 +1,0 @@
-interface:
-  display_name: "Superpowers"
-  short_description: "Repo-local shared skill entrypoint."
-  default_prompt: "Use $superpowers to inspect and apply the shared skills available in .agents/skills for this repository."

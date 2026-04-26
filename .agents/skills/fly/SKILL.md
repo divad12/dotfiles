@@ -105,7 +105,26 @@ If Glob returns no match for an in-scope template, the plugin cache doesn't cont
 
 ## Per-Task Loop
 
-Walk the checklist's tasks in order. For each task:
+Walk the checklist's tasks in order. For each task, FIRST check `Mode:`:
+
+### Mode: inline (small tasks, no implementer subagent)
+
+Tasks tagged `Mode: inline` skip the IMPLEMENTER subagent dispatch entirely. The orchestrator does the work directly using already-loaded context. Saves ~5-20k boot tokens per task. Reviewer dispatch is unchanged - inline tasks still get reviewed by a subagent, preserving independent-review fidelity (subtle bugs in 30 LOC are exactly where review earns its keep).
+
+Inline flow:
+1. Read the task's full text from the per-session plan file.
+2. Honor `[INJECTED]` TDD steps if any: write failing test, watch it fail, then implement.
+3. Apply changes via Edit/Write/Bash directly. Run tests. Commit with message `feat: <task title> (task <id>)`. Commit message MUST contain `task <id>` substring (final-verify.sh greps for it; no separate transcript).
+4. Tick all plan-step checkboxes via `bash $SCRIPT_DIR/tick-steps.sh <checklist-path> <task-id> 1,2,...`.
+5. Fill SHA slot.
+6. Proceed to step E (dispatch reviewer) and onward EXACTLY as for subagent mode. The reviewer doesn't care that the orchestrator did the implement instead of a subagent - it reviews the actual diff.
+7. For fix-loop on review findings: orchestrator does the fix directly (it has the code context already from doing the original work). No fix-implementer dispatch needed for inline tasks.
+
+If you can't commit cleanly (tests fail, conflict), HALT and surface to user - don't push partial work.
+
+### Mode: subagent (default)
+
+Standard Task-dispatch flow as detailed below in steps A-G.
 
 ### A. Dispatch implementer
 
@@ -141,7 +160,7 @@ Walk the checklist's tasks in order. For each task:
 
    **Exception: fix-implementer dispatches** (step F, H, and phase-gate fix loops) are NOT governed by a checklist annotation. The fixer defaults to the task's implementer model but may upgrade on its own judgment when a finding is architecturally gnarly or when the default-model fix BLOCKED. That's discretionary, not contract-gated, because there's no checklist entry to violate.
 
-5. Wait for the implementer's report.
+5. Wait for the implementer's report. **Capture the returned `agentId`** - store it keyed by task ID. Used by step F's fix-loop to resume the same implementer instead of paying full context-boot cost on a fresh fix-implementer subagent.
 
 ### B. Handle implementer status
 
@@ -216,9 +235,12 @@ Every admissible finding lands in one bucket. No "skipped" / "ignored" / "wontfi
 **Fix loop (all `[fix]` findings, highest priority first):**
 
 1. Craft a fix prompt listing each `[fix]` finding by its number, priority, citation, and suggested fix. Order by priority (critical → major → minor → cosmetic). The fixer's report must reference which finding numbers were addressed.
-2. Dispatch fix-implementer. Default model: the task's implementer model from the checklist. The fixer may upgrade if a specific finding is architecturally gnarly or if the default-model fix BLOCKs - this is discretionary, not contract-gated (the checklist annotates task work, not fix work).
+2. **Reuse the original implementer via SendMessage** instead of dispatching a fresh fix-implementer. The original agent already has CLAUDE.md / AGENTS.md / docs/ai/ / plan / target files loaded - sending finding context (~1-5k tokens) costs FAR less than a fresh subagent boot (~20-30k). Use `SendMessage(to: <captured agentId>, message: <fix prompt>)`.
+   - **Inline-mode tasks:** orchestrator IS the implementer; do the fix directly (no SendMessage, no Task dispatch).
+   - **Reuse cap:** 2 fix rounds per task. On round 3+, the cumulative subagent context risks bloat - dispatch a fresh fix-implementer with all original task context restored. Rare in practice; if hit, it's a signal the reviewer keeps finding new issues = surface to user.
+   - **Model upgrade exception:** if a finding is architecturally gnarly enough that the original implementer's model is wrong (e.g., sonnet implementer + opus-needed fix), dispatch a fresh fix-implementer at the upgraded model rather than SendMessage'ing the lower-tier original. Discretionary, not contract-gated.
 3. Wait for fix report. If any `[fix]` number is missing from the report, treat that finding as BLOCKED.
-4. For BLOCKED findings: retry once with upgraded model. If still BLOCKED, evaluate whether the finding actually meets a defer criterion - if yes, move it to deferred.md with the BLOCKED reason. If no (e.g., it's a tractable fix the model just couldn't see), halt and surface to the user.
+4. For BLOCKED findings: retry once with upgraded model (fresh dispatch). If still BLOCKED, evaluate whether the finding actually meets a defer criterion - if yes, move it to deferred.md with the BLOCKED reason. If no (e.g., it's a tractable fix the model just couldn't see), halt and surface to the user.
 5. Re-dispatch spec reviewer (full cycle: Reviewer Independence Override, fresh diff). The re-reviewer writes to the SAME review file path, overwriting the prior review. This is correct - the file should reflect the CURRENT state of the code. Loop until no `[fix]` admissible findings remain.
 
 **Deferred-write (only `[defer]` findings + any `[fix]` that legitimately blocked):**
@@ -440,8 +462,8 @@ After regression check passes, run review gate per checklist's annotation:
 
 After filling the phase gate Outcome + Resolution, check the phase's end-state verification section (written by preflight):
 
-- **tests-only**: skip (regression check + integration tests covered it).
-- **has-residual**: nothing to do per-phase. The end-of-run synthetic deferred-resolution task collects `Residual manual test` lines across all phases and surfaces them as the "Try it yourself" walkthrough.
+- **tests-only**: nothing to do per-phase. End-of-run synthetic deferred-resolution task still composes an OPTIONAL "Try it yourself" walkthrough so user can eyeball visual polish / copy / animations that tests can't see.
+- **has-residual**: nothing to do per-phase. End-of-run synthetic deferred-resolution task collects `Residual manual test` lines and surfaces them as the REQUIRED "Try it yourself" walkthrough.
 
 ## Final Gate
 
@@ -512,8 +534,8 @@ react.
 
 After final verification passes:
 1. Print final report: tasks completed, commits made, deferred items (if any), time taken.
-2. The synthetic deferred-resolution task already surfaced any "Try it yourself" walkthrough; surface its return value verbatim if you haven't already.
-3. **DO NOT auto-invoke `/ship`.** Suggest: "Ready to ship? Run `/ship` when you've reviewed any deferred items."
+2. The synthetic deferred-resolution task already surfaced "Try it yourself" walkthrough; surface its return value verbatim if you haven't already.
+3. **DO NOT mention `/ship` or prompt the user about shipping.** User decides when to ship; nudging adds noise. Just stop after the report + walkthrough.
 
 ## Discipline: shortcuts to NEVER take
 

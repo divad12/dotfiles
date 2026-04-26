@@ -22,6 +22,8 @@ Runs before `/fly`. Does not modify the original plan - writes per-session plan 
 ```
 single_file_cap = 20         # tasks per checklist file; plans exceeding this split into multiple files
 codex_browser_enabled = true # inject [SYNTHETIC: codex-browser-verify] task per session if browser-verifiable work present
+loc_inline_threshold = 30    # tasks with estimated LOC delta < this run inline (no subagent dispatch); folded into next task's review
+loc_subagent_target = 100    # advisory: tasks well below this are merge candidates in consolidation pass
 ```
 
 Assumes 1M-context opus per session (see note above).
@@ -133,6 +135,27 @@ Run BEFORE per-task model assignment, batched-with, and convertibility analysis 
 
 Always run, regardless of plan size. Even small plans benefit from saved dispatches.
 
+### LOC estimation + inline mode
+
+**Why:** every subagent dispatch costs ~5-20k tokens just to boot (re-read CLAUDE.md, AGENTS.md, docs/ai/*, plan, target files) before doing work. For tiny tasks, that boot cost dwarfs the actual work. Inline mode skips dispatch entirely - the orchestrator does the Edit/Write directly using already-loaded context.
+
+For each task (post-consolidation), estimate LOC delta. Use judgment based on the plan task text:
+
+- Count code in fenced ` ``` ` blocks the plan provides verbatim (these are usually transcribed near-1:1).
+- Read prose steps for approximate scope: "add X validation" ≈ 10-20 LOC; "extract helper" ≈ 30-50 LOC; "create new component" ≈ 80-200 LOC; "wire prop through 3 layers" ≈ 30-60 LOC.
+- Test files inflate LOC (mock boilerplate). When task includes both prod + test, weight tests at ~0.5x for the threshold check, but include full count in the estimate.
+- Estimate is rough (±50%). Used as advisory signal, not hard gate.
+
+Then assign:
+- LOC < `loc_inline_threshold` (default 30) → `Mode: inline`. Orchestrator does work directly. Task's review folds into next non-inline task via `Review: batched-with <next-task-id>`.
+- LOC >= threshold → `Mode: subagent` (default). Standard Task-dispatch flow.
+
+**Tail-inline edge case:** if the last task in a phase is inline, fold its review into the PREVIOUS non-inline task's review (since there's no next task). If the entire phase is inline (rare), upgrade the smallest inline task to subagent so the phase has at least one review anchor.
+
+**Synthetic tasks** (integration-test, codex-browser-verify, deferred-resolution) always run as subagents - never inline. They have orchestration logic that benefits from isolation.
+
+**Surface LOC in consolidation output:** when proposing merges (see "Task consolidation pass"), include estimated LOC per task and per merged group. Tasks well under `loc_subagent_target` (100) are stronger merge candidates.
+
 ### Per-task model assignment
 
 Assign one of `haiku` / `sonnet` / `opus` per task based on complexity signals in the task text:
@@ -220,7 +243,8 @@ Apply this principle to every step found:
 For each phase:
 
 1. Classify each verification step as **convertible** or **truly-manual**.
-2. If ANY convertible steps exist, inject a synthetic task at the END of the phase (after the last plan-supplied task, before the phase end-state verification block):
+2. **Coverage-gap check (judgment-based).** For each convertible step, scan the phase's existing tasks (including any test-writing tasks the plan already has). Does the existing task list already write a test that covers this step? Use judgment based on task titles + step descriptions. If yes for ALL convertible steps in the phase, skip synthetic injection - the phase's own tests cover it. If yes for SOME but not all, inject a synthetic task scoped only to the GAPS. Note in the synthetic task: "Coverage gap: existing Task <N> covers <X>; this synthetic test covers <Y> not yet covered."
+3. If unconvered convertible steps remain, inject a synthetic task at the END of the phase (after the last plan-supplied task, before the phase end-state verification block):
 
    ```
    Synthetic task: "Write integration test for Phase <N> end-state verification"
@@ -237,9 +261,9 @@ For each phase:
 
    This synthetic task gets treated EXACTLY like any plan task by fly: dispatched by an implementer subagent, reviewed by spec + code reviewers, etc. It's distinguished in the checklist with `[SYNTHETIC: integration-test]` prefix on the task title so reviewers know its provenance.
 
-3. Truly-manual steps stay in the Phase end-state verification block under `Residual manual test:`. Verification tag is binary (`tests-only` if no residual; `has-residual` if some). The end-of-session codex-browser-verify synthetic task (see below) handles most of the residual; only stuff codex can't do surfaces in Try-it-yourself.
+4. Truly-manual steps stay in the Phase end-state verification block under `Residual manual test:`. Verification tag is binary (`tests-only` if no residual; `has-residual` if some). The end-of-session codex-browser-verify synthetic task (see below) handles most of the residual. The end-of-session deferred-resolution task ALWAYS composes a "Try it yourself" walkthrough when the diff has user-facing surface - REQUIRED steps for `has-residual` phases, OPTIONAL eyeballing steps for `tests-only` phases (visual polish, animations, copy that tests can't verify).
 
-4. If a manual verification TASK in the plan (not a paragraph) is fully covered by the synthetic integration test, **drop the original task** from the consolidated checklist. Note in Decisions block: "Task <N> (<title>) folded into <new synthetic task>." Don't leave the redundant task in the checklist for fly to figure out it should skip.
+5. If a manual verification TASK in the plan (not a paragraph) is fully covered by the synthetic integration test (or by existing phase tests per step 2), **drop the original task** from the consolidated checklist. Note in Decisions block: "Task <N> (<title>) folded into <new synthetic task>." or "Task <N> covered by existing Task <M>; dropped." Don't leave the redundant task in the checklist for fly to figure out it should skip.
 
 If a phase has NO verification steps in the plan, skip injection for that phase.
 
@@ -250,7 +274,7 @@ When this session has any phase whose verification involves browser interaction 
 Skip injection if no phase in this session has browser-verifiable work, or if the user's environment doesn't have codex available (set via tunable `codex_browser_enabled = true`; if false, residual manual stuff falls back to Try-it-yourself).
 
 ```markdown
-### Task final.codex-browser-verify [SYNTHETIC: codex-browser-verify] | Model: codex (external) | Review: skip
+### Task final.codex-browser-verify [SYNTHETIC: codex-browser-verify] | Model: codex (external) | Mode: subagent | LOC: ~0 | Review: skip
 
 Goal: dispatch codex with native browser to click through this session's user flows and report critiques (not just PASS/FAIL). Orchestrator fixes the critiques.
 
@@ -284,9 +308,11 @@ For multi-session plans: each session's deferred-resolution task processes ALL �
 The injected task is a no-op when deferred.md is absent or empty, so it's safe to always inject.
 
 ```markdown
-### Task final.deferred-resolution [SYNTHETIC: deferred-resolution] | Model: sonnet | Review: skip
+### Task final.deferred-resolution [SYNTHETIC: deferred-resolution] | Model: sonnet | Mode: subagent | LOC: ~0 | Review: combined
 
 Goal: do as much of the deferred work as possible automatically; surface the rest clearly so the user can decide.
+
+**Why review:** the fix-implementer commits this task lands run AFTER Final Gate / Phase Gates - they have no other reviewer coverage. One combined review at task end covers the cumulative diff (`git diff <task-start-sha>..HEAD`) for all auto-resolved §N fixes. If zero §N entries auto-resolved (all surfaced to user, none dispatched), the reviewer sees an empty diff and emits `No issues.`.
 
 If `<plan-basename>-deferred.md` is missing or contains zero `## §` entries: print "No deferred items." and skip to the "Try it yourself" section below.
 
@@ -313,11 +339,15 @@ After processing, return:
 
   <If Y == 0:> "No items need your input."
 
-  <If any phases had non-empty `Residual manual test:` lines:>
-
   ## Try it yourself
-  <Compose a clear walkthrough of the residual manual verification. Read `Residual manual test` lines across phases + relevant diff context (route paths, hook names, button labels). Format scales to complexity. Always note what's NOT being tested manually because integration tests cover it. Aim for the clarity of a coworker's "here's what I'd click to verify this shipped" message, not a checklist.>
-  <Omit if no residual manual items.>
+  <ALWAYS compose this section if the diff touches any user-facing surface (UI, CLI output, API response shape). Don't skip just because phases were `tests-only`. Read `Residual manual test` lines across phases + diff context (route paths, hook names, button labels, command examples).
+
+  Two flavors based on phase tags:
+  - **Required** - if any phase was `has-residual`, those steps are the load-bearing manual verification. Lead with them.
+  - **Optional** - if all phases were `tests-only`, prefix the section with "Optional - integration tests cover the behavior; this is for eyeballing visual polish, copy, animations, and anything tests can't see."
+
+  Aim for the clarity of a coworker's "here's what I'd click to verify this shipped" message, not a checklist. Always note what tests already cover so the user knows what they're adding by clicking through.>
+  <Omit only if the diff has zero user-facing surface (e.g. pure refactor, infra-only change). In that case write: "No manual verification - diff is internal only.">
 
 Note: subagents can't call `mcp__ccd_session__spawn_task` directly. If a §N's recommendation is "spawn", return it as data; fly's main context invokes the spawn tool when the user picks it.
 
@@ -355,19 +385,21 @@ If the plan doesn't have phase sections, collect all tasks as a flat list - phas
 Apply the decision logic in "Decisions Preflight Makes" to the parsed plan:
 
 1. **Phase grouping** - use plan's phases if present; else batch into phases if total tasks > phase threshold; else single phase.
-2. **Task consolidation pass (interactive)** - judgment-based greedy merge of over-decomposed adjacent tasks per "Task consolidation pass". Show user the proposed merges; on confirmation, write the consolidated task list. Always run.
-3. **Per-task model** - read each task's text and classify into haiku/sonnet/opus.
-4. **Review policy** - default `standard`; mark adjacent trivial tasks as `batched-with <neighbors>` (max batch size 3).
-5. **Reviewer models per gate** - apply defaults with per-task upgrades.
-6. **Phase review gates** - default `/deep-review` for every phase. Downgrade to `normal` only for trivially small phases (<=3 haiku tasks, single-concern). See "Phase review gate" for the downgrade rule.
-7. **Final review gate** - needed only if any phase was downgraded to normal (rare with default-deep). Skipped when all phases have `/deep-review` coverage (the common case).
-8. **TDD audit** - for each task, check for failing-test steps; mark tasks needing injection.
-9. **Multi-file split** - if total task count > `single_file_cap`, compute `K` and allocate phases/tasks to files 1..K per the splitting rules.
-10. **Phase verification tagging** - tests-only or has-residual based on convertibility analysis (step 11).
-11. **Manual-test convertibility analysis** - for each phase, classify each verification step as convertible (write integration test) or truly-manual. Inject synthetic integration-test task if any convertible. See "Manual-test convertibility analysis" above.
-12. **Plan split preparation** - for multi-session plans (>single_file_cap tasks), prepare per-session plan files. Synthetic tasks count toward `single_file_cap`. For single-session plans, no split needed.
-13. **Codex-browser-verify synthetic task** - if any phase in this session has browser-verifiable work AND `codex_browser_enabled = true`, inject ONE `[SYNTHETIC: codex-browser-verify]` task per checklist (placed near end, before deferred-resolution).
-14. **Deferred resolution synthetic task** - inject one `[SYNTHETIC: deferred-resolution]` task at end of EVERY checklist (single-session: after Final Gate, before Fly Verification; multi-session: end of each checklist-N.md so each session clears its own backlog).
+2. **LOC estimation (pre-consolidation pass)** - estimate LOC delta per task per "LOC estimation + inline mode". Feeds the consolidation pass (small-LOC adjacent tasks are stronger merge candidates).
+3. **Task consolidation pass (interactive)** - judgment-based greedy merge of over-decomposed adjacent tasks per "Task consolidation pass". Show user the proposed merges WITH per-task and per-merged-group LOC estimates; on confirmation, write the consolidated task list. Always run.
+4. **LOC re-estimation + inline mode** - after consolidation, re-estimate LOC for merged groups; tag each task `Mode: inline` (LOC < `loc_inline_threshold`) or `Mode: subagent`. Synthetic tasks always `subagent`.
+5. **Per-task model** - read each task's text and classify into haiku/sonnet/opus.
+6. **Review policy** - default `combined`; mark adjacent trivial tasks as `batched-with <neighbors>` (max batch size 3). Inline-mode tasks get the same review policy as subagent-mode (default `combined`); only the implementer dispatch is skipped, the reviewer dispatch still runs.
+7. **Reviewer models per gate** - apply defaults with per-task upgrades.
+8. **Phase review gates** - default `/deep-review` for every phase. Downgrade to `normal` only for trivially small phases (<=3 haiku tasks, single-concern). See "Phase review gate" for the downgrade rule.
+9. **Final review gate** - needed only if any phase was downgraded to normal (rare with default-deep). Skipped when all phases have `/deep-review` coverage (the common case).
+10. **TDD audit** - for each task, check for failing-test steps; mark tasks needing injection.
+11. **Multi-file split** - if total task count > `single_file_cap`, compute `K` and allocate phases/tasks to files 1..K per the splitting rules.
+12. **Phase verification tagging** - tests-only or has-residual based on convertibility analysis (step 13).
+13. **Manual-test convertibility analysis** - for each phase, classify each verification step as convertible (write integration test) or truly-manual. Inject synthetic integration-test task if any convertible. See "Manual-test convertibility analysis" above.
+14. **Plan split preparation** - for multi-session plans (>single_file_cap tasks), prepare per-session plan files. Synthetic tasks count toward `single_file_cap`. For single-session plans, no split needed.
+15. **Codex-browser-verify synthetic task** - if any phase in this session has browser-verifiable work AND `codex_browser_enabled = true`, inject ONE `[SYNTHETIC: codex-browser-verify]` task per checklist (placed near end, before deferred-resolution).
+16. **Deferred resolution synthetic task** - inject one `[SYNTHETIC: deferred-resolution]` task at end of EVERY checklist (single-session: after Final Gate, before Fly Verification; multi-session: end of each checklist-N.md so each session clears its own backlog).
 
 ### 2b. Propose session breakdown (interactive - plans with >20 tasks only)
 
@@ -526,6 +558,7 @@ Multi-session case (each file 1..K):
 - Per-task models: <per-phase or per-task summary>
 - Review batching: <list of batched task groups> | none
 - TDD gaps injected: <list of task IDs> | none
+- LOC distribution: avg <N>, median <N>; inline <X>, subagent <Y>; smallest <id>=<N>, largest <id>=<N>
 - Phase verification tags: <per-phase summary, e.g., "Phase 0: tests-only, Phase 1: suggest-verify">
 - Split: single file | <K> files (<file-paths>)
 ```
@@ -541,7 +574,7 @@ In split mode, the `Split:` line lists the sibling checklist file paths (e.g., `
 Tasks are tracking-only (no embedded plan content):
 
 ```markdown
-### Task <id> | Model: <haiku|sonnet|opus> | Review: <combined | separate | batched-with <neighbor-ids>>
+### Task <id> | Model: <haiku|sonnet|opus> | Mode: <inline | subagent> | LOC: ~<N> | Review: <combined | separate | batched-with <neighbor-ids>>
 
 Plan steps:
 - [ ] Step 1: <title extracted from plan>
@@ -553,6 +586,8 @@ Review gates:
 - [ ] Combined review resolution - Action: `<fill>`
 
 (For tasks with `Review: separate`, use the legacy two-block format: `Spec review` + `Spec review resolution` + `Code review` + `Code review resolution`.)
+
+(For tasks with `Mode: inline`, KEEP the Review gates block exactly as for subagent mode. The orchestrator does the implement, but a reviewer subagent still reviews the diff. Only the implementer dispatch is skipped.)
 ```
 
 No **Files:** block, no embedded task text, no code blocks. Fly reads task content from the plan file (plan.md for single-session, plan-N.md for multi-session).
@@ -560,7 +595,7 @@ No **Files:** block, no embedded task text, no code blocks. Fly reads task conte
 **Synthetic integration-test task** (injected by step 11 if any verification steps were convertible). Placement: at the end of the phase's impl tasks, but BEFORE any "final cleanup" task that audits the phase's work (signals: last task, looks like cleanup/audit/summary commit/typecheck-lint-build smoke). Use your judgment on which task is the cleanup. Goal: cleanup audits the test file too, and the integration test runs against complete impl. If no cleanup task exists, append after the last impl task:
 
 ```markdown
-### Task <N>.synthetic-test [SYNTHETIC: integration-test] | Model: sonnet | Review: standard
+### Task <N>.synthetic-test [SYNTHETIC: integration-test] | Model: sonnet | Mode: subagent | LOC: ~<N> | Review: combined
 
 Goal: write integration test covering Phase <N> end-state verification (auto-generated from plan's manual test steps).
 
@@ -637,7 +672,7 @@ In split mode, files 1..K-1 do NOT contain a Final Gate block or the "not needed
 Inserted at the end of EVERY checklist (single-session: after Final Gate, before Fly Verification; multi-session: end of each checklist-N.md so each session clears its own backlog). Always injected. See "Deferred resolution synthetic task" in Decisions for the full task body. Brief skeleton:
 
 ```markdown
-### Task final.deferred-resolution [SYNTHETIC: deferred-resolution] | Model: sonnet | Review: skip
+### Task final.deferred-resolution [SYNTHETIC: deferred-resolution] | Model: sonnet | Review: combined
 
 Goal: do as much of the deferred work as possible automatically; surface the rest clearly with recommendations. Also compose "Try it yourself" walkthrough for residual manual verification. (See preflight skill for full prompt.)
 
@@ -646,6 +681,10 @@ Plan steps:
 - [ ] Step 2: for each §N, try to resolve OR format as user-facing block
 - [ ] Step 3: compose "Try it yourself" walkthrough from residual manual items
 - [ ] Step 4: print summary; commit deferred.md Status updates - SHA: `<fill>`
+
+Review gates:
+- [ ] Combined review (reviewer: <model>) - Outcome: `<fill>`
+- [ ] Combined review resolution - Action: `<fill>`
 ```
 
 ### Verification block (LAST file only in split mode; always present in single-file mode)
@@ -690,6 +729,7 @@ Key decisions:
 - Per-task models: <summary, e.g., "Phase 1 -> haiku, Phase 2 -> sonnet">
 - Review batching: <e.g., "Task 2 + Task 3 batched" or "none">
 - TDD gaps injected: <e.g., "Task 2, Task 3" or "none">
+- LOC distribution: avg <N>, median <N>; inline <X>, subagent <Y>; smallest <id>=<N>, largest <id>=<N>
 - Synthetic integration tests injected: <e.g., "Phase 1, Phase 3" or "none">
 - Residual manual verification: <count, e.g., "0 phases (all automated)" or "Phase 2: 1 step (real Places API drift smoke)">
 - Phase verification tags: <summary, e.g., "Phase 0: tests-only, Phase 1: tests-only, Phase 2: suggest-verify">

@@ -93,8 +93,9 @@ fi
 
 # --- Check 7: for every review: <path>, verify the artifact file ---
 # Extract paths following "review: " up to next whitespace, backtick, comma, paren, or semicolon.
-# Then strip any trailing punctuation that got captured.
-REVIEW_PATHS=$(grep -oE 'review: [^ `),;]+' "$CHECKLIST" | awk '{print $2}' | sed 's/[,);]*$//' | sort -u)
+# Require .md or .txt suffix so stray "review: 0" tokens (e.g. from a malformed
+# Outcome line near "regressions=0") don't get mistaken for paths.
+REVIEW_PATHS=$(grep -oE 'review: [^ `),;]+\.(md|txt)' "$CHECKLIST" | awk '{print $2}' | sed 's/[,);]*$//' | sort -u)
 REVIEW_BAD=0
 while IFS= read -r rel; do
   [ -z "$rel" ] && continue
@@ -132,7 +133,9 @@ while IFS= read -r rel; do
     echo "  could not extract findings=N for review: $abs"
     continue
   fi
-  ACTUAL_COUNT=$(grep -cE '^### Finding ' "$abs" || true)
+  # Reviewer-override spec is `### Finding` (3 hash), but deep-review sub-reviewers
+  # sometimes emit `#### Finding` (4 hash). Accept either to avoid false HALTs.
+  ACTUAL_COUNT=$(grep -cE '^#{3,4} Finding ' "$abs" || true)
   if [ "$ADV_COUNT" = "0" ]; then
     # Acceptable: zero findings WITH "No issues." literal, OR actual zero ### Finding headers.
     if [ "$NO_ISSUES" -ne 1 ] && [ "$ACTUAL_COUNT" -ne 0 ]; then
