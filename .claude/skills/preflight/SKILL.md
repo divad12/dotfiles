@@ -234,89 +234,49 @@ The injected task is a no-op when deferred.md is absent or empty, so it's safe t
 ```markdown
 ### Task final.deferred-resolution [SYNTHETIC: deferred-resolution] | Model: sonnet | Review: skip
 
-Goal: process any items in `<plan-basename>-deferred.md` so the user only sees items that actually need their decision (with concrete recommendations).
+Goal: do as much of the deferred work as possible automatically; surface the rest clearly so the user can decide.
 
-If `<plan-basename>-deferred.md` is missing or contains zero `## §` entries: print "No deferred items." and exit (task is a no-op).
+If `<plan-basename>-deferred.md` is missing or contains zero `## §` entries: print "No deferred items." and skip to the "Try it yourself" section below.
 
-Otherwise, read every `## §N` entry. For each, classify into ONE bucket:
+Otherwise, for each `## §N` entry, try to resolve it. If you can fix it without needing user input (BLOCKED-on-model item now tractable with upgraded model, reviewer mis-disposed a fixable nit, small refactor/typo/dead-code, anything else you have enough context to just do): dispatch an implementer (sonnet default; opus if original BLOCK was sonnet) with the finding + suggested fix + file path; run tests; commit with message `fix: §N <short title> (deferred resolution)`; append `Status: RESOLVED in <SHA>` to the §N entry in deferred.md.
 
-- **Bucket A - auto-resolvable now.** Item is tractable and only landed in deferred.md because (a) fix-implementer BLOCKED earlier and a fresh attempt with a one-tier upgraded model may succeed, (b) reviewer mis-disposed a tractable nit (didn't fit any of the 3 defer criteria - user decision / phase-sized / extremely risky - but slipped through), or (c) item is a small refactor / extract-helper / typo / dead-code removal that doesn't actually need user input.
-- **Bucket B - phase-sized follow-up.** Genuinely too large for inline fix this session, but doesn't need a user decision either - just needs its own future plan/session.
-- **Bucket C - needs user decision.** Genuine UX, scope, business-logic, policy, or hard-to-reverse architectural choice that ONLY the user can make.
+If you CAN'T fix it (genuine UX/scope/policy decision, hard-to-reverse architectural choice, work that needs its own future session): surface to the user. Use plain language - translate file:line citations into "the X feature does Y when Z" framing. For each unresolved §N, write:
 
-For each Bucket A item: dispatch implementer (sonnet default; opus if original BLOCK was sonnet) with prompt "Apply this deferred fix: <finding + suggested fix from deferred.md>. File: <path>. Run tests for affected file(s). Commit with message `fix: §N <short title> (deferred resolution)`." If implementer succeeds + tests pass: append `Status: RESOLVED in <SHA>` line to the §N entry in deferred.md. If implementer fails or tests fail: demote item to Bucket C.
+  ### §N: <plain-English title>
 
-For each Bucket B item: prepare a user-facing block (same surfacing as Bucket C - never silently filed). The user decides whether to do it inline now, spawn a separate task for it via the `mcp__ccd_session__spawn_task` tool (chip in CCD UI), or skip. Format:
+  **What it is:** <2-3 sentences in user's terms>
+  **Why I didn't just do it:** <one short sentence - decision needed / too large for this session / risky>
+  **My recommendation:** <what you'd do + 1 sentence why>
+  **Options:** <list, OR "do now" / "spawn separate task" / "skip" if it's a follow-up rather than a decision-with-options>
+  **Where:** `<file>:<line>` (full reviewer notes in `§N` of `<plan-basename>-deferred.md`)
 
-  ### Follow-up §N: <one-line plain-English title>
-
-  **What it is:** <2-3 sentences in user's terms - what the work would accomplish>
-
-  **Why it's a follow-up:** <why this didn't fit inline - phase-sized estimate, scope rationale>
-
-  **My recommendation:** <one of: "spawn" / "do now" / "skip">. <1-2 sentences why.>
-
-  **Estimated scope:** <e.g., "~3 tasks, 1-2 hour session" or "single small refactor, ~30 min">
-
-  **Where it lives:** `<file>:<line>` (or `§N` in `<plan-basename>-deferred.md` for full reviewer notes)
-
-For each Bucket C item: prepare a user-facing block in plain language (no reviewer jargon). Format:
-
-  ### Decision §N: <one-line plain-English title>
-
-  **What it is:** <2-3 sentences in user's terms - translate file:line citations into "the X feature does Y when Z" framing>
-
-  **Why it needs you:** <which of the 3 defer criteria + the specific judgment that requires user input>
-
-  **My recommendation:** <Option <letter>>. <1-2 sentences why.>
-
-  **Options:**
-  - **A. <short title>:** <what it would mean + tradeoff>
-  - **B. <short title>:** <what it would mean + tradeoff>
-  - (C if applicable)
-
-  **Where it lives:** `<file>:<line>` (or `§N` in `<plan-basename>-deferred.md` for full reviewer notes)
-
-After all buckets processed, print this summary at the end of the task return value (this is what fly surfaces to user):
+After processing, return:
 
   Deferred resolution summary:
   - Auto-resolved: <X> items (<sha-list>)
-  - Follow-ups (need your call on do-now / spawn / skip): <Y> items
-  - Decisions needed (need your input on options): <Z> items
+  - Need your input: <Y> items (see below)
 
-  <If Y > 0:> ## Follow-ups - your call
-  <Bucket B blocks here>
-  Reply per §N with one of: "do now", "spawn", or "skip".
+  <If Y > 0:> [list of §N blocks above]
+  Reply per §N with your pick (e.g., "§1: A", "§2: spawn", "§3: skip") - I'll apply.
 
-  <If Z > 0:> ## Decisions needed
-  <Bucket C blocks here>
-  Reply with letter per §N (e.g., "§1: A, §2: B, §3: skip") to apply.
+  <If Y == 0:> "No items need your input."
 
-  <If Y == 0 AND Z == 0:> "No items need your input."
-
-  <Always, if any phases had non-empty `Residual manual test:` lines:>
+  <If any phases had non-empty `Residual manual test:` lines:>
 
   ## Try it yourself
+  <Compose a clear walkthrough of the residual manual verification. Read `Residual manual test` lines across phases + relevant diff context (route paths, hook names, button labels). Format scales to complexity. Always note what's NOT being tested manually because integration tests cover it. Aim for the clarity of a coworker's "here's what I'd click to verify this shipped" message, not a checklist.>
+  <Omit if no residual manual items.>
 
-  <Surface the residual manual verification clearly to the user. Read `Residual manual test` lines across all phases in the checklist; consult relevant diff (route paths, hook names, component names, button labels, error patterns). Compose a clear, adapted walkthrough - format scales to complexity (single click + watch, or multi-step UI flow, or cross-page sequence). Always note what's NOT being tested manually because integration tests cover it. Trust your judgment on format - aim for the clarity of a coworker's "here's what I'd click to verify this shipped" message, not a checklist.>
-
-  <If no residual manual items: omit this section entirely.>
-
-Watch the bucket distribution: if MOST items are Bucket A, note "reviewer was over-deferring; consider tuning". If MOST are Bucket C, the plan touched contested territory - don't artificially reduce Bucket C by reclassifying.
-
-Note: the synthetic task subagent CANNOT call `mcp__ccd_session__spawn_task` itself (subagents lack access to CCD session tools). It returns Bucket B items as data; fly's main context is what offers/invokes the spawn tool when the user picks "spawn".
+Note: subagents can't call `mcp__ccd_session__spawn_task` directly. If a §N's recommendation is "spawn", return it as data; fly's main context invokes the spawn tool when the user picks it.
 
 Plan steps:
-- [ ] Step 1: read deferred.md (or no-op if missing/empty)
-- [ ] Step 2: classify each §N into A/B/C
-- [ ] Step 3: process Bucket A (dispatch implementer per item, update Status)
-- [ ] Step 4: format Bucket B blocks (do NOT touch PROGRESS.md - user decides do-now/spawn/skip)
-- [ ] Step 5: format Bucket C blocks
-- [ ] Step 6: compose "Try it yourself" walkthrough from residual manual items (if any)
-- [ ] Step 7: print summary; commit any deferred.md Status updates from Bucket A with message `chore: deferred resolution pass`
+- [ ] Step 1: read deferred.md (no-op if missing/empty)
+- [ ] Step 2: for each §N, try to resolve (dispatch + commit) OR format as user-facing block
+- [ ] Step 3: compose "Try it yourself" walkthrough from residual manual items (if any)
+- [ ] Step 4: print summary; commit any deferred.md Status updates with message `chore: deferred resolution pass`
 ```
 
-`Review: skip` because (a) Bucket A items are individually committed by their dispatched implementers (which already follow normal review-on-commit paths if configured), (b) Bucket B/C items don't change code (just docs + summary), and (c) Bucket C surfacing IS the review - the user is the reviewer.
+`Review: skip` because resolved fixes are individually committed by their dispatched implementers, and unresolved items surface to the user (the user IS the reviewer).
 
 ### Configurable thresholds
 

@@ -650,17 +650,14 @@ Script output:
   exceeded). Surface to the user but do not HALT.
 - `DEFERRED:` block contains the full `<plan>-deferred.md` contents.
   Do NOT dump verbatim to the user. The preflight checklist's final
-  `[SYNTHETIC: deferred-resolution]` task handles this: a fresh
-  subagent reads deferred.md, auto-resolves Bucket A inline, and
-  returns Bucket B (follow-ups - user picks do-now/spawn/skip) and
-  Bucket C (decisions - user picks options) with recommendations.
-  Surface that subagent's return value to the user as-is. For each
-  Bucket B item the user marks "spawn", invoke `mcp__ccd_session__spawn_task`
-  with the item's title + 1-2 sentence tldr + a self-contained prompt
-  built from the deferred.md `§N` entry (file paths, finding text,
-  suggested fix). Spawning happens in your main context because
-  subagents don't have access to that tool. (If the synthetic task
-  hasn't run yet because the checklist was malformed, halt and surface.)
+  `[SYNTHETIC: deferred-resolution]` task handles it: a fresh subagent
+  resolves what it can (dispatches implementer, commits) and returns
+  ONLY items that need the user's input, each with a recommendation +
+  options (or do-now/spawn/skip if it's a follow-up). Surface that
+  return value to the user as-is. For any item the user picks "spawn"
+  on, invoke `mcp__ccd_session__spawn_task` from your main context
+  with the item's title + tldr + a self-contained prompt from the
+  deferred.md §N entry (subagents lack access to that tool).
 
 The previous bulleted list of individual checks is preserved in the
 script itself for maintainers; fly's job here is to invoke, parse, and
