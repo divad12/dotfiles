@@ -108,11 +108,15 @@ done
 for F in "${EXPECTED_FILES[@]}"; do
   # Find subagent jsonl whose transcript contains a Write to this path.
   # Check both "file_path" (CC Write tool) and "path" (Desktop Commander write_file).
-  WRITING_AGENT=$(grep -l "\"file_path\":\"$F\"\|\"path\":\"$F\"" "$SUBAGENT_DIR"/agent-*.jsonl 2>/dev/null | head -1)
+  # `|| true` is REQUIRED on each pipeline: under set -e + pipefail, a no-match
+  # grep returns 1, pipefail propagates, command substitution trips set -e and
+  # aborts the script BEFORE reaching the basename fallback. Suppress to allow
+  # graceful empty-string fallthrough.
+  WRITING_AGENT=$(grep -l "\"file_path\":\"$F\"\|\"path\":\"$F\"" "$SUBAGENT_DIR"/agent-*.jsonl 2>/dev/null | head -1 || true)
   # Also try matching just the filename in case the path format varies
   if [ -z "$WRITING_AGENT" ]; then
     BASENAME=$(basename "$F")
-    WRITING_AGENT=$(grep -l "$BASENAME" "$SUBAGENT_DIR"/agent-*.jsonl 2>/dev/null | head -1)
+    WRITING_AGENT=$(grep -l "$BASENAME" "$SUBAGENT_DIR"/agent-*.jsonl 2>/dev/null | head -1 || true)
   fi
   if [ -z "$WRITING_AGENT" ]; then
     echo "HALT: no subagent transcript found that wrote to $F. Reviewer was likely NOT dispatched; review file may have been forged by the orchestrator."
