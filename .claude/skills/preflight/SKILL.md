@@ -294,6 +294,14 @@ After all buckets processed, print this summary at the end of the task return va
 
   <If Y == 0 AND Z == 0:> "No items need your input."
 
+  <Always, if any phases had non-empty `Residual manual test:` lines:>
+
+  ## Try it yourself
+
+  <Surface the residual manual verification clearly to the user. Read `Residual manual test` lines across all phases in the checklist; consult relevant diff (route paths, hook names, component names, button labels, error patterns). Compose a clear, adapted walkthrough - format scales to complexity (single click + watch, or multi-step UI flow, or cross-page sequence). Always note what's NOT being tested manually because integration tests cover it. Trust your judgment on format - aim for the clarity of a coworker's "here's what I'd click to verify this shipped" message, not a checklist.>
+
+  <If no residual manual items: omit this section entirely.>
+
 Watch the bucket distribution: if MOST items are Bucket A, note "reviewer was over-deferring; consider tuning". If MOST are Bucket C, the plan touched contested territory - don't artificially reduce Bucket C by reclassifying.
 
 Note: the synthetic task subagent CANNOT call `mcp__ccd_session__spawn_task` itself (subagents lack access to CCD session tools). It returns Bucket B items as data; fly's main context is what offers/invokes the spawn tool when the user picks "spawn".
@@ -304,7 +312,8 @@ Plan steps:
 - [ ] Step 3: process Bucket A (dispatch implementer per item, update Status)
 - [ ] Step 4: format Bucket B blocks (do NOT touch PROGRESS.md - user decides do-now/spawn/skip)
 - [ ] Step 5: format Bucket C blocks
-- [ ] Step 6: print summary; commit any deferred.md Status updates from Bucket A with message `chore: deferred resolution pass`
+- [ ] Step 6: compose "Try it yourself" walkthrough from residual manual items (if any)
+- [ ] Step 7: print summary; commit any deferred.md Status updates from Bucket A with message `chore: deferred resolution pass`
 ```
 
 `Review: skip` because (a) Bucket A items are individually committed by their dispatched implementers (which already follow normal review-on-commit paths if configured), (b) Bucket B/C items don't change code (just docs + summary), and (c) Bucket C surfacing IS the review - the user is the reviewer.
