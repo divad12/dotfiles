@@ -123,11 +123,15 @@ codex review --base main
 
 Use the `run_in_background` option so it runs concurrently with your own analysis. **Set `timeout: 300000`** (5 minutes) - Codex reviews can take longer than the default 2 minutes on large diffs.
 
-**Important: `--base` takes a BRANCH name, NOT a SHA.** If your scope is a SHA range (e.g. `<phase-base>^..<phase-head>` from /fly's phase-gate deep-review), don't pass the SHA to `--base` - it will fail. Two workarounds:
-1. Create a temporary branch at the base SHA: `git branch -f /tmp/codex-base <phase-base>^ && codex review --base /tmp/codex-base && git branch -D /tmp/codex-base`.
-2. Skip codex for that round and rely on the other 5 sub-reviewers; note "codex skipped: SHA-range scope, --base needs branch" in the consolidated review.
+**Important: `--base` takes a BRANCH name, NOT a SHA.** If your scope is a SHA range (e.g. `<phase-base>^..<phase-head>` from /fly's phase-gate deep-review), create a temp branch at the base SHA first - DO NOT skip codex.
 
-Workaround #1 is preferred when codex's perspective matters for the phase. Workaround #2 is acceptable when the diff is small and the other reviewers cover it.
+```bash
+git branch -f /tmp/codex-base <phase-base>^
+codex review --base /tmp/codex-base
+git branch -D /tmp/codex-base   # cleanup after dispatch
+```
+
+Codex perspective is load-bearing for deep-review; skipping it loses one of the six sub-reviewers and degrades the review.
 
 #### Review 4: UI review (run as subagent, only if frontend files changed)
 

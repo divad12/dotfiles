@@ -434,7 +434,7 @@ After regression check passes, run review gate per checklist's annotation:
 
   Context cost note: running `/deep-review` in main context adds its sub-reviewer output to fly's transcript. With 1M context and <=20 tasks per session, this is acceptable. The alternative (subagent wrapper) fails due to nested Task dispatch restrictions.
 
-  **Codex sub-reviewer caveat:** `codex review --base <X>` takes a BRANCH name, not a SHA. Phase-gate scope is a SHA range (`<phase-base>^..<phase-head>`), so codex won't accept `--base <sha>` directly. See `/deep-review` skill for workarounds (preferred: create temp branch at base SHA; fallback: skip codex for that round and rely on the other 5 sub-reviewers).
+  **Codex sub-reviewer caveat:** `codex review --base <X>` takes a BRANCH name, not a SHA. Phase-gate scope is a SHA range (`<phase-base>^..<phase-head>`). Create a temp branch at the base SHA before invoking: `git branch -f /tmp/codex-base <phase-base>^ && codex review --base /tmp/codex-base && git branch -D /tmp/codex-base`. Do NOT skip codex - it's load-bearing for deep-review.
 
 ### Phase end-state verification
 
