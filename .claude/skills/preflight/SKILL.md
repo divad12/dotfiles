@@ -145,12 +145,15 @@ Default to sonnet. The cost of a haiku mistake + re-dispatch + re-review exceeds
 
 ### Review policy per task
 
-- `standard` - dispatches spec-reviewer + code-reviewer (default).
-- `batched-with <neighbor-ids>` - groups genuinely trivial adjacent tasks into a single post-batch review. Rules:
+- `combined` (DEFAULT) - dispatches ONE reviewer covering both spec + code concerns in a structured prompt. Halves per-task review dispatches without losing independence.
+- `separate` - dispatches spec-reviewer + code-reviewer as two separate dispatches. Use only for high-risk tasks: opus implementer, security-adjacent, schema migration, broad blast-radius, or anything where the spec and code concerns are weighty enough that focused review per concern catches more.
+- `batched-with <neighbor-ids>` - groups genuinely trivial adjacent tasks into a single post-batch combined review. Rules:
   - Max batch size: 3 tasks.
   - Tasks must be adjacent in the plan's task order.
   - Each task must be individually trivial (haiku-model-eligible, 1-file scope).
-  - The batch's review gate lives on the LAST task in the batch (reviewer can only assess once all batched work is committed).
+  - The batch's review gate lives on the LAST task in the batch.
+
+When in doubt, use `combined`. Only escalate to `separate` when the task clearly meets a high-risk signal.
 
 ### Reviewer model per gate
 
@@ -222,7 +225,7 @@ For each phase:
    ```
    Synthetic task: "Write integration test for Phase <N> end-state verification"
    - Model: sonnet (DEFAULT) — upgrade to opus if any of the convertible steps require subtle setup (e.g., multi-process worker harness, complex mock graph).
-   - Review: standard.
+   - Review: combined.
    - Files: implementer decides based on existing test conventions.
    - Steps:
      * Step 1: write failing test covering: <list each convertible step verbatim, with the mock/fake/fixture noted>
@@ -538,7 +541,7 @@ In split mode, the `Split:` line lists the sibling checklist file paths (e.g., `
 Tasks are tracking-only (no embedded plan content):
 
 ```markdown
-### Task <id> | Model: <haiku|sonnet|opus> | Review: <standard | batched-with <neighbor-ids>>
+### Task <id> | Model: <haiku|sonnet|opus> | Review: <combined | separate | batched-with <neighbor-ids>>
 
 Plan steps:
 - [ ] Step 1: <title extracted from plan>
@@ -546,10 +549,10 @@ Plan steps:
 - [ ] Step N: Commit - SHA: `<fill>`
 
 Review gates:
-- [ ] Spec review (reviewer: <model>) - Outcome: `<fill>`
-- [ ] Spec review resolution - Action: `<fill>`
-- [ ] Code review (reviewer: <model>) - Outcome: `<fill>`
-- [ ] Code review resolution - Action: `<fill>`
+- [ ] Combined review (reviewer: <model>) - Outcome: `<fill>`
+- [ ] Combined review resolution - Action: `<fill>`
+
+(For tasks with `Review: separate`, use the legacy two-block format: `Spec review` + `Spec review resolution` + `Code review` + `Code review resolution`.)
 ```
 
 No **Files:** block, no embedded task text, no code blocks. Fly reads task content from the plan file (plan.md for single-session, plan-N.md for multi-session).
@@ -574,10 +577,10 @@ Plan steps:
 - [ ] Step 5: Commit - SHA: `<fill>`
 
 Review gates:
-- [ ] Spec review (reviewer: <model>) - Outcome: `<fill>`
-- [ ] Spec review resolution - Action: `<fill>`
-- [ ] Code review (reviewer: <model>) - Outcome: `<fill>`
-- [ ] Code review resolution - Action: `<fill>`
+- [ ] Combined review (reviewer: <model>) - Outcome: `<fill>`
+- [ ] Combined review resolution - Action: `<fill>`
+
+(For tasks with `Review: separate`, use the legacy two-block format: `Spec review` + `Spec review resolution` + `Code review` + `Code review resolution`.)
 ```
 
 For batched tasks, individual tasks omit their own review gates; the LAST task in the batch carries a shared batch review gate:

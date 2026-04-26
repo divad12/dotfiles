@@ -171,25 +171,35 @@ The script handles all steps in one `sed` pass.
 
 Read the implementer's report for the commit SHA. Edit the checklist to replace the task's `SHA: \`<fill>\`` with `SHA: \`<actual-sha>\``.
 
-### E. Dispatch spec reviewer
+### E. Dispatch reviewer (combined by default)
 
-1. Resolve `spec-reviewer-prompt.md` via Glob + Read.
-2. Choose the review file path per "Review Artifact Files": `<plan-dir>/reviews/task-<id>-spec.md`. Create `reviews/` if missing.
+For tasks annotated `Review: combined` (default): dispatch ONE reviewer covering both spec + code concerns.
+
+1. Resolve `code-quality-reviewer-prompt.md` via Glob + Read.
+2. Review file path: `<plan-dir>/reviews/task-<id>-combined.md`. Create `reviews/` if missing.
 3. Substitute placeholders:
-   - `[FULL TEXT of task requirements]` → the task's text from the per-session plan file (find the section matching this task's ID).
+   - `[FULL TEXT of task requirements]` → the task's text from the per-session plan file.
    - `[From implementer's report]` → the implementer's summary, placed under the heading `## Implementer-Reported Summary (untrusted)`.
 4. Append a `## Actual Diff` section containing the output of `git show <task-sha>`.
-5. Append the Reviewer Independence Override block verbatim, with `<review-file-path>` replaced by the absolute path chosen in step 2.
-6. Dispatch via Task tool:
+5. Append the Reviewer Independence Override block verbatim, with `<review-file-path>` replaced by the absolute path.
+6. Add a `## Review scope` section to the prompt with explicit dual focus:
+   ```
+   This is a COMBINED review covering both spec and code concerns. Emit findings under both lenses:
+   ### Spec concerns: does the commit satisfy plan requirements? (missing steps, wrong behavior, scope drift)
+   ### Code concerns: quality, correctness, conventions, duplication, edge cases.
+   ```
+7. Dispatch via Task tool:
    - `subagent_type`: `general-purpose`
-   - `model`: the reviewer model specified in the checklist for this task's spec review
-   - `description`: `Spec review <task id>`
+   - `model`: the reviewer model specified in the checklist (typically the higher of spec+code defaults; sonnet for most)
+   - `description`: `Combined review <task id>`
    - `prompt`: the substituted + augmented template
-7. Wait for report. Verify the review file exists at the assigned path. If missing, re-dispatch with stricter language; if it fails again, halt.
-8. Read the review file. Its `### Finding N:` sections are the source of truth - NOT the reviewer's text response summary.
-9. Fill the `Spec review` Outcome slot using the structured format (must include the `review:` reference).
+8. Wait for report. Verify the review file exists. If missing, re-dispatch; if fails again, halt.
+9. Read the review file. `### Finding N:` sections are source of truth.
+10. Fill the `Combined review` Outcome slot using the structured format.
 
-### F. Handle spec findings
+**For `Review: separate` tasks** (high-risk: opus implementer / security / schema / broad blast-radius): use the legacy two-step pattern - dispatch spec-reviewer first (file: `task-<id>-spec.md`), then code-reviewer (file: `task-<id>-code.md`), filling the `Spec review` and `Code review` Outcome slots separately. Same fix-loop semantics apply per review.
+
+### F. Handle findings
 
 Parse the reviewer's output. Every admissible finding has a unique number, a priority, a disposition, and a file:line citation. Classify by disposition:
 
@@ -227,35 +237,15 @@ Optional: `inadmissible=N`. Invariant: `findings == fixed + deferred`.
 - All fixed, none deferred: `Fixed in <last-fix-commit-sha>`.
 - Some deferred: `Fixed in <sha>; N deferred to -deferred.md §A-§Z` (or just the defer reference if nothing was fixed inline).
 
-### G. Dispatch code reviewer
-
-Same as E, but:
-- Resolve `code-quality-reviewer-prompt.md` instead of spec-reviewer.
-- Review file path: `<plan-dir>/reviews/task-<id>-code.md`.
-- Fill the `Code review` Outcome and Resolution slots.
-
-### H. Handle code findings
-
-Same as F, but fill the `Code review resolution` slot.
-
-### I. Batched tasks
+### G. Batched tasks
 
 For tasks annotated `Review: batched-with <neighbor-ids>`:
-- Skip steps E-H for tasks that are NOT the last task in the batch.
-- For the LAST task in the batch, run spec + code review on the combined diff (`git diff <first-batch-commit>^..<last-batch-commit>`). Review file paths: `<plan-dir>/reviews/batch-<first-id>-<last-id>-spec.md` and `-code.md`. Fill the `Batch review` slots on the last task.
-
-### Combined review shortcut (when phase gate = /deep-review)
-
-If the phase containing this task has `Phase N Gate (reviewer: ...) with /deep-review on Phase N diff`, per-task reviews switch to a single combined spec+code reviewer to save dispatches. The phase's deep-review will do the deep pass.
-
-1. Dispatch ONE reviewer (not separate spec + code). Use the `code-quality-reviewer-prompt.md` template and include spec concerns in the prompt: "Also check whether the commit satisfies the plan's task requirements, not just code quality."
-2. Review file path: `<plan-dir>/reviews/task-<id>-combined.md`.
-3. Fill BOTH the Spec review and Code review slots from the same file with identical findings count (or leave Spec review with `findings=0 fixed=0 deferred=0 (combined with code review, see task-<id>-combined.md); Combined review.` and put the full results in Code review).
-4. This shortcut is only valid when the phase's annotated gate is `/deep-review`. Phases with normal gates still get separate spec + code reviews.
+- Skip step E for tasks that are NOT the last task in the batch.
+- For the LAST task in the batch, run combined review on the combined diff (`git diff <first-batch-commit>^..<last-batch-commit>`). Review file path: `<plan-dir>/reviews/batch-<first-id>-<last-id>-combined.md`. Fill the `Batch review` slots on the last task.
 
 ## Reviewer Independence Override
 
-Every reviewer dispatch (per-task spec/code in E/G, batched review in I, phase gate review, final gate) MUST include the Reviewer Independence Override block, appended AFTER the upstream template's placeholder substitutions.
+Every reviewer dispatch (per-task combined or separate in E, batched review in G, phase gate review, final gate) MUST include the Reviewer Independence Override block, appended AFTER the upstream template's placeholder substitutions.
 
 The block lives at `$SCRIPT_DIR/reviewer-override.md` (sibling to this SKILL.md). Read it once per session and cache. Substitute `<review-file-path>` with the absolute path the orchestrator assigns (see "Review Artifact Files").
 
