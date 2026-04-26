@@ -101,6 +101,41 @@ Preflight reads the plan and produces decisions for every task/phase before any 
 - If the plan has no phases and total tasks exceed the phase threshold (default: 15), batch related tasks into phases by shared files, dependencies, or domain concern. Group tasks that change the same files or layer together.
 - If the plan has fewer tasks than the phase threshold, treat as a single phase.
 
+### Task consolidation pass
+
+Plans from `/superpowers:writing-plans` tend to over-decompose: e.g., "create file X" + "add function Y to X" + "add test for Y" + "wire X into Z" become 4 tasks. Each task = one full subagent dispatch (~50k context load). Combining = one dispatch handles the whole logical unit. Plan stays auditable (each consolidated task is one checklist line), but dispatch count drops.
+
+**Identify candidates for consolidation.** Two adjacent tasks (in the same phase) merge if ALL apply:
+
+1. **Same files** - both tasks edit the same set of files (or one's files are a subset of the other's), OR they're tightly coupled wire-up (e.g., "create hook" + "use hook in component").
+2. **Sequential** - no other tasks between them in the plan order.
+3. **Combined size estimate** - rough estimate of combined diff stays under ~80 lines. (Estimate from task description: count "create", "add", "modify" verbs and the things they act on.)
+4. **One coherent goal** - a single sentence describes the combined work (e.g., "Add VenueCache schema + indexes + migration"). If the goal sentence reads like "do A and also do B" with conjunction, that's a smell - probably shouldn't merge.
+5. **No review-isolation reason** - NOT security-adjacent, NOT a schema migration that benefits from focused review, NOT user-facing UX wire-up where the reviewer needs to see the change in isolation.
+
+Walk the plan task list in order. For each pair of adjacent tasks, check the criteria. Greedy merge: if (T1, T2) merge AND (merged-T1-T2, T3) also merges, combine all three. Cap merged group at 4 original tasks (anything bigger has likely lost coherence).
+
+**Consolidated task model assignment.** Use the highest model tier among the merged tasks (sonnet + sonnet = sonnet; sonnet + opus = opus).
+
+**Show consolidations to user (interactive).** After computing merge candidates, present:
+
+```
+Plan has <N> tasks. Proposed consolidations (<M> merges):
+
+- Tasks 2.1 + 2.2 + 2.3 → "Add VenueCache schema + indexes + migration" (3 → 1)
+- Tasks 4.1 + 4.2 → "Wire useWarmVenueCache hook + add to event page" (2 → 1)
+- Tasks 7.3 + 7.4 → "Add /warm-cache route + wire to client" (2 → 1)
+...
+
+Final task count: <N> → <M>. Confirm? (y / n / edit per-merge)
+```
+
+If user confirms: write the consolidated task list (keeping original task IDs as a comma-separated provenance, e.g., `### Task 2.1+2.2+2.3:` so the plan trail is preserved). If user picks "n": use original task list. If "edit": let them remove specific merges.
+
+This step runs BEFORE per-task model assignment, batched-with computation, and convertibility analysis - all of those operate on the post-consolidation task list.
+
+If the plan has < 8 tasks, skip this step entirely (consolidation savings don't justify the interactive step).
+
 ### Per-task model assignment
 
 Assign one of `haiku` / `sonnet` / `opus` per task based on complexity signals in the task text:
@@ -282,17 +317,18 @@ If the plan doesn't have phase sections, collect all tasks as a flat list - phas
 Apply the decision logic in "Decisions Preflight Makes" to the parsed plan:
 
 1. **Phase grouping** - use plan's phases if present; else batch into phases if total tasks > phase threshold; else single phase.
-2. **Per-task model** - read each task's text and classify into haiku/sonnet/opus.
-3. **Review policy** - default `standard`; mark adjacent trivial tasks as `batched-with <neighbors>` (max batch size 3).
-4. **Reviewer models per gate** - apply defaults with per-task upgrades.
-5. **Phase review gates** - default `/deep-review` for every phase. Downgrade to `normal` only for trivially small phases (<=3 haiku tasks, single-concern). See "Phase review gate" for the downgrade rule.
-6. **Final review gate** - needed only if any phase was downgraded to normal (rare with default-deep). Skipped when all phases have `/deep-review` coverage (the common case).
-7. **TDD audit** - for each task, check for failing-test steps; mark tasks needing injection.
-8. **Multi-file split** - if total task count > `single_file_cap`, compute `K` and allocate phases/tasks to files 1..K per the splitting rules.
-9. **Phase verification tagging** - for each phase, classify as `auto-verify`, `suggest-verify`, `manual-only`, or `tests-only` based on task content. Extract "Phase end-state test" paragraphs from the plan if present.
-10. **Manual-test convertibility analysis** - for each phase, classify each verification step as convertible (write integration test) or truly-manual (cannot be automated). Inject a synthetic integration-test task at end of phase if any steps are convertible. Recompute the phase verification tag based on residual manual steps. See "Manual-test convertibility analysis" above.
-11. **Plan split preparation** - for multi-session plans (>single_file_cap tasks), prepare per-session plan files. Extract Shared Context material (goal, conventions, key references) from plan-level sections. For each session, determine which tasks and phases belong to it. The synthetic integration-test tasks (from step 10) count toward `single_file_cap` and are placed in the same session as the phase they cover. For single-session plans, no split needed (fly reads plan.md directly).
-12. **Deferred resolution synthetic task** - always inject one `[SYNTHETIC: deferred-resolution]` task at the very end of the LAST checklist (after Final Gate, before Fly Verification block). See "Deferred resolution synthetic task" above. Counts toward `single_file_cap` for the last session only.
+2. **Task consolidation pass (interactive)** - greedy-merge over-decomposed adjacent tasks per the rules in "Task consolidation pass". Show user the proposed merges; on confirmation, write the consolidated task list. Skip for plans with <8 tasks.
+3. **Per-task model** - read each task's text and classify into haiku/sonnet/opus.
+4. **Review policy** - default `standard`; mark adjacent trivial tasks as `batched-with <neighbors>` (max batch size 3).
+5. **Reviewer models per gate** - apply defaults with per-task upgrades.
+6. **Phase review gates** - default `/deep-review` for every phase. Downgrade to `normal` only for trivially small phases (<=3 haiku tasks, single-concern). See "Phase review gate" for the downgrade rule.
+7. **Final review gate** - needed only if any phase was downgraded to normal (rare with default-deep). Skipped when all phases have `/deep-review` coverage (the common case).
+8. **TDD audit** - for each task, check for failing-test steps; mark tasks needing injection.
+9. **Multi-file split** - if total task count > `single_file_cap`, compute `K` and allocate phases/tasks to files 1..K per the splitting rules.
+10. **Phase verification tagging** - tests-only or has-residual based on convertibility analysis (step 11).
+11. **Manual-test convertibility analysis** - for each phase, classify each verification step as convertible (write integration test) or truly-manual. Inject synthetic integration-test task if any convertible. See "Manual-test convertibility analysis" above.
+12. **Plan split preparation** - for multi-session plans (>single_file_cap tasks), prepare per-session plan files. Synthetic tasks count toward `single_file_cap`. For single-session plans, no split needed.
+13. **Deferred resolution synthetic task** - always inject one `[SYNTHETIC: deferred-resolution]` task at the very end of the LAST checklist (after Final Gate, before Fly Verification block).
 
 ### 2b. Propose session breakdown (interactive - plans with >20 tasks only)
 
