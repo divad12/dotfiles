@@ -123,6 +123,12 @@ codex review --base main
 
 Use the `run_in_background` option so it runs concurrently with your own analysis. **Set `timeout: 300000`** (5 minutes) - Codex reviews can take longer than the default 2 minutes on large diffs.
 
+**Important: `--base` takes a BRANCH name, NOT a SHA.** If your scope is a SHA range (e.g. `<phase-base>^..<phase-head>` from /fly's phase-gate deep-review), don't pass the SHA to `--base` - it will fail. Two workarounds:
+1. Create a temporary branch at the base SHA: `git branch -f /tmp/codex-base <phase-base>^ && codex review --base /tmp/codex-base && git branch -D /tmp/codex-base`.
+2. Skip codex for that round and rely on the other 5 sub-reviewers; note "codex skipped: SHA-range scope, --base needs branch" in the consolidated review.
+
+Workaround #1 is preferred when codex's perspective matters for the phase. Workaround #2 is acceptable when the diff is small and the other reviewers cover it.
+
 #### Review 4: UI review (run as subagent, only if frontend files changed)
 
 If the diff includes frontend files (`.tsx`, `.jsx`, `.css`, `.scss`, or component/layout/page files), launch a subagent in the background to do a UI-focused review. The subagent uses **Playwright MCP** to actually interact with the running app - not just read code. It should:
