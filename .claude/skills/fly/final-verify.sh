@@ -92,8 +92,9 @@ if [ "$FINDINGS_NO_REVIEW" -gt 0 ]; then
 fi
 
 # --- Check 7: for every review: <path>, verify the artifact file ---
-# Extract paths following "review: " up to next whitespace or backtick.
-REVIEW_PATHS=$(grep -oE 'review: [^ `]+' "$CHECKLIST" | awk '{print $2}' | sort -u)
+# Extract paths following "review: " up to next whitespace, backtick, comma, paren, or semicolon.
+# Then strip any trailing punctuation that got captured.
+REVIEW_PATHS=$(grep -oE 'review: [^ `),;]+' "$CHECKLIST" | awk '{print $2}' | sed 's/[,);]*$//' | sort -u)
 REVIEW_BAD=0
 while IFS= read -r rel; do
   [ -z "$rel" ] && continue

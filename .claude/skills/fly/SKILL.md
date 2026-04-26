@@ -48,11 +48,12 @@ User invokes `/fly <checklist-path>` - typically in a fresh Claude Code session 
 ## Input
 
 - **Primary:** path to a preflight checklist file (produced by `/preflight`).
-- The checklist is self-contained: plan content (task text, code blocks, commands, file paths, conventions) is embedded by preflight under each task header. The original plan file is preserved on disk for audit but is NOT read by fly.
+- **Secondary:** the per-session plan file referenced in the checklist's `READ FIRST` header (e.g., `plan-1.md`). Contains task content, conventions, code blocks for this session's tasks.
+- Fly reads both files on entry: checklist for tracking (what to tick/fill), plan file for task content (what to implement).
 
 ## State Detection
 
-On entry, read the checklist file and classify its state:
+On entry, read the checklist file. Also read the plan file referenced in the checklist's `READ FIRST` header. Then classify the checklist's state:
 
 - **Fresh run** - all checkboxes are unticked (`- [ ]`) and all slots contain `<fill>`.
 - **Mid-flight pickup** - some checkboxes are ticked (`- [x]`) or some slots are non-`<fill>`. Resume from the first unticked checkbox or unfilled slot.
@@ -65,7 +66,7 @@ Announce the detected mode at start:
 
 ## Multi-File Checklist Support
 
-`/fly` executes exactly ONE checklist file per invocation. That file is complete and self-contained: its own tasks, its own phase gates, and (if present) its own final gate.
+`/fly` executes exactly ONE checklist file per invocation. Each checklist has a companion per-session plan file (e.g., `plan-1.md`): the checklist tracks progress, the plan file holds task content. Together they form a complete session: its own tasks, its own phase gates, and (if present) its own final gate.
 
 When a plan is large enough that preflight splits it, preflight emits multiple checklist files alongside the plan, typically named like:
 
@@ -109,7 +110,7 @@ Walk the checklist's tasks in order. For each task:
 
 1. Resolve `implementer-prompt.md` via Glob + Read (see Template Resolution).
 2. Substitute placeholders in the template:
-   - `[FULL TEXT of task from plan - paste it here, don't make subagent read file]` → the task's full text, read directly from the checklist (embedded under each task header by preflight). No file lookup needed.
+   - `[FULL TEXT of task from plan - paste it here, don't make subagent read file]` → the task's full text, read from the per-session plan file. Match the checklist's task ID (e.g., Task 0.1) to the corresponding `### Task 0.1:` section in the plan file.
    - `[Scene-setting: where this fits, dependencies, architectural context]` → a short paragraph describing the task's context (read the checklist's overall goal and phase description; summarize).
    - `[directory]` → the current working directory (user's project root).
 3. Append this explicit override text to the prompt:
@@ -174,7 +175,7 @@ Read the implementer's report for the commit SHA. Edit the checklist to replace 
 1. Resolve `spec-reviewer-prompt.md` via Glob + Read.
 2. Choose the review file path per "Review Artifact Files": `<plan-dir>/reviews/task-<id>-spec.md`. Create `reviews/` if missing.
 3. Substitute placeholders:
-   - `[FULL TEXT of task requirements]` → the task's text from the checklist (embedded under each task header).
+   - `[FULL TEXT of task requirements]` → the task's text from the per-session plan file (find the section matching this task's ID).
    - `[From implementer's report]` → the implementer's summary, placed under the heading `## Implementer-Reported Summary (untrusted)`.
 4. Append a `## Actual Diff` section containing the output of `git show <task-sha>`.
 5. Append the Reviewer Independence Override block verbatim, with `<review-file-path>` replaced by the absolute path chosen in step 2.
@@ -207,13 +208,13 @@ Every admissible finding lands in one bucket. No "skipped" / "ignored" / "wontfi
 2. Dispatch fix-implementer. Default model: the task's implementer model from the checklist. The fixer may upgrade if a specific finding is architecturally gnarly or if the default-model fix BLOCKs - this is discretionary, not contract-gated (the checklist annotates task work, not fix work).
 3. Wait for fix report. If any `[fix]` number is missing from the report, treat that finding as BLOCKED.
 4. For BLOCKED findings: retry once with upgraded model. If still BLOCKED, evaluate whether the finding actually meets a defer criterion - if yes, move it to deferred.md with the BLOCKED reason. If no (e.g., it's a tractable fix the model just couldn't see), halt and surface to the user.
-5. Re-dispatch spec reviewer (full cycle: Reviewer Independence Override, fresh diff). Loop until no `[fix]` admissible findings remain.
+5. Re-dispatch spec reviewer (full cycle: Reviewer Independence Override, fresh diff). The re-reviewer writes to the SAME review file path, overwriting the prior review. This is correct - the file should reflect the CURRENT state of the code. Loop until no `[fix]` admissible findings remain.
 
 **Deferred-write (only `[defer]` findings + any `[fix]` that legitimately blocked):**
 
 Each deferred finding gets its own `§N` entry with priority in the heading and the specific defer reason (which of the 3 criteria). If you find yourself writing many defer entries in a single review, that's a signal - either the reviewer is mis-disposing (re-dispatch), or the scope of this task genuinely needs the user's attention (halt, surface).
 
-**Fill the Outcome slot** using the structured format:
+**Fill the Outcome slot from the FINAL review file** (after all fix loops complete). The Outcome's `findings=N` must match the current file on disk, not an earlier review round. If the fix loop ran, the final re-review file is authoritative:
 
     findings=N fixed=N deferred=N; <summary>
 

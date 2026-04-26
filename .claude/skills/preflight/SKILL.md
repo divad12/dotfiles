@@ -7,13 +7,13 @@ user-invocable: true
 
 # Preflight
 
-Transform a plan file into a self-contained checklist contract that `/fly` executes.
+Transform a plan file into per-session plan files and tracking checklists that `/fly` executes.
 
 ## Purpose
 
-Transform a plan into a self-contained preflight checklist with all execution decisions and plan content embedded. The checklist becomes the sole source of truth `/fly` executes - fly does not read the plan file separately.
+Transform a plan into execution-ready artifacts: per-session plan files (self-contained task content) and lightweight tracking checklists (checkboxes, SHA/Outcome/Resolution slots, review gates). Fly reads both - the plan file for task content, the checklist for tracking state.
 
-Runs before `/fly`. Does not modify the plan - writes one or more sibling checklist files and prints a terminal summary. Plan content is embedded into each checklist so fly sessions are self-contained.
+Runs before `/fly`. Does not modify the original plan - writes per-session plan files, tracking checklists, and prints a terminal summary.
 
 > **1M context assumption.** Preflight assumes all `/fly` sessions will run on Claude opus with a 1M-token context window. The per-file task cap (`single_file_cap = 20`) is sized for that budget. If you are running at standard 200K context, halve the cap (tune `single_file_cap` below, or manually split tighter). The terminal summary tells the user the exact `claude --model ...` string to launch each session with.
 
@@ -42,8 +42,10 @@ All artifacts for a feature live in one folder: `docs/specs/YYYY-MM-DD-<feature>
 ```
 docs/specs/2026-04-18-whatsapp-connector/
   design.md              (spec from brainstorming)
-  plan.md                (plan from writing-plans)
-  checklist.md           (preflight output; or checklist-1.md, -2.md for splits)
+  plan.md                (plan from writing-plans - frozen audit trail)
+  checklist.md           (preflight output, single-session plans)
+  plan-1.md, plan-2.md   (per-session plan splits, multi-session plans)
+  checklist-1.md, -2.md  (per-session tracking checklists, multi-session plans)
   deferred.md            (created by fly if findings deferred)
   reviews/               (review artifact files from fly)
     task-1.1-spec.md
@@ -67,12 +69,21 @@ If the plan is already at `<feature-folder>/plan.md` (or any path inside a featu
 
 ## Output
 
-1. Checklist files inside the feature folder (self-contained - fly does not read the plan separately):
-   - If total tasks <= `single_file_cap`: `<feature-folder>/checklist.md`.
-   - If total tasks > `single_file_cap`: `<feature-folder>/checklist-1.md`, `checklist-2.md`, ..., `checklist-K.md`.
-2. Creates `<feature-folder>/reviews/` directory (fly writes review artifacts here).
-3. Original plan is untouched (audit trail). Plan content is embedded in checklist files; plan.md is preserved for reference only.
-4. Terminal summary printed at end (see "Terminal Summary" section below).
+**Single-session plans** (total tasks <= `single_file_cap`):
+1. `<feature-folder>/checklist.md` (tracking only - checkboxes, SHA/Outcome/Resolution slots, review gates).
+2. `<feature-folder>/plan.md` stays as-is. Fly reads it directly for task content.
+
+**Multi-session plans** (total tasks > `single_file_cap`):
+1. `<feature-folder>/plan-1.md`, `plan-2.md`, ..., `plan-K.md` (per-session plan splits - self-contained task content for each session).
+2. `<feature-folder>/checklist-1.md`, `checklist-2.md`, ..., `checklist-K.md` (tracking only).
+3. `<feature-folder>/plan.md` stays as-is (frozen audit trail).
+
+**Both cases:**
+- Creates `<feature-folder>/reviews/` directory (fly writes review artifacts here).
+- Original plan is untouched.
+- Terminal summary printed at end (see "Terminal Summary" section below).
+
+Fly reads the checklist for tracking state and the corresponding plan file for task content. Together, the pair is self-contained for the session.
 
 ## Overwrite Behavior
 
@@ -144,26 +155,28 @@ If any condition fails, the phase gets `/deep-review`. When in doubt, default to
 ### Multi-file split logic
 
 If `total_task_count <= single_file_cap`:
-- Write ONE checklist file: `<feature-folder>/checklist.md` (format below).
+- Write ONE checklist file: `<feature-folder>/checklist.md` (tracking only, format below).
+- No plan split needed. Fly reads `plan.md` directly for task content.
 
 If `total_task_count > single_file_cap`:
 - Compute `K = ceil(total_task_count / single_file_cap)`.
-- Split into `K` files named `<feature-folder>/checklist-1.md` ... `checklist-K.md`.
+- Split into `K` plan files: `<feature-folder>/plan-1.md` ... `plan-K.md` (per-session plan content).
+- Split into `K` checklist files: `<feature-folder>/checklist-1.md` ... `checklist-K.md` (tracking only).
 - Splitting rules:
   1. **Respect plan phase boundaries where possible.** Never split a phase across two files if the whole phase fits within `single_file_cap`.
   2. **Phase larger than the cap.** If a single phase exceeds `single_file_cap` on its own, split it at task boundaries (sequential order). Emit a warning in the terminal summary: `Phase <N> (<T> tasks) exceeds single_file_cap <cap>; split at task boundaries across files <a>-<b>.`
-  3. **Standalone files.** Each file contains a complete set of tasks + phase gates for the phases it covers. `/fly` runs each file in a full pass (per-task loop plus phase gates for that file's phases).
+  3. **Paired files.** Each session has a plan file (task content) and a checklist file (tracking). Fly reads both. `/fly` runs each pair in a full pass (per-task loop plus phase gates for that session's phases).
   4. **Deep-review coverage invariant preserved.**
      - Per-phase `/deep-review` gates in the original plan stay on their original phases, which stay together in one file.
-     - The **final `/deep-review` gate** lives ONLY on the LAST file (file `K`). It covers whatever phases the invariant says it must cover (same computation as single-file mode).
-     - The **Fly Verification block** (final verification sweep) lives ONLY on file `K`. Files `1` through `K-1` do NOT include a final gate or final verification.
-  5. **Header + decisions block.** Each file starts with the same header format, but the title is suffixed with `(File X of K)`. The decisions block summarizes decisions for that file's scope but also notes the full split (see Checklist Format below).
-  6. **Next-file pointer.** Each file (except the last) ends with a line:
+     - The **final `/deep-review` gate** lives ONLY on the LAST checklist (file `K`). It covers whatever phases the invariant says it must cover (same computation as single-file mode).
+     - The **Fly Verification block** (final verification sweep) lives ONLY on checklist `K`. Checklists `1` through `K-1` do NOT include a final gate or final verification.
+  5. **Header + decisions block.** Each checklist starts with the same header format, but the title is suffixed with `(File X of K)`. The decisions block summarizes decisions for that file's scope but also notes the full split (see Checklist Format below).
+  6. **Next-file pointer.** Each checklist (except the last) ends with a line:
      ```
      Next file: <relative-path-to-next-checklist>
      ```
-     Omit this line on file `K`.
-  7. **Self-contained.** Every file's header states it is self-contained (plan content embedded). The original plan path is noted for audit only.
+     Omit this line on checklist `K`.
+  7. **Per-session plan files are self-contained.** Each plan-N.md has all the context needed for its session (goal, conventions, key references, verbatim task content). The checklist references the plan file in its header. Together, the plan-N + checklist-N pair is self-contained for the session.
 
 ### TDD audit
 
@@ -209,7 +222,7 @@ Apply the decision logic in "Decisions Preflight Makes" to the parsed plan:
 7. **TDD audit** - for each task, check for failing-test steps; mark tasks needing injection.
 8. **Multi-file split** - if total task count > `single_file_cap`, compute `K` and allocate phases/tasks to files 1..K per the splitting rules.
 9. **Phase verification tagging** - for each phase, classify as `auto-verify`, `suggest-verify`, `manual-only`, or `tests-only` based on task content. Extract "Phase end-state test" paragraphs from the plan if present.
-10. **Plan content extraction** - for each task, extract the full task text (files, steps, code blocks) from the plan for embedding into the checklist. Extract Shared Context material (goal, conventions, key references) from plan-level sections.
+10. **Plan split preparation** - for multi-session plans (>single_file_cap tasks), prepare per-session plan files. Extract Shared Context material (goal, conventions, key references) from plan-level sections. For each session, determine which tasks and phases belong to it. For single-session plans, no split needed (fly reads plan.md directly).
 
 ### 2b. Propose session breakdown (interactive - plans with >20 tasks only)
 
@@ -261,90 +274,103 @@ Wait for the user's response. Then proceed to write files matching the chosen sp
 If `design.md` exists in the feature folder alongside the plan:
 
 1. Read it and extract the 2-3 sentence summary from the top (usually the Goal or Overview section).
-2. For phases that involve architectural decisions (new components, state machines, data flow), identify the relevant design.md section for targeted extraction in step 4.
+2. For phases that involve architectural decisions (new components, state machines, data flow), identify the relevant design.md section for targeted extraction into plan-N.md files (multi-session) or left in plan.md for fly to read (single-session).
 
-Do NOT dump the full design.md into the checklist. Only extract targeted context that helps implementers understand WHY, not just WHAT.
+Do NOT dump the full design.md into any output file. Only extract targeted context that helps implementers understand WHY, not just WHAT.
 
 If no design.md exists, skip this step.
 
-### 3. Check for existing checklist(s)
+### 3. Check for existing output files
 
 Compute output path(s):
 
-- Single-file case: `<feature-folder>/checklist.md`.
-- Split case: `<feature-folder>/checklist-1.md` ... `checklist-K.md`.
+- Single-session case: `<feature-folder>/checklist.md`.
+- Multi-session case: `<feature-folder>/plan-1.md` ... `plan-K.md` and `<feature-folder>/checklist-1.md` ... `checklist-K.md`.
 
 Examples:
 - `docs/specs/2026-04-17-export/plan.md` (15 tasks) -> `docs/specs/2026-04-17-export/checklist.md`
-- `docs/specs/2026-04-17-export/plan.md` (45 tasks) -> `docs/specs/2026-04-17-export/checklist-1.md`, `checklist-2.md`, `checklist-3.md`
-- `docs/specs/plans/2026-04-17-export.md` (45 tasks) -> `-checklist-1.md`, `-checklist-2.md`, `-checklist-3.md`
+- `docs/specs/2026-04-17-export/plan.md` (45 tasks) -> `plan-1.md`, `plan-2.md`, `plan-3.md` + `checklist-1.md`, `checklist-2.md`, `checklist-3.md`
 
-If any output file exists:
+If any checklist output file exists:
 - Read it. If any checkboxes are ticked or any `<fill>` slots are filled, warn: "Checklist file(s) exist with in-progress state. Overwrite? (y/n)"
 - Wait for user confirmation before continuing.
 - On overwrite with a plan that still has the same task list, consider preserving prior fills - but if in doubt, fresh-write and tell the user.
 
-### 4. Write the checklist file(s)
+### 4. Write the output files
 
-Produce the checklist(s) using the format in "Checklist Format" below. Write each to its computed output path.
+**Multi-session case:** First write the per-session plan files (`plan-1.md` ... `plan-K.md`) using the format in "Per-Session Plan File Format" below. Then write the tracking checklists (`checklist-1.md` ... `checklist-K.md`) using the format in "Checklist Format" below.
+
+**Single-session case:** Write only the tracking checklist (`checklist.md`) using the format in "Checklist Format" below. No plan split needed.
+
+Write each file to its computed output path.
 
 ### 5. Print terminal summary
 
 Print the summary (see "Terminal Summary" below) to the user.
 
+## Per-Session Plan File Format (multi-session only)
+
+Each `plan-N.md` is a self-contained plan file for one fly session. Only produced when total tasks > `single_file_cap`.
+
+```markdown
+# <Feature name> - Session N: <phase names>
+
+## What we're building (overall)
+<2-3 sentences from plan's Goal paragraph. If design.md exists, blend in its summary.>
+
+## This session's scope
+<1-2 sentences describing what this session's phases accomplish>
+
+## Conventions
+<extracted from plan's Conventions section if present: TDD rules, mock patterns, test env, run commands, commit cadence>
+
+## Key references
+<extracted imports, shared types, file structure summaries relevant to this session's phases>
+
+## Tasks
+
+### Task N.M: <task title>
+<full task content verbatim from plan: files, steps, code blocks, everything>
+
+### Task N.M+1: ...
+...
+```
+
+Rules for populating per-session plan files:
+- "What we're building" and "Conventions" are duplicated in each plan-N.md. Around 10 lines each. Trivial cost, makes each file self-contained.
+- "This session's scope" varies per file.
+- "Key references" extracted per-phase (only imports/types relevant to this session).
+- Task content is verbatim from plan.md - no paraphrasing.
+- If design.md exists, incorporate a brief architectural context note in the "What we're building" section.
+- "Conventions" is present only if the plan has a Conventions, Setup, or similar section. Omit entirely if the plan has no such content.
+- "Key references" is present only if the plan references specific imports, shared types, or file structure that implementers need. Omit if none are relevant to this session's phases.
+
 ## Checklist Format
 
-The checklist is a markdown file with a specific structure. Every task and review gate is a checkbox; every SHA and outcome is a `<fill>` slot that `/fly` replaces during execution.
+The checklist is a tracking-only markdown file. Every task and review gate is a checkbox; every SHA and outcome is a `<fill>` slot that `/fly` replaces during execution. Task content (files, steps, code blocks) lives in the plan file, not the checklist.
 
 ### Header
 
-Single-file case:
+Single-session case:
 
 ```markdown
 # Preflight Checklist: <feature>
 
-> **Self-contained checklist.** Plan content embedded below. Original plan preserved at `<plan-path>` for audit.
+> **READ FIRST:** `plan.md` (this session's plan content).
 > Built by `/preflight` on YYYY-MM-DD. Execute with `/fly`.
 ```
 
-Split case (each file 1..K):
+Multi-session case (each file 1..K):
 
 ```markdown
 # Preflight Checklist: <feature> (File X of K)
 
-> **Self-contained checklist.** Plan content embedded below. Original plan preserved at `<plan-path>` for audit.
+> **READ FIRST:** `plan-X.md` (this session's plan content).
+> Full plan at `plan.md` for audit.
 > Built by `/preflight` on YYYY-MM-DD. Execute with `/fly`.
 ```
 
 `<feature>` is the plan file's basename without date prefix or `.md` extension. E.g., `2026-04-17-export.md` -> `Export`.
-
-### Shared Context block
-
-Immediately after the Decisions block, include a Shared Context section that makes the checklist self-contained for fly sessions.
-
-```markdown
-## Shared Context
-
-### What we're building
-<1-2 sentences from plan's Goal paragraph. If design.md exists, incorporate its summary here for richer context.>
-
-### This session (File X of K): <phase names covered>
-<1-2 sentences describing what this session's phases accomplish>
-
-### Conventions (from plan)
-<extracted from plan's Conventions section - TDD rules, test env, mock patterns, run commands, commit cadence>
-
-### Key references (from plan)
-<extracted hook imports, shared types, file structure summaries relevant to this session's phases>
-```
-
-Rules for populating Shared Context:
-- "What we're building" is always present. Source: plan's Goal/Overview paragraph. If `design.md` exists (step 2c), blend in its 2-3 sentence summary.
-- "This session" is always present. In single-file mode, describe the full plan scope. In split mode, describe only this file's phases.
-- "Conventions" is present only if the plan has a Conventions, Setup, or similar section. Extract TDD rules, test environment, mock patterns, run commands, and commit cadence. Omit this subsection entirely if the plan has no such content.
-- "Key references" is present only if the plan references specific imports, shared types, or file structure that implementers need. Omit if none are relevant to this file's phases.
-
-For phases that involve architectural decisions (new components, state machines, data flow), add a brief `Design context:` note under that phase's tasks if design.md was read in step 2c. Keep it to 2-3 sentences extracting the relevant WHY from the design doc.
 
 ### Decisions block
 
@@ -359,7 +385,7 @@ For phases that involve architectural decisions (new components, state machines,
 - Split: single file | <K> files (<file-paths>)
 ```
 
-In split mode, the `Split:` line lists the sibling checklist file paths (e.g., `3 files (2026-04-17-export-checklist-1.md, -checklist-2.md, -checklist-3.md)`). Each file carries this same line so a reader of any one file sees the full split.
+In split mode, the `Split:` line lists the sibling checklist file paths (e.g., `3 files (checklist-1.md, checklist-2.md, checklist-3.md)`). Each file carries this same line so a reader of any one file sees the full split.
 
 ### Phase blocks
 
@@ -367,13 +393,10 @@ In split mode, the `Split:` line lists the sibling checklist file paths (e.g., `
 ## Phase <N>: <phase name> | Phase gate: <normal review | deep-review> (reviewer: <model>)
 ```
 
-Each task embeds its full plan content inline (the checklist is self-contained):
+Tasks are tracking-only (no embedded plan content):
 
 ```markdown
 ### Task <id> | Model: <haiku|sonnet|opus> | Review: <standard | batched-with <neighbor-ids>>
-
-**Files:** <file list from plan task>
-<full task text from plan including steps, code blocks, everything - verbatim>
 
 Plan steps:
 - [ ] Step 1: <title extracted from plan>
@@ -387,7 +410,7 @@ Review gates:
 - [ ] Code review resolution - Action: `<fill>`
 ```
 
-The `plan §<id>` reference is no longer used. All plan content lives directly under the task header. Fly reads only the checklist file.
+No **Files:** block, no embedded task text, no code blocks. Fly reads task content from the plan file (plan.md for single-session, plan-N.md for multi-session).
 
 For batched tasks, individual tasks omit their own review gates; the LAST task in the batch carries a shared batch review gate:
 
@@ -468,12 +491,12 @@ Omit this line on file `K`.
 
 ## Terminal Summary
 
-After writing the checklist file(s), print to the user.
+After writing the output files, print to the user.
 
-### Single-file case
+### Single-session case
 
 ```
-Preflight checklist created (self-contained - fly reads only the checklist).
+Preflight checklist created. Fly reads plan.md + checklist.md together.
 
 File: <absolute-path-to-checklist>
 [<relative-path-to-checklist>](<relative-path-to-checklist>)
@@ -498,17 +521,17 @@ Ready to execute? In a fresh session, run:
   /fly <relative-path-to-checklist>
 ```
 
-### Split case
+### Multi-session case
 
 ```
-Preflight checklist created (self-contained - fly reads only the checklist).
+Preflight artifacts created. Fly reads plan-N.md + checklist-N.md together per session.
 Session split confirmed by user (step 2b).
 
-Plan has <N> tasks. Splitting into <K> checklist files:
-  <relative-path-to-checklist-1.md>   (<tasks> tasks, Phases <start>-<end>)
-  <relative-path-to-checklist-2.md>   (<tasks> tasks, Phases <start>-<end>)
+Plan has <N> tasks. Split into <K> sessions:
+  plan-1.md + checklist-1.md  (<tasks> tasks, Phases <start>-<end>)
+  plan-2.md + checklist-2.md  (<tasks> tasks, Phases <start>-<end>)
   ...
-  <relative-path-to-checklist-K.md>   (<tasks> tasks, Phases <start>-<end>, includes final gate + final verification)
+  plan-K.md + checklist-K.md  (<tasks> tasks, Phases <start>-<end>, includes final gate + final verification)
 
 Key decisions (plan-wide):
 - <N> tasks across <M> phases
@@ -517,26 +540,25 @@ Key decisions (plan-wide):
 - Review batching: <summary or "none">
 - TDD gaps injected: <summary or "none">
 - Phase verification tags: <summary, e.g., "Phase 0: tests-only, Phase 1: suggest-verify, Phase 2: auto-verify">
-- Split: <K> files
+- Split: <K> sessions
 
 Warnings (if any):
 - <warning lines>
 
-Assuming 1M context for all sessions. Launch CC with:
+Assuming 1M context. Launch CC with:
   claude --model claude-opus-4-7[1m]
-(substitute equivalent 1M-context model string if different in your environment)
 
-Run each file in a FRESH CC session, in order:
-  /fly <relative-path-to-checklist-1.md>
-  (then fresh session)
-  /fly <relative-path-to-checklist-2.md>
+Run each session in order:
+  /fly checklist-1.md
+  (fresh session)
+  /fly checklist-2.md
   ...
-  (then fresh session)
-  /fly <relative-path-to-checklist-K.md>
+  (fresh session)
+  /fly checklist-K.md
 ```
 
 Format requirements:
-- File paths in the single-file case MUST be both an absolute path (for clarity) and a clickable markdown link using the relative path.
+- File paths in the single-session case MUST be both an absolute path (for clarity) and a clickable markdown link using the relative path.
 - The "Key decisions" section must mirror the `## Decisions` blocks in the checklist file(s).
 - The `/fly` command(s) must use the exact relative path(s), copy-paste ready.
 - Warnings:
