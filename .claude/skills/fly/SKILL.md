@@ -286,7 +286,7 @@ After reviewer returns:
 
 ### For deep-reviews: normalization pass
 
-`/deep-review` runs multiple parallel sub-reviewers (Codex review, Chrome MCP UI review, rule compliance, simplification, collateral change audit, Claude's own diff analysis). Each sub-reviewer has own findings. `/deep-review` skill consolidates them; in that consolidation, findings routinely dropped or merged. Well-known body-vs-summary gap.
+`/deep-review` runs multiple parallel sub-reviewers (independent cross-agent review, Chrome MCP UI review, rule compliance, simplification, collateral change audit, orchestrator diff analysis). Each sub-reviewer has own findings. `/deep-review` skill consolidates them; in that consolidation, findings routinely dropped or merged. Well-known body-vs-summary gap.
 
 For deep-review files ONLY, run extra normalization pass:
 
@@ -418,7 +418,7 @@ After regression check passes, run review gate per checklist's annotation:
 
 - **Deep-review** (`Phase N Gate (reviewer: ...)` with `/deep-review on Phase N diff`):
 
-  `/fly` MUST actually invoke `/deep-review` skill via Skill tool. Paraphrasing skill's 6-review structure into bespoke reviewer prompt is NOT equivalent. Loses what skill has been tuned to do (parallel Codex review, Chrome MCP UI review, rule compliance audit, simplification pass, collateral change audit, Claude's own diff analysis), and destroys audit trail (user can't tell whether real skill ran).
+  `/fly` MUST actually invoke `/deep-review` skill via Skill tool. Paraphrasing skill's 6-review structure into bespoke reviewer prompt is NOT equivalent. Loses what skill has been tuned to do (parallel independent cross-agent review, Chrome MCP UI review, rule compliance audit, simplification pass, collateral change audit, orchestrator diff analysis), and destroys audit trail (user can't tell whether real skill ran).
 
   **Dispatch pattern: direct Skill tool invocation in main context**
 
@@ -434,7 +434,7 @@ After regression check passes, run review gate per checklist's annotation:
 
   Context cost note: running `/deep-review` in main context adds its sub-reviewer output to fly's transcript. With 1M context and <=20 tasks per session, this is acceptable. The alternative (subagent wrapper) fails due to nested Task dispatch restrictions.
 
-  **Codex sub-reviewer caveat:** `codex review --base <X>` takes a BRANCH name, not a SHA. Phase-gate scope is a SHA range (`<phase-base>^..<phase-head>`). Create a temp branch at the base SHA before invoking: `git branch -f /tmp/codex-base <phase-base>^ && codex review --base /tmp/codex-base && git branch -D /tmp/codex-base`. Do NOT skip codex - it's load-bearing for deep-review.
+  **Independent reviewer caveat:** `/deep-review` chooses the other agent family as the independent reviewer. When that reviewer is Codex, `codex review --base <X>` takes a BRANCH name, not a SHA. Phase-gate scope is a SHA range (`<phase-base>^..<phase-head>`). The `/deep-review` skill owns the reviewer-specific dispatch details, including creating a temp branch for Codex or feeding the exact SHA-range diff to Claude Code. Do NOT skip the independent reviewer - it's load-bearing for deep-review.
 
 ### Phase end-state verification
 

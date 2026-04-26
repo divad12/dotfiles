@@ -1,6 +1,6 @@
 ---
 name: deep-review
-description: "Run a thorough six-way code review: collateral change audit, Claude's own diff analysis, a rule compliance audit (re-reads CLAUDE.md and project docs to catch shortcuts from context pressure), a simplification/code-quality pass, Codex review, and a UI usability review (if frontend changes are present) - all in parallel. Consolidates findings, auto-fixes must-fix and easy-win items, flags collateral changes for user decision, runs a verification round, then presents remaining suggestions. Use when the user says 'deep review', 'thorough review', 'full review', 'triple review', or 'ultra review'."
+description: "Run a thorough six-way code review: collateral change audit, the orchestrator's own diff analysis, a rule compliance audit (re-reads CLAUDE.md and project docs to catch shortcuts from context pressure), a simplification/code-quality pass, an independent reviewer from the other agent family, and a UI usability review (if frontend changes are present) - all in parallel. Consolidates findings, auto-fixes must-fix and easy-win items, flags collateral changes for user decision, runs a verification round, then presents remaining suggestions. Use when the user says 'deep review', 'thorough review', 'full review', 'triple review', or 'ultra review'."
 user-invocable: true
 ---
 
@@ -8,17 +8,17 @@ user-invocable: true
 
 Run multiple independent review passes in parallel, consolidate findings, auto-fix what's safe, verify the fixes, and present the rest for user decision.
 
-The value of multi-agent review is that each reviewer has a different perspective and catches different things. An independent reviewer (like Codex) doesn't share the blind spots of the agent that wrote the code. A UI reviewer catches usability issues that a code-focused review misses. Running them in parallel costs no extra wall-clock time.
+The value of multi-agent review is that each reviewer has a different perspective and catches different things. An independent reviewer from the other agent family doesn't share the blind spots of the agent that wrote the code. A UI reviewer catches usability issues that a code-focused review misses. Running them in parallel costs no extra wall-clock time.
 
 ## Overview
 
 This skill orchestrates a comprehensive review by combining up to six perspectives:
 
 1. **Collateral change audit** - flag changes to existing behavior that aren't required by the feature
-2. **Claude review** - diff analysis, correctness, conventions, code quality
+2. **Orchestrator review** - diff analysis, correctness, conventions, code quality
 3. **Rule compliance audit** - re-read project rules (CLAUDE.md, docs/ai/) with fresh eyes and systematically verify the diff obeys them. This catches shortcuts the coding agent took under context pressure.
 4. **Simplify pass** - code reuse opportunities, unnecessary complexity, efficiency, dead code
-5. **Codex review** - independent AI review with fresh eyes (no shared context with the coding agent)
+5. **Independent cross-agent review** - fresh eyes from the other agent family (no shared context with the coding agent)
 6. **UI review** - usability, accessibility, and design quality (only when frontend files are changed)
 
 After all reviews complete, findings are consolidated, deduplicated, and categorized for action.
@@ -61,7 +61,7 @@ For each hunk in pre-existing files, check:
 
 Flag each collateral change with the file path and a brief explanation of what it changes and why it's unrelated to the feature. These go into a dedicated **Collateral Changes** section in the consolidated review (not auto-fixed - always presented for user decision on whether to keep or revert).
 
-#### Review 1: Claude's own review (run inline)
+#### Review 1: Orchestrator's own review (run inline)
 
 Analyze the diff yourself. Focus on:
 
@@ -109,7 +109,21 @@ Invoke the `/simplify` skill via the Skill tool. It has its own tuned logic for 
 
 The skill operates on recently changed code by default, which matches the deep-review scope.
 
-#### Review 3: Codex review (run as background task)
+### 2.5. Detect the invoking agent
+
+Before dispatching Review 3, identify the current orchestrator:
+
+- If the current orchestrator is Codex, the independent reviewer is Claude Code.
+- If the current orchestrator is Claude Code, the independent reviewer is Codex.
+- If the current orchestrator is neither, prefer Codex if available, then Claude Code. Record the fallback in the summary.
+
+This is intentionally based on the agent running the skill, not on which agent wrote the diff. The goal is to force a second review engine with different defaults, tool behavior, and blind spots.
+
+#### Review 3: Independent cross-agent review (run as background task)
+
+Launch the independent reviewer in the background while you do reviews 1 and 2. Use the agent's background execution mechanism so it runs concurrently with your own analysis. **Set `timeout: 300000`** (5 minutes) - independent reviews can take longer than the default 2 minutes on large diffs.
+
+#### When the independent reviewer is Codex
 
 Launch Codex in the background while you do reviews 1 and 2:
 
@@ -121,8 +135,6 @@ codex review --uncommitted
 codex review --base main
 ```
 
-Use the `run_in_background` option so it runs concurrently with your own analysis. **Set `timeout: 300000`** (5 minutes) - Codex reviews can take longer than the default 2 minutes on large diffs.
-
 **Important: `--base` takes a BRANCH name, NOT a SHA.** If your scope is a SHA range (e.g. `<phase-base>^..<phase-head>` from /fly's phase-gate deep-review), create a temp branch at the base SHA first - DO NOT skip codex.
 
 ```bash
@@ -131,7 +143,42 @@ codex review --base /tmp/codex-base
 git branch -D /tmp/codex-base   # cleanup after dispatch
 ```
 
-Codex perspective is load-bearing for deep-review; skipping it loses one of the six sub-reviewers and degrades the review.
+#### When the independent reviewer is Claude Code
+
+Run Claude Code in non-interactive print mode and feed it the exact review diff. Keep staged and unstaged changes separate so it can catch index-only mistakes and unstaged follow-up edits.
+
+```bash
+# For uncommitted changes:
+git diff --cached > /tmp/deep-review-staged.patch
+git diff > /tmp/deep-review-unstaged.patch
+{
+  printf '%s\n' 'You are the independent reviewer for /deep-review.'
+  printf '%s\n' 'Review only. Do not modify files. Report correctness, safety, tests, maintainability, and rule-compliance findings with file:line references.'
+  printf '%s\n' 'STAGED DIFF:'
+  cat /tmp/deep-review-staged.patch
+  printf '%s\n' 'UNSTAGED DIFF:'
+  cat /tmp/deep-review-unstaged.patch
+} | claude -p
+
+# For branch changes:
+{
+  printf '%s\n' 'You are the independent reviewer for /deep-review.'
+  printf '%s\n' 'Review only. Do not modify files. Report correctness, safety, tests, maintainability, and rule-compliance findings with file:line references.'
+  git diff main...HEAD
+} | claude -p
+```
+
+If your scope is a SHA range (e.g. `<phase-base>^..<phase-head>` from /fly's phase-gate deep-review), feed that exact diff to Claude Code:
+
+```bash
+{
+  printf '%s\n' 'You are the independent reviewer for /deep-review.'
+  printf '%s\n' 'Review only. Do not modify files. Report correctness, safety, tests, maintainability, and rule-compliance findings with file:line references.'
+  git diff <phase-base>^..<phase-head>
+} | claude -p
+```
+
+The independent reviewer perspective is load-bearing for deep-review; skipping it loses one of the six sub-reviewers and degrades the review.
 
 #### Review 4: UI review (run as subagent, only if frontend files changed)
 
@@ -153,7 +200,7 @@ If the diff includes frontend files (`.tsx`, `.jsx`, `.css`, `.scss`, or compone
    - **Component API** - are props well-named and minimal? Is the component doing too much?
 5. Be specific about findings. Reference file paths and line numbers.
 
-This is better than delegating to Codex because the subagent has direct access to the codebase, can render and interact with the actual UI, and catch behavioral issues that code-only review misses.
+This is better than delegating UI review to the independent code reviewer because the UI subagent has direct access to the codebase, can render and interact with the actual UI, and catch behavioral issues that code-only review misses.
 
 Skip this review entirely if no frontend files are in the diff.
 
@@ -197,7 +244,7 @@ Once all reviews are complete, merge the results:
    ```
    ## Deep Review Summary
 
-   Reviewed by: Claude (diff + simplify + collateral audit), Codex[, UI review]
+   Reviewed by: <orchestrator> (diff + simplify + collateral audit), <independent reviewer>[, UI review]
    Scope: [uncommitted changes / branch diff against main]
    Files changed: [count] ([N] frontend)
 
@@ -250,9 +297,22 @@ Apply fixes for all items in "Must fix", "Easy wins", and "Fix these too":
 
 After applying all fixes from step 4, run one more review cycle to make sure the fixes didn't introduce new issues or reveal problems that were masked by the original code.
 
-1. **Re-run Codex review** on the current uncommitted state:
+1. **Re-run the same independent reviewer** on the current uncommitted state:
    ```bash
+   # If the independent reviewer is Codex:
    codex review --uncommitted
+
+   # If the independent reviewer is Claude Code:
+   git diff --cached > /tmp/deep-review-staged.patch
+   git diff > /tmp/deep-review-unstaged.patch
+   {
+     printf '%s\n' 'You are the independent reviewer for the /deep-review verification round.'
+     printf '%s\n' 'Review only. Do not modify files. Report only new issues introduced by the fixes.'
+     printf '%s\n' 'STAGED DIFF:'
+     cat /tmp/deep-review-staged.patch
+     printf '%s\n' 'UNSTAGED DIFF:'
+     cat /tmp/deep-review-unstaged.patch
+   } | claude -p
    ```
    Use `timeout: 300000` (5 minutes) as in step 2.
 2. **Do a quick scan yourself** of the changes you just made. Look for anything the fixes might have broken or new must-fix/easy-win items that emerged.
@@ -276,8 +336,8 @@ After auto-fixes and verification are complete, present only the deferred items:
 ## Rules
 
 - **Never commit during a review.** All fixes are left as uncommitted changes.
-- **Fix everything. Always.** Fix every finding from every reviewer - simplify pass, Codex, UI review, all of it. The only exception is genuinely massive work (new tables, new endpoints, multi-file architecture changes). "Out of scope" and "debatable" are not reasons to skip a fix. When in doubt, fix it. Collateral changes are always presented for user decision (keep or revert).
-- **If Codex is unavailable or fails**, proceed with the Claude-side reviews. Note that Codex was skipped in the summary.
+- **Fix everything. Always.** Fix every finding from every reviewer - simplify pass, independent reviewer, UI review, all of it. The only exception is genuinely massive work (new tables, new endpoints, multi-file architecture changes). "Out of scope" and "debatable" are not reasons to skip a fix. When in doubt, fix it. Collateral changes are always presented for user decision (keep or revert).
+- **If the independent reviewer is unavailable or fails**, proceed with the orchestrator-side reviews. Note which independent reviewer was skipped in the summary.
 - **If no frontend files changed**, skip the UI review entirely. Don't mention it in the summary.
 - **Respect project conventions.** Check CLAUDE.md for project-specific rules and flag violations.
 - **Be specific.** Every finding must reference a file path and ideally a line number. No vague "consider improving error handling" without saying where.
