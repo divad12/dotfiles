@@ -160,7 +160,7 @@ Standard Task-dispatch flow as detailed below in steps A-G.
 
    **Exception: fix-implementer dispatches** (step F, H, and phase-gate fix loops) are NOT governed by a checklist annotation. The fixer defaults to the task's implementer model but may upgrade on its own judgment when a finding is architecturally gnarly or when the default-model fix BLOCKED. That's discretionary, not contract-gated, because there's no checklist entry to violate.
 
-5. Wait for the implementer's report. **Capture the returned `agentId`** - store it keyed by task ID. Used by step F's fix-loop to resume the same implementer instead of paying full context-boot cost on a fresh fix-implementer subagent.
+5. Wait for the implementer's report.
 
 ### B. Handle implementer status
 
@@ -235,10 +235,8 @@ Every admissible finding lands in one bucket. No "skipped" / "ignored" / "wontfi
 **Fix loop (all `[fix]` findings, highest priority first):**
 
 1. Craft a fix prompt listing each `[fix]` finding by its number, priority, citation, and suggested fix. Order by priority (critical → major → minor → cosmetic). The fixer's report must reference which finding numbers were addressed.
-2. **Reuse the original implementer via SendMessage** instead of dispatching a fresh fix-implementer. The original agent already has CLAUDE.md / AGENTS.md / docs/ai/ / plan / target files loaded - sending finding context (~1-5k tokens) costs FAR less than a fresh subagent boot (~20-30k). Use `SendMessage(to: <captured agentId>, message: <fix prompt>)`.
-   - **Inline-mode tasks:** orchestrator IS the implementer; do the fix directly (no SendMessage, no Task dispatch).
-   - **Reuse cap:** 2 fix rounds per task. On round 3+, the cumulative subagent context risks bloat - dispatch a fresh fix-implementer with all original task context restored. Rare in practice; if hit, it's a signal the reviewer keeps finding new issues = surface to user.
-   - **Model upgrade exception:** if a finding is architecturally gnarly enough that the original implementer's model is wrong (e.g., sonnet implementer + opus-needed fix), dispatch a fresh fix-implementer at the upgraded model rather than SendMessage'ing the lower-tier original. Discretionary, not contract-gated.
+2. Dispatch a fresh fix-implementer via Task tool. Default model: the task's implementer model from the checklist. The fixer may upgrade if a specific finding is architecturally gnarly or if the default-model fix BLOCKs - this is discretionary, not contract-gated (the checklist annotates task work, not fix work).
+   - **Inline-mode tasks:** orchestrator IS the implementer; do the fix directly (no Task dispatch).
 3. Wait for fix report. If any `[fix]` number is missing from the report, treat that finding as BLOCKED.
 4. For BLOCKED findings: retry once with upgraded model (fresh dispatch). If still BLOCKED, evaluate whether the finding actually meets a defer criterion - if yes, move it to deferred.md with the BLOCKED reason. If no (e.g., it's a tractable fix the model just couldn't see), halt and surface to the user.
 5. Re-dispatch spec reviewer (full cycle: Reviewer Independence Override, fresh diff). The re-reviewer writes to the SAME review file path, overwriting the prior review. This is correct - the file should reflect the CURRENT state of the code. Loop until no `[fix]` admissible findings remain.
