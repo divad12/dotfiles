@@ -39,14 +39,14 @@ The superpowers skills (brainstorming, writing-plans, etc.) default to saving un
 
 | Superpowers artifact | Default | **Use instead** |
 |---|---|---|
-| Specs / design docs | `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` | `docs/specs/YYYY-MM-DD-<topic>-design.md` |
-| Plans | `docs/superpowers/plans/YYYY-MM-DD-<feature>.md` | `docs/specs/plans/YYYY-MM-DD-<feature>.md` |
+| Specs / design docs | `docs/superpowers/specs/YYYY-MM-DD-<topic>-design.md` | `docs/specs/YYYY-MM-DD-<feature>/design.md` |
+| Plans | `docs/superpowers/plans/YYYY-MM-DD-<feature>.md` | `docs/specs/YYYY-MM-DD-<feature>/plan.md` |
 
-This applies to brainstorming, writing-plans, and any other superpowers skill that writes under `docs/superpowers/`. Always save under `docs/specs/` (specs) or `docs/specs/plans/` (plans) instead.
+This applies to brainstorming, writing-plans, and any other superpowers skill that writes under `docs/superpowers/`. All artifacts for a feature live in one folder: `docs/specs/YYYY-MM-DD-<feature>/`. That folder contains `design.md` (spec), `plan.md` (plan), `checklist.md` (preflight output), `deferred.md` (if any), and `reviews/` (review artifacts from `/fly`).
 
 ## Writing
 
-- **Never use em dashes.** Use " - " (spaced hyphen), a period, or restructure.
+- **No em dashes in user-facing text** (docs, specs, checklists, commit messages, PR descriptions). Use " - " (spaced hyphen), a period, or restructure. In code comments and internal notes, don't worry about it.
 
 ## Code Hard Rules
 
