@@ -238,7 +238,9 @@ If a phase has NO verification steps in the plan, skip injection for that phase.
 
 ### Deferred resolution synthetic task
 
-Always inject a single `[SYNTHETIC: deferred-resolution]` task at the very end of the LAST checklist (after the Final Gate, before the Fly Verification block). This task wraps up any items that landed in `<plan>-deferred.md` during fly's run, so fly itself stays mechanical and doesn't burn context classifying/resolving deferred items.
+Always inject a `[SYNTHETIC: deferred-resolution]` task at the end of EVERY checklist (single-session: after the Final Gate, before Fly Verification; multi-session: end of each `checklist-N.md` so each session clears its own backlog before handing off). This task wraps up any items that landed in `<plan>-deferred.md` during this session's run, so fly itself stays mechanical and doesn't burn context classifying/resolving deferred items.
+
+For multi-session plans: each session's deferred-resolution task processes ALL §N entries currently in `<plan>-deferred.md` (sessions append to the same file across runs; previously-resolved entries already have `Status: RESOLVED in <SHA>` lines and are skipped). The user gets per-session "needs your input" prompts and "Try it yourself" walkthroughs, not a giant pile at the end of session K.
 
 The injected task is a no-op when deferred.md is absent or empty, so it's safe to always inject.
 
@@ -325,7 +327,7 @@ Apply the decision logic in "Decisions Preflight Makes" to the parsed plan:
 10. **Phase verification tagging** - tests-only or has-residual based on convertibility analysis (step 11).
 11. **Manual-test convertibility analysis** - for each phase, classify each verification step as convertible (write integration test) or truly-manual. Inject synthetic integration-test task if any convertible. See "Manual-test convertibility analysis" above.
 12. **Plan split preparation** - for multi-session plans (>single_file_cap tasks), prepare per-session plan files. Synthetic tasks count toward `single_file_cap`. For single-session plans, no split needed.
-13. **Deferred resolution synthetic task** - always inject one `[SYNTHETIC: deferred-resolution]` task at the very end of the LAST checklist (after Final Gate, before Fly Verification block).
+13. **Deferred resolution synthetic task** - inject one `[SYNTHETIC: deferred-resolution]` task at end of EVERY checklist (single-session: after Final Gate, before Fly Verification; multi-session: end of each checklist-N.md so each session clears its own backlog).
 
 ### 2b. Propose session breakdown (interactive - plans with >20 tasks only)
 
@@ -590,9 +592,9 @@ If every phase already has deep-review:
 
 In split mode, files 1..K-1 do NOT contain a Final Gate block or the "not needed" sentinel. They end with the next-file pointer instead.
 
-### Deferred resolution task (LAST file only in split mode; always present in single-file mode)
+### Deferred resolution task (every checklist file)
 
-Inserted AFTER the Final Gate block and BEFORE the Fly Verification block. Always injected. See "Deferred resolution synthetic task" in Decisions for the full task body. Brief skeleton:
+Inserted at the end of EVERY checklist (single-session: after Final Gate, before Fly Verification; multi-session: end of each checklist-N.md so each session clears its own backlog). Always injected. See "Deferred resolution synthetic task" in Decisions for the full task body. Brief skeleton:
 
 ```markdown
 ### Task final.deferred-resolution [SYNTHETIC: deferred-resolution] | Model: sonnet | Review: skip
