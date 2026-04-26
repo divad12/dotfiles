@@ -31,6 +31,7 @@ Four bash scripts live adjacent to this SKILL.md in the same directory. Use the 
 <base-dir>/final-verify.sh      - end-of-run checklist sweep
 <base-dir>/phase-regression.sh  - phase gate regression check
 <base-dir>/tick-steps.sh        - bulk-tick plan-step checkboxes
+<base-dir>/reviewer-override.md - Reviewer Independence Override block (Read once, cache, append to every reviewer dispatch)
 ```
 
 **On first use in a session**, resolve `SCRIPT_DIR` once and cache it:
@@ -252,127 +253,13 @@ If the phase containing this task has `Phase N Gate (reviewer: ...) with /deep-r
 3. Fill BOTH the Spec review and Code review slots from the same file with identical findings count (or leave Spec review with `findings=0 fixed=0 deferred=0 (combined with code review, see task-<id>-combined.md); Combined review.` and put the full results in Code review).
 4. This shortcut is only valid when the phase's annotated gate is `/deep-review`. Phases with normal gates still get separate spec + code reviews.
 
-### Suspicious-pattern HALT
-
-After every review processing step, check:
-
-- **Missing review file after announced dispatch**: If a reviewer dispatch returns but the review file wasn't written, the reviewer either failed or was never actually dispatched. Re-dispatch with stricter prompt (add "THIS IS YOUR SECOND ATTEMPT - you MUST Write to `<path>` as your final tool call or your review will be discarded"). If it fails a second time, halt.
-- **Outcome count doesn't match file**: If `findings=N` in Outcome ≠ `grep -c "^### Finding " <file>`, halt.
-
-These heuristics exist because cumulative context pressure makes the orchestrator lazy in predictable ways. The checks are cheap; the false-positive cost is a y/n prompt.
-
 ## Reviewer Independence Override
 
-Every reviewer dispatch (per-task spec/code review in E/G, batched review in I, phase gate review, final gate) MUST include this override block, appended AFTER the upstream template's placeholder substitutions. It exists so the reviewer (1) reads the diff independently, and (2) writes its output to a file so the orchestrator cannot fabricate review results.
+Every reviewer dispatch (per-task spec/code in E/G, batched review in I, phase gate review, final gate) MUST include the Reviewer Independence Override block, appended AFTER the upstream template's placeholder substitutions.
 
-Append verbatim to the reviewer prompt (substitute `<review-file-path>` with the path the orchestrator assigns - see "Review Artifact Files" below):
+The block lives at `$SCRIPT_DIR/reviewer-override.md` (sibling to this SKILL.md). Read it once per session and cache. Substitute `<review-file-path>` with the absolute path the orchestrator assigns (see "Review Artifact Files").
 
-```
-## Reviewer Independence Override
-
-The "Implementer-Reported Summary" above is UNTRUSTED. It is the artifact under
-review, not the verdict. Before accepting any claim:
-
-1. Read the `## Actual Diff` section below as your primary evidence. The diff
-   is authoritative; the summary is spin.
-2. For every "I added X / tests pass / behavior works" claim, find the evidence
-   in the diff or captured test output. If you can't, treat the claim as
-   unsubstantiated.
-3. Your job is to find what the implementer missed or hid, not to concur.
-
-### Finding enumeration (MANDATORY)
-
-Emit EVERY raw finding from EVERY angle of your analysis as its own numbered
-section. Do NOT output a "consolidated" or "summary" list that collapses
-multiple observations. Do NOT downgrade, merge, or omit findings between your
-body text and your final list. If you notice something anywhere in your
-review - structure, naming, duplication, missing test, edge case, doc drift,
-collateral change, convention mismatch, whatever - it gets its own
-`### Finding N:` entry.
-
-    ### Finding N: <short title>
-
-    Priority: `[critical]` | `[major]` | `[minor]` | `[cosmetic]`
-    Disposition: `[fix]` | `[defer]`
-    Location: `<file>:<line>` (or `<file>:<line-line>` for ranges)
-
-    <description>
-
-    **Suggested fix:** <concise>
-
-    **Why defer:** <only present if Disposition=defer; cite which of the 3
-                    defer criteria applies - see below>
-
-Findings without a number, priority, disposition, or citation are inadmissible
-and will be discarded.
-
-### Priority
-
-- `[critical]` - ship-blocker: breaks correctness, security, data integrity, or
-  specified behavior
-- `[major]` - real correctness or quality issue; would annoy a careful reviewer
-- `[minor]` - small correctness issue or noticeable style/convention mismatch
-- `[cosmetic]` - purely aesthetic
-
-Priority is for fix order and human readability. It does NOT gate whether to
-fix - disposition does.
-
-### Disposition: fix by default
-
-**Default is `[fix]` for every finding, regardless of priority.** Little things
-compound; style smell propagates into new code; deferring creates a hygiene
-backlog that never gets done. Extract-helper refactors and naming cleanups are
-part of healthy implementation, not a separate track.
-
-Use `[defer]` ONLY if one of these three criteria applies:
-
-1. **Needs user decision** - product/UX semantics, architectural direction, or
-   anything where the fix depends on human intent rather than code judgment.
-2. **Phase-sized effort** - the fix alone would take as long as an entire plan
-   phase (major refactor, schema migration, multi-file architectural change).
-3. **Extremely risky** - security-adjacent, data-integrity, unclear blast
-   radius on unfamiliar code, or hard-to-reverse changes.
-
-"This is just a style nit" is NOT a defer criterion. If it's worth mentioning,
-it's worth fixing.
-
-### Project-rule priority
-
-Abide by the rules in the project's `AGENTS.md` and the user-global
-`~/.claude/AGENTS.md` (plus anything they reference). Any violation of rules
-found there is AT LEAST `[major]` priority; if the rule explicitly names the
-pattern as causing bugs or being correctness-blocking, tag `[critical]`.
-Project/user rules override generic review conventions.
-
-### Honest-null rule
-
-If the diff has no issues after you read it, output exactly `No issues.`
-Only say this after you have actually read every hunk.
-
-### MANDATORY: write review to file as your final tool call
-
-Your final tool call MUST be a Write to (use the built-in Write tool, NOT Desktop Commander write_file or other MCP equivalents - the integrity check script needs to find the Write in your transcript):
-
-    <review-file-path>
-
-The file's contents: everything after this Override block - your full review,
-every `### Finding N:` section, and either `No issues.` or the finding list.
-Start the file with a YAML header:
-
-    ---
-    review-type: <spec | code | batch | phase-N | final>
-    task-or-scope: <e.g. Task 7.4 | Phase 12 | Final>
-    reviewer-model: <your model name>
-    commit-sha: <the sha or range under review>
-    findings-count: <integer>
-    ---
-
-Return a brief summary (1-2 sentences + total finding count) in your text
-response, but the file is the authoritative artifact. If you do not write the
-file, your review is discarded and will be re-dispatched.
-```
-
-Reviewer prompt MUST also contain these two sections, clearly labeled:
+Reviewer prompt MUST also contain, clearly labeled:
 
 - `## Implementer-Reported Summary (untrusted)` - implementer's report text.
 - `## Actual Diff` - raw output of `git show <sha>` for single-task reviews, or `git diff <base>..<head>` for batched/phase/final reviews.
@@ -459,9 +346,7 @@ Tokens:
 
 Examples:
 - `findings=0 fixed=0 deferred=0 (review: reviews/task-7.4-code.md); No issues.`
-- `findings=10 fixed=10 deferred=0 (review: reviews/task-11.1-code.md, crit=1 maj=3 min=4 cos=2); All inline.`
 - `findings=12 fixed=11 deferred=1 (review: reviews/phase-12-deep-review.normalized.md, normalized: +4); 11 inline; §5 deferred (user UX decision).`
-- `findings=5 fixed=0 deferred=0 inadmissible=5 (review: reviews/task-9.2-code.md); All findings missing disposition; reviewer re-dispatched.`
 
 Prose-only Outcomes (no `findings=` token OR no `review:` token) fail Final Verification.
 
@@ -498,14 +383,7 @@ The script is Claude Code specific. It depends on the `~/.claude/projects/.../su
 
 ## Periodic SKILL.md Re-read
 
-Late-session drift is a predictable failure mode: rules that were fresh at task 1 get compressed away by task 15, and the orchestrator silently starts skipping or paraphrasing them. To counter that, fly maintains a counter of completed tasks (tasks whose full step sequence A through I has been ticked) in the current session.
-
-At every 10th completed task - before starting task 11, task 21, task 31, and so on:
-
-1. Re-read this SKILL.md file via the Read tool.
-2. Continue. No other action required.
-
-Purpose: refresh the discipline rules in context so that late-session tasks receive the same rigor as early-session tasks. This is a structural reminder, not a literal test. The cost is one Read tool call per ten tasks. Preflight's split target is 20 tasks per checklist, so this triggers at most twice per `/fly` run (task 10 and task 20).
+Every 10 completed tasks (before task 11, 21, ...), Read this SKILL.md to refresh discipline against late-session drift. One Read per 10 tasks; triggers at most twice per `/fly` run.
 
 ## Phase Gates
 
@@ -568,16 +446,10 @@ After regression check passes, run review gate per checklist's annotation:
 
 ### Phase end-state verification
 
-After filling the phase gate Outcome + Resolution, check the phase's
-end-state verification section (written by preflight at the end of each
-phase's task block):
+After filling the phase gate Outcome + Resolution, check the phase's end-state verification section (written by preflight):
 
-- **tests-only**: skip (regression check covered it).
-- **auto-verify**: screenshot via `/qa-test` if dev server running; skip if not.
-- **suggest-verify**: print test description, ask "Run /qa-test? (y/n)".
-- **manual-only**: print test description for user. No automation.
-
-Collect `suggest-verify` and `manual-only` items for the Completion report.
+- **tests-only**: skip (regression check + integration tests covered it).
+- **has-residual**: nothing to do per-phase. The end-of-run synthetic deferred-resolution task collects `Residual manual test` lines across all phases and surfaces them as the "Try it yourself" walkthrough.
 
 ## Final Gate
 
@@ -593,42 +465,23 @@ After all phases complete and all per-task and phase gates have been processed, 
 
 ## Deferred File Handling
 
-`<plan-basename>-deferred.md` holds findings that legitimately cannot be fixed inline. **Deferred is exception, not default.** Default is fix-inline; deferral requires justification.
+**Prefer doing over deferring.** Default is fix-inline; the synthetic deferred-resolution task at end of run will process whatever does land in the deferred file anyway, so deferring just adds round-trips. The 3 valid defer criteria (needs user decision / phase-sized / extremely risky) are spec'd canonically in `reviewer-override.md` - reviewers see them there.
 
-Finding qualifies for deferral only if at least one applies:
-
-1. **Needs user decision** - fix depends on product/UX semantics or architectural direction only user can supply.
-2. **Phase-sized effort** - fix alone would consume as much time as entire plan phase (major refactor, schema migration, large architectural change).
-3. **Extremely risky** - security-adjacent, data-integrity, unclear blast radius on unfamiliar code, hard-to-reverse.
-
-Also: `[fix]` finding that fix-implementer BLOCKED on after model upgrade can legitimately defer, IF evaluation shows it meets one of three criteria. Failed fix attempt on tractable problem is not defer. Halt and surface to user instead.
-
-"It's just a style nit" is NOT defer criterion. If worth mentioning, worth fixing.
-
-Each finding gets OWN `§N` entry. Format:
+`<plan-basename>-deferred.md` format. Each finding gets its own `§N` entry:
 
 ```markdown
 # Deferred Items: <feature>
 
-> Items flagged during `/fly` execution that require your attention - user decision needed, too large for inline fix, or too risky to auto-apply.
-
 ## §1: <task/gate context> - [priority] <short title>
 
-**Finding:** <description from reviewer, preserving file:line citation>
-
-**Why deferred:** <one of: "needs user decision - <specifics>" | "phase-sized effort - <estimate>" | "extremely risky - <blast radius>" | "BLOCKED at upgraded model; fits defer criterion X because <reason>">
-
+**Finding:** <reviewer description, preserving file:line citation>
+**Why deferred:** <which of the 3 criteria + specifics>
 **Suggested fix:** <from reviewer's output>
 ```
 
-When writing deferred item:
-1. Assign next available `§N`.
-2. Include priority in heading.
-3. Update Resolution slot in checklist: `Action: Deferred to <plan-basename>-deferred.md §N`.
+Update Resolution slot when writing: `Action: Deferred to <plan-basename>-deferred.md §N`. Create the file with the header before appending `§1` if it doesn't exist.
 
-If deferred file doesn't exist yet, create it with header before appending `§1`.
-
-**Watch defer rate.** If writing more than 1-2 defer entries per review, pause: either reviewer is mis-disposing findings (re-dispatch), or task genuinely needs user's attention (halt `/fly` and surface instead of accumulating defers silently).
+**Watch defer rate.** More than 1-2 defer entries per review = signal: either reviewer is mis-disposing (re-dispatch), or task scope is too big (halt and surface to user). Don't accumulate defers silently.
 
 ## Final Verification
 
@@ -667,97 +520,26 @@ react.
 
 After final verification passes:
 1. Print final report: tasks completed, commits made, deferred items (if any), time taken.
-2. List any `suggest-verify` or `manual-only` items from processed phases. If all phases were `tests-only`, print "All verification automated."
+2. The synthetic deferred-resolution task already surfaced any "Try it yourself" walkthrough; surface its return value verbatim if you haven't already.
 3. **DO NOT auto-invoke `/ship`.** Suggest: "Ready to ship? Run `/ship` when you've reviewed any deferred items."
 
-## Rationalization Table
+## Discipline: shortcuts to NEVER take
 
-`/fly` exists because LLM coordinators rationalize shortcuts under context pressure. Before skipping any step, check this table:
+`/fly` exists because LLM coordinators rationalize shortcuts under context pressure. The checklist is the contract; every slot traces to a tool call that produced it. If you can't point to the Task / Write / Edit / Bash call that filled a slot, the slot is unfilled.
 
-| Excuse | Reality |
-|--------|---------|
-| "This task is trivial, no review needed" | Checklist has review gate checkboxes for every task. Skipping violates contract. |
-| "I already did the spec review conceptually" | Outcome slot requires written summary. Mental review doesn't fill slot. |
-| "Finding is minor, skip it" | Resolution slot MUST be filled. Valid Actions: Fixed / FIXME / Deferred. Not "ignored", not "skipped", not empty. |
-| "Fix-implementer reported BLOCKED, move on" | Upgrade model one tier and retry FIRST. If still BLOCKED, write to `-deferred.md`. Never silent skip. |
-| "Context pressure, let me batch some tasks myself" | Batching is preflight's decision, encoded in checklist. Do NOT invent new batches at execution time. |
-| "Running the review feels redundant, code looks fine" | "Looks fine" is not review. Dispatch reviewer subagent. Fill slot. |
-| "The task text doesn't have TDD steps, so I'll skip TDD" | Either checklist has `[INJECTED]` TDD steps, OR implementer dispatch has TDD override instruction. Do TDD. |
-| "I'll fix all review findings at the end in one batch" | Each review's Resolution must be filled before moving to next gate. No accumulating findings across gates. |
-| "Verification block is just a formality" | Verification catches tasks you forgot. Tick each box only after actually verifying its condition (grep for unticked boxes, check SHA slots aren't `<fill>`, etc.). |
-| "Deep-review on this phase is slow, let me skip" | Preflight decided which phases get deep-review to satisfy invariant. Skipping breaks it. |
-| "The implementer's summary says it's good, reviewer can skim" | Summary is UNTRUSTED. Reviewer must read `## Actual Diff` independently. Dispatching reviewer with only summary is reviewer priming. |
-| "I'll just write 'Looks good' in the Outcome slot" | Outcome needs `findings=N fixed=N deferred=N`. Prose-only fails Final Verification. If you didn't count, you didn't review. |
-| "Reviewer returned findings without file:line, I'll act on them anyway" | Inadmissible. Fabricated findings without citations waste fix cycles. Discard, log `inadmissible=N`, move on. |
-| "Auto-fixing this style nit won't hurt" | Only `[critical]` / `[correctness]` auto-fix. Style/cosmetic amplifies fabricated-finding waste. Log and move on. |
-| "That test was probably failing on main anyway" | Phase regression check: run suite at phase base commit. Assertion without running is gaslighting. |
-| "This task looks harder than sonnet, let me use opus to be safe" | NO. Checklist is contract. If model is wrong, HALT and ask user to edit checklist. Silent upgrades destroy audit trail. Checklist says sonnet, dispatch log says opus, reality becomes un-reproducible. |
-| "Opus is better, it won't hurt to upgrade" | Cost and audit: opus costs more, and "we used sonnet" becomes lie when checklist-vs-dispatch drift. Preflight picked sonnet for reason. Respect decision or surface disagreement to user. |
-| "I'll use opus for the reviewer because this code is tricky" | Same rule. Reviewer model is in checklist. Upgrading silently primes review outcome (opus reviews differ from sonnet reviews) and defeats preflight's per-gate assignment. |
-| "Defaulting to opus is fine for everything" | NOT fine. Preflight assigned per-task models to balance cost, latency, appropriate rigor. Fly run that always uses opus has ignored checklist. |
-| "Reviewer returned 20 findings, let me consolidate the main ones" | NO. Every admissible finding processed by number. Consolidation into prose loses detail. Fix it or defer it (with valid defer reason). |
-| "This cosmetic finding can wait for a hygiene pass" | NO. Default disposition is [fix]. Cosmetic nits compound into quality drift; later tasks copy the smell. Fix now. Cheaper than whack-a-mole later. |
-| "Let me defer this 5-minute extract-helper refactor" | Extract-helper refactors are part of healthy implementation, not separate track. Only defer if fix is phase-sized, needs user decision, or extremely risky. |
-| "Let me paraphrase /deep-review's structure into a subagent prompt instead of invoking the skill" | NO. Paraphrasing destroys skill's tuned behavior (parallel Codex review, Chrome MCP UI review, etc.) and destroys audit trail. Dispatch subagent that invokes skill via Skill tool. |
-| "The reviewer tagged this [minor] so I won't bother" | Priority doesn't gate fix; disposition does. If it's [fix], fix it regardless of priority. |
-| "findings = 10, fixed = 2, deferred = 0, let me note '8 style findings' in the summary" | INVARIANT VIOLATION: findings = fixed + deferred. 8 findings disappeared. Halt. |
-| "The reviewer tagged this [defer] so I'll defer it" | Check "Why defer" reason. If doesn't cite one of 3 criteria (user decision / phase-sized / extremely risky), reject and re-dispatch. Reviewer misdisposed. |
-| "Most of these should defer because they're out of scope" | If reviewer is producing high defer rate, reviewer is wrong or task scope is wrong. Re-dispatch or halt. Silent acceptance of mass-defer defeats fix-inline principle. |
-| "I read the diff myself, it's clearly fine, no need for a real reviewer" | Your read is not reviewer dispatch. Review artifact file must exist and must be produced by dispatched reviewer subagent. Orchestrator inspection is not substitute. |
-| "Meta-verifier said SUSPICIOUS but I'm sure the review was fine" | SUSPICIOUS triggers re-dispatch of REAL reviewer. Override attempts destroy contract. Re-dispatch, or HALT and surface to user. |
-| "findings=0, skip the integrity gate, I just filled the slot and it's fine" | NO. The integrity gate is mandatory after every task. It reads CC's subagent transcript to verify the reviewer actually ran. Self-report is not proof. |
-| "I already read the skill, re-reading at task 10 is a waste" | The re-read is a structural reminder, not a literal test. Its purpose is to refresh compressed rules before late-session drift sets in. Do it. |
-| "The integrity gate HALTed but I'm sure the review was real, let me just continue" | HALT means the evidence doesn't support your claim. Do not override. Surface to user. |
+If you catch yourself thinking any of these, STOP - you're about to violate the contract:
 
-## Red Flags - STOP
+| If you're tempted to... | Reality |
+|---|---|
+| Skip a review ("trivial", "code looks fine", "I read the diff") | Review = dispatched subagent + on-disk file. No dispatch, no review. Per-task integrity gate catches this; do not try to override. |
+| Use a different model than checklist says (upgrade "to be safe" or downgrade "looks easy") | Checklist IS the contract. Silent drift breaks the audit trail. If the model is wrong, HALT and ask user to edit. Same for reviewer model. |
+| Skip TDD because the task text didn't mention it | Implementer dispatch always appends TDD override. Do TDD. |
+| Consolidate / merge / paraphrase reviewer findings | Every numbered finding processed by number. `findings == fixed + deferred` invariant. Halt if violated. |
+| Defer a finding without one of the 3 valid criteria (user decision / phase-sized / extremely risky) | Reject the disposition and re-dispatch reviewer. Default = `[fix]`; deferring just adds round-trips since deferred items get processed at end of run anyway. |
+| Write "Looks good" in an Outcome slot | Outcome needs `findings=N fixed=N deferred=N (review: <path>)`. Final verification rejects prose-only. |
+| Act on findings missing number/priority/disposition/citation | Inadmissible. Discard, log `inadmissible=N`, move on. |
+| Tick the final verification block without actually running checks | Run `final-verify.sh`. Tick only after PASS. |
+| Skip the periodic SKILL.md re-read at task 10/20 | Structural reminder. One Read. Do it. |
+| Override an integrity-gate or final-verify HALT because "the work is really fine" | HALT means evidence doesn't support the claim. Surface to user, don't override. |
 
-If you catch yourself thinking any of these, STOP and re-read Rationalization Table:
-
-- "Just this one review can be skipped"
-- "The finding is so minor it's not worth fixing"
-- "I'll come back to this slot later"
-- "This is close enough to complete"
-- "Let me batch these myself since preflight didn't"
-- "Reviewer said 'mostly fine', that counts as approved"
-- "I'll fill in the SHA slot later from memory"
-- "Ticking the verification box is fine, I'm sure it's done"
-- "The implementer said DONE, no need to verify each step checkbox"
-- "This task is complex, opus will be safer than the checklist's sonnet"
-- "Let me just use opus for everything, it's fine"
-- "The reviewer will be more rigorous on opus, so I'll swap the model"
-- "Let me consolidate these findings into main points"
-- "The deep-review returned 20 findings, I'll focus on the critical ones"
-- "This nit can wait for a hygiene pass"
-- "Default to defer and let the user triage"
-- "Fix-inline for a style thing is overkill, just defer"
-- "Invoking /deep-review as a full skill is heavy, let me just replicate its prompts"
-- "The reviewer tagged [defer] so I'll defer it" (without checking the defer reason)
-- "The task said use sonnet but haiku will be fine" (downgrade drift is as bad as upgrade drift)
-- "Writing 'No issues.' to the file is basically the same as dispatching a reviewer"
-- "Meta-verifier is SUSPICIOUS but I trust the original review, overriding"
-- "findings=0, skip the integrity gate, I just filled the slot and it's fine"
-- "Re-reading SKILL.md at task 10 is unnecessary since I already read it"
-- "Integrity gate HALTed but I'm sure the work is fine; override and continue"
-
-**All of these mean: you are about to violate the checklist contract. Do the work.**
-
-## The Iron Rule
-
-Every slot value traces to a specific tool call. If you cannot point to
-the Task, Write, Edit, or Bash call that produced it, the slot is unfilled
-and the work is incomplete.
-
-- Every `SHA:` slot traces to an implementer subagent's report.
-- Every `Outcome:` slot traces to a review file on disk that a
-  **dispatched reviewer subagent** wrote. The `review:` token names the
-  file; the file's mtime is after the commit SHA timestamp; the file's
-  YAML `commit-sha` matches.
-- Every `Resolution:` slot traces to either a fix-implementer subagent's
-  commit, a FIXME in source, or a `<plan>-deferred.md` section.
-
-Mental review is not a review. A reviewer is a Task dispatch that returns
-and writes a file. If no Task dispatch happened, no review happened.
-
-The per-task integrity gate (invoking `integrity-check.sh`) enforces this
-mechanically after every task. The final verification sweep enforces it
-structurally at the end. Both must pass before `/fly` exits successfully.
+**All shortcuts mean: you are about to violate the checklist contract. Do the work.**

@@ -120,16 +120,9 @@ Default to sonnet. The cost of a haiku mistake + re-dispatch + re-review exceeds
   - Each task must be individually trivial (haiku-model-eligible, 1-file scope).
   - The batch's review gate lives on the LAST task in the batch (reviewer can only assess once all batched work is committed).
 
-### Reviewer model per gate (dynamically assigned)
+### Reviewer model per gate
 
-Defaults with per-task upgrade:
-
-- **Spec review** - default `haiku`. Upgrade to `sonnet` when task has complex requirements or broad spec scope. Opus reserved for rare cases.
-- **Code review** - default `sonnet`. Upgrade to `opus` when task involves subtle correctness, multi-file integration, architectural judgment, or high blast-radius.
-- **Phase review (normal)** - default `sonnet`. Upgrade to `opus` for phases covering many files or cross-cutting concerns.
-- **Deep-review (`/deep-review`)** - owns its own model logic; preflight does NOT override.
-
-Upgrade rule of thumb: reviewer model sits one tier above the implementer model when the task is complex. If a task has `opus` implementer, its code review should be at least `opus`.
+Defaults: spec=haiku, code=sonnet, normal-phase=sonnet. Upgrade one tier when the task/phase is complex (multi-file, subtle correctness, broad scope, high blast-radius). If implementer is opus, code reviewer is at least opus. `/deep-review` owns its own model logic; preflight does not override.
 
 ### Phase review gate
 
@@ -159,24 +152,14 @@ If `total_task_count <= single_file_cap`:
 - No plan split needed. Fly reads `plan.md` directly for task content.
 
 If `total_task_count > single_file_cap`:
-- Compute `K = ceil(total_task_count / single_file_cap)`.
-- Split into `K` plan files: `<feature-folder>/plan-1.md` ... `plan-K.md` (per-session plan content).
-- Split into `K` checklist files: `<feature-folder>/checklist-1.md` ... `checklist-K.md` (tracking only).
-- Splitting rules:
-  1. **Respect plan phase boundaries where possible.** Never split a phase across two files if the whole phase fits within `single_file_cap`.
-  2. **Phase larger than the cap.** If a single phase exceeds `single_file_cap` on its own, split it at task boundaries (sequential order). Emit a warning in the terminal summary: `Phase <N> (<T> tasks) exceeds single_file_cap <cap>; split at task boundaries across files <a>-<b>.`
-  3. **Paired files.** Each session has a plan file (task content) and a checklist file (tracking). Fly reads both. `/fly` runs each pair in a full pass (per-task loop plus phase gates for that session's phases).
-  4. **Deep-review coverage invariant preserved.**
-     - Per-phase `/deep-review` gates in the original plan stay on their original phases, which stay together in one file.
-     - The **final `/deep-review` gate** lives ONLY on the LAST checklist (file `K`). It covers whatever phases the invariant says it must cover (same computation as single-file mode).
-     - The **Fly Verification block** (final verification sweep) lives ONLY on checklist `K`. Checklists `1` through `K-1` do NOT include a final gate or final verification.
-  5. **Header + decisions block.** Each checklist starts with the same header format, but the title is suffixed with `(File X of K)`. The decisions block summarizes decisions for that file's scope but also notes the full split (see Checklist Format below).
-  6. **Next-file pointer.** Each checklist (except the last) ends with a line:
-     ```
-     Next file: <relative-path-to-next-checklist>
-     ```
-     Omit this line on checklist `K`.
-  7. **Per-session plan files are self-contained.** Each plan-N.md has all the context needed for its session (goal, conventions, key references, verbatim task content). The checklist references the plan file in its header. Together, the plan-N + checklist-N pair is self-contained for the session.
+- Compute `K = ceil(total_task_count / single_file_cap)`. Emit `K` paired files: `plan-1.md`/`checklist-1.md` ... `plan-K.md`/`checklist-K.md`.
+- **Splitting principles:**
+  1. Respect plan phase boundaries; never split a phase across files if it fits within `single_file_cap`.
+  2. If a single phase exceeds `single_file_cap`, split at task boundaries and emit a warning: `Phase <N> (<T> tasks) exceeds single_file_cap <cap>; split at task boundaries across files <a>-<b>.`
+  3. Per-phase `/deep-review` gates stay on their original phases (which stay together in one file). Final `/deep-review` gate + Fly Verification block live ONLY on checklist `K`.
+  4. Per-session plan files are self-contained (goal, conventions, key references, verbatim task content). Together the plan-N + checklist-N pair is self-contained for the session.
+
+(Header / decisions block / next-file pointer formats are spec'd in Checklist Format below.)
 
 ### TDD audit
 
@@ -193,11 +176,7 @@ The plan file is never modified. The injection lives only in the checklist. `/fl
 
 For each phase, examine the plan's "Phase end-state test" paragraph (and any other manual-verification steps the plan calls out). Apply this principle to every step:
 
-> **Could a competent engineer write a deterministic automated test for this, given mocks/fakes/fixtures/date-injection/cache-busting/etc.?** If yes, write the test. Only truly unmockable steps remain manual.
-
-Examples of mockable: time/date logic (inject `now`, fake timers), cache expiry, external API call counts (mock the client), DB row counts post-action, downstream side effects.
-
-Examples of NOT mockable: real third-party API response shape drift, real perf under load, browser-side runtime where the test environment stubs the real thing (Web Workers in jsdom, IndexedDB quirks), visual/UX smoke.
+> **Could a competent engineer write a deterministic automated test for this, given mocks/fakes/fixtures/date-injection/cache-busting/etc.?** If yes, write the test. Only truly unmockable steps (real third-party drift, real perf under load, browser runtime stubbed by test env, visual smoke) remain manual.
 
 For each phase:
 
@@ -541,21 +520,16 @@ Phase end-state verification block (before the phase gate, at the end of each ph
 
 ```markdown
 ### Phase <N> end-state verification
-- Type: <auto-verify | suggest-verify | manual-only | tests-only>
-- Automated coverage: synthetic integration test (Task <N>.synthetic-test) covers: <list of convertible steps> | none
-- Residual manual test: <list of truly-manual steps that the integration test cannot cover, with brief rationale per item> | none (all steps automated)
-- Automated: tests pass (handled by phase-regression.sh)
+- Type: <tests-only | has-residual>
+- Automated coverage: synthetic integration test covers: <list of convertible steps> | none
+- Residual manual test: <list of truly-manual steps with brief rationale per item> | none (all steps automated)
 ```
 
-Verification type tagging rules (re-evaluated AFTER convertibility analysis):
-- `tests-only`: ALL verification steps were convertible to integration tests (no residual manual). Most common outcome with the convertibility analysis.
-- `auto-verify`: residual manual steps exist AND involve a simple browser render check (page loads, component exists).
-- `suggest-verify`: residual manual steps exist AND need multi-step browser interaction.
-- `manual-only`: residual manual steps involve live network, external APIs, real perf under load, or deployment ops that fundamentally cannot be mocked.
+Tag is binary:
+- `tests-only`: ALL verification steps were convertible (no residual manual). Most common outcome.
+- `has-residual`: at least one truly-manual step remains. The end-of-run synthetic deferred-resolution task surfaces these to the user as the "Try it yourself" walkthrough.
 
-Preflight determines the tag from the residual-manual list. When in doubt, default to `suggest-verify`.
-
-If the plan has no "Phase end-state test" paragraph for a phase, both lines read: `(none specified in plan)`.
+If the plan has no "Phase end-state test" paragraph for a phase, both lines read `(none specified in plan)` and tag is `tests-only`.
 
 Phase gate at the end of each phase block (after the end-state verification):
 
@@ -590,15 +564,13 @@ Inserted AFTER the Final Gate block and BEFORE the Fly Verification block. Alway
 ```markdown
 ### Task final.deferred-resolution [SYNTHETIC: deferred-resolution] | Model: sonnet | Review: skip
 
-Goal: classify deferred items into auto-resolvable / phase-sized-followup / needs-user-decision; auto-fix or document the first two; surface only the third to the user with recommendations. (See preflight skill for full prompt.)
+Goal: do as much of the deferred work as possible automatically; surface the rest clearly with recommendations. Also compose "Try it yourself" walkthrough for residual manual verification. (See preflight skill for full prompt.)
 
 Plan steps:
 - [ ] Step 1: read `<plan-basename>-deferred.md` (no-op if missing/empty)
-- [ ] Step 2: classify each §N
-- [ ] Step 3: process Bucket A (auto-resolve)
-- [ ] Step 4: process Bucket B (track in PROGRESS.md)
-- [ ] Step 5: format Bucket C for user
-- [ ] Step 6: print summary; commit deferred.md updates - SHA: `<fill>`
+- [ ] Step 2: for each §N, try to resolve OR format as user-facing block
+- [ ] Step 3: compose "Try it yourself" walkthrough from residual manual items
+- [ ] Step 4: print summary; commit deferred.md Status updates - SHA: `<fill>`
 ```
 
 ### Verification block (LAST file only in split mode; always present in single-file mode)
