@@ -20,8 +20,8 @@ Runs before `/fly`. Does not modify the original plan - writes per-session plan 
 ## Tunable Constants
 
 ```
-single_file_cap = 20  # tasks per checklist file. Plans exceeding this are split
-                      # into multiple files, each <= this cap.
+single_file_cap = 20         # tasks per checklist file; plans exceeding this split into multiple files
+codex_browser_enabled = true # inject [SYNTHETIC: codex-browser-verify] task per session if browser-verifiable work present
 ```
 
 Assumes 1M-context opus per session (see note above).
@@ -206,9 +206,13 @@ The plan file is never modified. The injection lives only in the checklist. `/fl
 
 ### Manual-test convertibility analysis
 
-For each phase, examine the plan's "Phase end-state test" paragraph (and any other manual-verification steps the plan calls out). Apply this principle to every step:
+For each phase, sweep ALL manual verification work the plan calls out. Sources to check:
+- "Phase end-state test" paragraphs.
+- Any plan task tagged `Model: manual` or that's clearly a manual click-through (e.g., titles like "Manual browser verification", "Smoke test", steps that say "navigate", "click", "verify visually"). writing-plans sometimes injects these as full tasks rather than as end-state paragraphs - sweep both shapes.
 
-> **Could a competent engineer write a deterministic automated test for this, given mocks/fakes/fixtures/date-injection/cache-busting/etc.?** If yes, write the test. Only truly unmockable steps (real third-party drift, real perf under load, browser runtime stubbed by test env, visual smoke) remain manual.
+Apply this principle to every step found:
+
+> **Could a competent engineer write a deterministic automated test for this, given mocks/fakes/fixtures/date-injection/cache-busting/etc.?** If yes, write the test. Only truly unmockable steps (real third-party drift, real perf under load, visual fidelity vs mockup, anything codex's native browser also can't catch) remain manual.
 
 For each phase:
 
@@ -230,11 +234,43 @@ For each phase:
 
    This synthetic task gets treated EXACTLY like any plan task by fly: dispatched by an implementer subagent, reviewed by spec + code reviewers, etc. It's distinguished in the checklist with `[SYNTHETIC: integration-test]` prefix on the task title so reviewers know its provenance.
 
-3. Truly-manual steps stay in the Phase end-state verification block under `Manual test:`. The verification tag becomes:
-   - `tests-only` if ALL verification steps were convertible (no residual manual).
-   - Original tag (`auto-verify`/`suggest-verify`/`manual-only`) if residual manual steps remain.
+3. Truly-manual steps stay in the Phase end-state verification block under `Residual manual test:`. Verification tag is binary (`tests-only` if no residual; `has-residual` if some). The end-of-session codex-browser-verify synthetic task (see below) handles most of the residual; only stuff codex can't do surfaces in Try-it-yourself.
 
-If a phase has NO verification steps in the plan, skip injection for that phase. If a phase has steps but ALL are truly-manual, skip injection (no test to write) and tag as `manual-only`.
+4. If a manual verification TASK in the plan (not a paragraph) is fully covered by the synthetic integration test, **drop the original task** from the consolidated checklist. Note in Decisions block: "Task <N> (<title>) folded into <new synthetic task>." Don't leave the redundant task in the checklist for fly to figure out it should skip.
+
+If a phase has NO verification steps in the plan, skip injection for that phase.
+
+### Codex-browser-verify synthetic task
+
+When this session has any phase whose verification involves browser interaction (clicking, navigating, observing UI behavior), inject ONE `[SYNTHETIC: codex-browser-verify]` task per checklist - placed near the end, just BEFORE the deferred-resolution synthetic task. Codex has native browser execution; this synthetic task dispatches codex to do the real-browser equivalent of what the integration test covers in jsdom plus any visual fidelity / runtime concerns jsdom can't catch.
+
+Skip injection if no phase in this session has browser-verifiable work, or if the user's environment doesn't have codex available (set via tunable `codex_browser_enabled = true`; if false, residual manual stuff falls back to Try-it-yourself).
+
+```markdown
+### Task final.codex-browser-verify [SYNTHETIC: codex-browser-verify] | Model: codex (external) | Review: skip
+
+Goal: dispatch codex with native browser to click through this session's user flows and report critiques (not just PASS/FAIL). Orchestrator fixes the critiques.
+
+For each phase in this session that has browser-verifiable work, codex should:
+- Start (or use already-running) dev server.
+- Navigate to the relevant page/route.
+- Perform the user flow (click, fill, navigate).
+- Compare against design intent (if a mockup reference exists in design.md or the plan, codex compares).
+- Capture screenshot.
+- Return a STRUCTURED LIST of critiques: each entry is `{file_or_area, what's_wrong, suggested_fix}`. PASS = empty critique list.
+
+Codex prompt (orchestrator composes from this session's plan + diff):
+"You have native browser. Dev server URL: <url>. For each flow below, click through and report any critiques. Critique format: numbered list, each with location + what's wrong + suggested fix. End with `No critiques.` if everything is fine. Flows: <list extracted per phase>"
+
+Plan steps:
+- [ ] Step 1: dispatch codex with browser-verify prompt
+- [ ] Step 2: parse codex's critique list
+- [ ] Step 3: for each critique, dispatch implementer (sonnet) to fix; commit
+- [ ] Step 4: re-dispatch codex to verify fixes (loop until `No critiques.` or 2 rounds max - then surface remaining to user)
+- [ ] Step 5: append final pass/critique summary to checklist
+```
+
+`Review: skip` because codex IS the reviewer and the orchestrator's fix-loop IS the resolution.
 
 ### Deferred resolution synthetic task
 
@@ -327,7 +363,8 @@ Apply the decision logic in "Decisions Preflight Makes" to the parsed plan:
 10. **Phase verification tagging** - tests-only or has-residual based on convertibility analysis (step 11).
 11. **Manual-test convertibility analysis** - for each phase, classify each verification step as convertible (write integration test) or truly-manual. Inject synthetic integration-test task if any convertible. See "Manual-test convertibility analysis" above.
 12. **Plan split preparation** - for multi-session plans (>single_file_cap tasks), prepare per-session plan files. Synthetic tasks count toward `single_file_cap`. For single-session plans, no split needed.
-13. **Deferred resolution synthetic task** - inject one `[SYNTHETIC: deferred-resolution]` task at end of EVERY checklist (single-session: after Final Gate, before Fly Verification; multi-session: end of each checklist-N.md so each session clears its own backlog).
+13. **Codex-browser-verify synthetic task** - if any phase in this session has browser-verifiable work AND `codex_browser_enabled = true`, inject ONE `[SYNTHETIC: codex-browser-verify]` task per checklist (placed near end, before deferred-resolution).
+14. **Deferred resolution synthetic task** - inject one `[SYNTHETIC: deferred-resolution]` task at end of EVERY checklist (single-session: after Final Gate, before Fly Verification; multi-session: end of each checklist-N.md so each session clears its own backlog).
 
 ### 2b. Propose session breakdown (interactive - plans with >20 tasks only)
 
@@ -517,7 +554,7 @@ Review gates:
 
 No **Files:** block, no embedded task text, no code blocks. Fly reads task content from the plan file (plan.md for single-session, plan-N.md for multi-session).
 
-**Synthetic integration-test task** (injected by step 10 if any verification steps were convertible). Lives at the END of the phase's task list, AFTER all plan-supplied tasks and BEFORE the phase end-state verification block:
+**Synthetic integration-test task** (injected by step 11 if any verification steps were convertible). Placement: at the end of the phase's impl tasks, but BEFORE any "final cleanup" task that audits the phase's work (signals: last task, looks like cleanup/audit/summary commit/typecheck-lint-build smoke). Use your judgment on which task is the cleanup. Goal: cleanup audits the test file too, and the integration test runs against complete impl. If no cleanup task exists, append after the last impl task:
 
 ```markdown
 ### Task <N>.synthetic-test [SYNTHETIC: integration-test] | Model: sonnet | Review: standard
