@@ -51,7 +51,7 @@ if [ ! -d "$PROJECT_DIR" ]; then
   PROJECT_DIR=$(find "$HOME/.claude/projects" -mindepth 2 -maxdepth 2 -type f -name '*.jsonl' -mmin -60 2>/dev/null \
     | xargs -n1 dirname 2>/dev/null \
     | sort -u \
-    | head -1)
+    | head -1 || true)
 fi
 
 if [ -z "${PROJECT_DIR:-}" ] || [ ! -d "$PROJECT_DIR" ]; then
@@ -59,7 +59,7 @@ if [ -z "${PROJECT_DIR:-}" ] || [ ! -d "$PROJECT_DIR" ]; then
   exit 1
 fi
 
-SESSION_FILE=$(ls -t "$PROJECT_DIR"/*.jsonl 2>/dev/null | head -1)
+SESSION_FILE=$(ls -t "$PROJECT_DIR"/*.jsonl 2>/dev/null | head -1 || true)
 [ -n "$SESSION_FILE" ] || { echo "HALT: no session .jsonl in $PROJECT_DIR"; exit 1; }
 
 SESSION_ID=$(basename "$SESSION_FILE" .jsonl)
@@ -107,16 +107,28 @@ done
 # dispatch that wrote to that path with non-trivial tool-use activity.
 for F in "${EXPECTED_FILES[@]}"; do
   # Find subagent jsonl whose transcript contains a Write to this path.
-  # Check both "file_path" (CC Write tool) and "path" (Desktop Commander write_file).
-  # `|| true` is REQUIRED on each pipeline: under set -e + pipefail, a no-match
-  # grep returns 1, pipefail propagates, command substitution trips set -e and
-  # aborts the script BEFORE reaching the basename fallback. Suppress to allow
-  # graceful empty-string fallthrough.
-  WRITING_AGENT=$(grep -l "\"file_path\":\"$F\"\|\"path\":\"$F\"" "$SUBAGENT_DIR"/agent-*.jsonl 2>/dev/null | head -1 || true)
-  # Also try matching just the filename in case the path format varies
-  if [ -z "$WRITING_AGENT" ]; then
-    BASENAME=$(basename "$F")
-    WRITING_AGENT=$(grep -l "$BASENAME" "$SUBAGENT_DIR"/agent-*.jsonl 2>/dev/null | head -1 || true)
+  #
+  # Two correctness requirements:
+  # 1. `|| true` on each pipeline: under set -e + pipefail, a no-match grep
+  #    returns 1, pipefail propagates, command substitution trips set -e and
+  #    aborts the script BEFORE reaching the basename fallback. Suppress to
+  #    allow graceful empty-string fallthrough.
+  # 2. Order agents NEWEST-FIRST before grep so head -1 picks the most recent
+  #    writer, not the lex-first one. Re-reviews after fix-loops write the
+  #    SAME review file again - if we matched the original (low-tool-use)
+  #    reviewer, we'd HALT spuriously even though the latest re-reviewer was
+  #    fine. `ls -t` sorts by mtime newest-first; xargs preserves order;
+  #    grep -l outputs in command-line order; head -1 = latest writer.
+  AGENT_FILES=$(ls -t "$SUBAGENT_DIR"/agent-*.jsonl 2>/dev/null || true)
+  WRITING_AGENT=""
+  if [ -n "$AGENT_FILES" ]; then
+    WRITING_AGENT=$(printf '%s\n' "$AGENT_FILES" | xargs grep -l "\"file_path\":\"$F\"\|\"path\":\"$F\"" 2>/dev/null | head -1 || true)
+    # Also try matching just the filename in case the path format varies
+    # (e.g. reviewer wrote with absolute path but $F is relative, or vice versa).
+    if [ -z "$WRITING_AGENT" ]; then
+      BASENAME=$(basename "$F")
+      WRITING_AGENT=$(printf '%s\n' "$AGENT_FILES" | xargs grep -l "$BASENAME" 2>/dev/null | head -1 || true)
+    fi
   fi
   if [ -z "$WRITING_AGENT" ]; then
     echo "HALT: no subagent transcript found that wrote to $F. Reviewer was likely NOT dispatched; review file may have been forged by the orchestrator."
