@@ -243,8 +243,8 @@ Apply this principle to every step found:
 For each phase:
 
 1. Classify each verification step as **convertible** or **truly-manual**.
-2. **Coverage-gap check (judgment-based).** For each convertible step, scan the phase's existing tasks (including any test-writing tasks the plan already has). Does the existing task list already write a test that covers this step? Use judgment based on task titles + step descriptions. If yes for ALL convertible steps in the phase, skip synthetic injection - the phase's own tests cover it. If yes for SOME but not all, inject a synthetic task scoped only to the GAPS. Note in the synthetic task: "Coverage gap: existing Task <N> covers <X>; this synthetic test covers <Y> not yet covered."
-3. If unconvered convertible steps remain, inject a synthetic task at the END of the phase (after the last plan-supplied task, before the phase end-state verification block):
+2. Skip the synthetic if the phase already has an end-to-end test of the wire-up. Unit tests of individual pieces don't count - synthetic exists to catch glue bugs.
+3. Otherwise, inject a synthetic task at the END of the phase (after the last plan-supplied task, before the phase end-state verification block):
 
    ```
    Synthetic task: "Write integration test for Phase <N> end-state verification"
