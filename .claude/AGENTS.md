@@ -62,6 +62,20 @@ This applies to brainstorming, writing-plans, and any other superpowers skill th
 
 - **No em dashes in user-facing text** (docs, specs, checklists, commit messages, PR descriptions). Use " - " (spaced hyphen), a period, or restructure. In code comments and internal notes, don't worry about it.
 
+## Surfacing to the User
+
+Whenever you surface anything that needs my attention or decision - recommendations, choices between options, deferred items, review findings, blockers, "should I do X or Y?" questions, anything I'm being asked to weigh - use plain English and include the user-facing ramification.
+
+- **Plain English.** Translate engineering jargon into product/feature framing. "Unsafe cast at form.tsx:42" → "When users edit forms with custom field overrides, the app could crash on save". "N+1 query in event listing" → "The event list page slows down as users add more events; at ~50 events it becomes noticeably laggy". File:line citations are fine as a *reference* (so I can find the spot), not as the primary description.
+
+- **User-facing ramification, mandatory.** For each surfaced item, answer "what does the user actually see, feel, lose, or risk if this stays as-is (or if you choose option A vs B)?" One sentence is enough. Concrete examples beat abstractions: "Users on slow connections see a flash of empty state before content loads", "If two people edit at the same time, one set of changes silently overwrites the other", "Power users will notice; first-time users won't".
+
+- **No-impact is a valid answer, but say it explicitly.** "No user-facing impact - this is purely about code maintainability / future-proofing / test ergonomics" is fine and honest. What's not fine is leaving the impact line blank or hiding behind jargon.
+
+- **Why this is mandatory.** Without the ramification line, surfaced items read as engineering todos and I have no way to weigh them against other work. With it, they read as product decisions, which is the framing I need to actually decide. **Self-check:** if you can't articulate a user-facing impact (even "none - purely internal"), you don't understand the finding well enough to surface it - re-read the underlying notes first.
+
+- **Where this applies.** Review skill outputs (`/deep-review`, `/critique`, `/qa-test`, `/fly`'s deferred-resolution), recommendations from `/save` or `/spec-interview`, blockers/decisions you raise mid-task via `AskUserQuestion`, "I left these alone, want me to..." asks at the end of a task, anywhere you're presenting options for me to pick from.
+
 ## Code Hard Rules
 
 These apply on every project. Individual project `AGENTS.md` files may add concrete examples or override with explicit rationale.

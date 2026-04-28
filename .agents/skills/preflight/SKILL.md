@@ -336,11 +336,14 @@ If you CAN'T fix it (genuine UX/scope/policy decision, hard-to-reverse architect
 
   ### §N: <plain-English title>
 
-  **What it is:** <2-3 sentences in user's terms>
+  **What it is:** <2-3 sentences in user's terms - what the code does, in product/feature language. Avoid type/cast/interface/ref jargon unless it's the only honest framing.>
+  **User-facing impact:** <one sentence: what does the user actually see, feel, lose, or risk if this stays unfixed? Examples: "Users on slow connections see a flash of empty state before the real content loads", "If two people edit the same form at once, one set of changes silently overwrites the other", "Nothing visible today, but every new field added has to be manually wired in 4 places - one will eventually get missed and that field will silently not save". If there's truly no user-visible impact, say so explicitly: "No user-facing impact - this is purely about <code maintainability / future-proofing>". Don't pad, don't hedge, don't skip this line.>
   **Why I didn't just do it:** <one short sentence - decision needed / too large for this session / risky>
   **My recommendation:** <what you'd do + 1 sentence why>
   **Options:** <list, OR "do now" / "spawn separate task" / "skip" if it's a follow-up rather than a decision-with-options>
   **Where:** `<file>:<line>` (full reviewer notes in `§N` of `<plan-basename>-deferred.md`)
+
+  **Why the impact line is mandatory:** without it, deferred items read as engineering todos and the user has no way to weigh them against other work. With it, they read as product decisions, which is the framing needed to actually decide. If you cannot articulate a user-facing impact (even "no user-facing impact - purely internal"), you do not understand the finding well enough to surface it - re-read the reviewer's notes in §N.
 
 After processing, return:
 

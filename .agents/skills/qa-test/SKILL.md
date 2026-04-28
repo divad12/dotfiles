@@ -66,8 +66,11 @@ For each FAIL:
 - What happened vs what was expected
 
 ### Concerns
-For each CONCERN:
-- What feels wrong and why
+For each CONCERN, plain English with the user-facing impact:
+- **<plain-English title>**
+  - **What feels wrong:** <2-3 sentences in user terms - what did the QA tester see/feel?>
+  - **User-facing impact:** <one sentence: what would a real user experience? "A first-time user would hesitate before clicking the primary action because the label is ambiguous", "Power users will work around it but new users will get stuck", "Looks fine but is one click slower than it needs to be on the most common path">
+  - **Why I didn't fail it:** <one short sentence - works as built, just suboptimal>
 ```
 
 3. **Act on the results:**

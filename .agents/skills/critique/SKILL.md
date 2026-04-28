@@ -177,10 +177,22 @@ After the critique, present a summary:
 2. [...]
 
 ### Skipped (not worth doing now)
-- [What was left and why]
+
+For each skipped item, plain English with the user-facing impact:
+- **<plain-English title>**
+  - **What's happening:** <what the user sees today, in feature terms - not "the button uses a different border-radius than the cards", but "the primary action button doesn't visually match the rest of the page">
+  - **User-facing impact:** <one sentence: how does this affect a real user? "Looks slightly inconsistent but no one will misuse the page", "Subtle - regular users won't notice, but reviewers/stakeholders will flag it", "Could confuse first-time users about what's clickable">
+  - **Why I skipped:** <one short sentence>
 
 ### Could still improve
-- [Things worth considering but not critical]
+
+For each item, same plain-English / user-facing-impact format:
+- **<plain-English title>**
+  - **What's happening:** <2-3 sentences in user terms>
+  - **User-facing impact:** <one sentence>
+  - **Worth considering because:** <one sentence>
 ```
+
+**Why this format matters:** UI critiques especially tend toward jargon ("inconsistent border-radius scale", "non-grid-aligned spacing"). Translating to user impact ("buttons feel mismatched", "the page feels slightly off without the user being able to say why") is what lets the user actually decide if it's worth their time. If the impact is genuinely subjective polish, say so explicitly: "User-facing impact: minimal - this is taste, not a usability issue."
 
 When called by another skill (e.g. `/build`), return this summary for inclusion in the build report.

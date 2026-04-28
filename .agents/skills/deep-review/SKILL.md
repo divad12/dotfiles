@@ -261,8 +261,17 @@ Once all reviews are complete, merge the results:
    - [ ] Issue description - file:line - what's being improved
 
    ### Deferred (big-effort, out of scope, or debatable)
-   - [ ] Issue description - file:line - why it's deferred
+
+   For each deferred item, use this format - plain English, no jargon, framed in product/user terms:
+
+   - [ ] **<plain-English title>**
+     - **What's happening:** <2-3 sentences describing the issue in user/product terms. Avoid "type", "cast", "interface", "ref" unless it's the only honest framing - prefer "when a user does X, the app does Y instead of Z". Translate file:line citations into "the X feature does Y when Z".>
+     - **User-facing impact:** <one sentence: what does the user actually see, feel, lose, or risk if this stays unfixed? Examples: "Users on slow connections see a flash of empty state before content loads", "If two people edit the same form at once, one set of changes silently overwrites the other", "Nothing visible today, but every new field added has to be manually wired in 4 places - one will get missed and that field will silently not save". If there's truly no user-visible impact, say so explicitly: "No user-facing impact - this is purely about <code maintainability / future-proofing>" - don't pad.>
+     - **Why I'm not fixing it now:** <one short sentence: needs your decision / phase-sized work / risky-and-debatable>
+     - **Where:** file:line
    ```
+
+   **Why this format matters:** without the user-facing impact line, deferred items read as engineering todos and the user has no way to weigh them against other work. With it, they read as product decisions, which is the framing needed to actually decide. If you cannot articulate a user-facing impact (even "no user-facing impact - purely internal"), you do not understand the finding well enough to defer it - re-read the reviewer's notes.
 
 ### 3.5. Architecture drift auto-sync
 
@@ -321,17 +330,26 @@ After applying all fixes from step 4, run one more review cycle to make sure the
 
 ### 6. Present deferred items and ask for direction
 
-After auto-fixes and verification are complete, present only the deferred items:
+After auto-fixes and verification are complete, present only the deferred items. **Use the exact same plain-English / user-facing-impact format from step 3** - do not abbreviate to a one-liner here. The user is being asked to make a decision; they need the same context the consolidated review had.
 
 > "I've auto-fixed [N] items across must-fix, easy-wins, and reviewer suggestions. Verification round: [clean / fixed X additional items].
 >
 > The changes are uncommitted so you can review them.
 >
 > [If deferred items exist:]
-> These [X] items I left alone - they're either big-effort, out of scope, or debatable:
-> [list deferred items]
+> These [X] items I left alone - they need your call. Each is described in plain English with the user-facing impact, so you can weigh them without digging into the code:
+>
+> [for each deferred item, render the full block:]
+>
+> **<plain-English title>**
+> - **What's happening:** <2-3 sentences in user/product terms>
+> - **User-facing impact:** <one sentence: what the user sees / risks / loses, or "No user-facing impact - purely internal">
+> - **Why I'm not fixing it now:** <one short sentence>
+> - **Where:** file:line
 >
 > Want me to tackle any of these?"
+
+**Anti-pattern:** "Issue: unsafe cast at form.tsx:42 - deferred because it needs a refactor." This is the engineering framing the user just told you not to use. The right framing: "When users edit forms with custom field overrides, the app could crash on save because we're not validating the override shape. User-facing impact: rare today (only one form uses overrides), but if we add more, the crash surface grows silently. Not fixing now: needs a small schema refactor that touches the form types in 3 places. Where: form.tsx:42."
 
 ## Rules
 
