@@ -18,7 +18,9 @@ for file in .* bin; do
 done
 
 # macOS LaunchAgents - symlink each plist individually since ~/Library
-# is a system dir we can't replace wholesale.
+# is a system dir we can't replace wholesale. After symlinking, (re)load
+# each job so `./symlink.sh` is the single entry point for install AND
+# activation. unload-then-load makes it idempotent across re-runs.
 if [ -d "$dir/Library/LaunchAgents" ]; then
     mkdir -p "$HOME/Library/LaunchAgents"
     for plist in "$dir"/Library/LaunchAgents/*.plist; do
@@ -28,5 +30,9 @@ if [ -d "$dir/Library/LaunchAgents" ]; then
             mv "$dest" "$dest".orig
         fi
         ln -sfvn "$plist" "$dest"
+        if command -v launchctl >/dev/null 2>&1; then
+            launchctl unload "$dest" 2>/dev/null || true
+            launchctl load "$dest"
+        fi
     done
 fi
