@@ -243,8 +243,21 @@ Apply this principle to every step found:
 For each phase:
 
 1. Classify each verification step as **convertible** or **truly-manual**.
-2. Skip the synthetic if the phase already has an end-to-end test of the wire-up. Unit tests of individual pieces don't count - synthetic exists to catch glue bugs.
-3. Otherwise, inject a synthetic task at the END of the phase (after the last plan-supplied task, before the phase end-state verification block):
+2. Decide if the phase actually needs a synthetic integration test. Inject ONLY when the phase has multi-task glue worth asserting in jsdom-style tests. Skip when:
+   - Phase already has an end-to-end test of the wire-up (unit tests of pieces don't count).
+   - Phase is single-task or single-component (no glue between task outputs to test).
+   - Phase is pure backend / pure data-layer (no jsdom-observable composition).
+   - Phase end-state is "looks right visually" (handoff to codex-browser-verify, jsdom blind to it).
+   - Per-task TDD already wrote integration-style tests across the pieces.
+   Default: when in doubt, SKIP. False-green synthetic tests look like coverage but aren't; better to under-inject and let user request than over-inject and dilute the audit trail.
+3. **Surface proposed injections to user before writing checklist.** Like the consolidation pass, show:
+   ```
+   Phases proposing synthetic integration tests: [<list>]
+   Phases skipped (reason): [<list with reason: existing-e2e | single-task | pure-backend | visual-only>]
+   Confirm? (y / n / edit per-phase)
+   ```
+   On `n`, drop all synthetic-integration injections. On `edit`, let user toggle per phase.
+4. For phases that survive, inject a synthetic task at the END of the phase (after the last plan-supplied task, before the phase end-state verification block):
 
    ```
    Synthetic task: "Write integration test for Phase <N> end-state verification"
@@ -252,18 +265,19 @@ For each phase:
    - Review: combined.
    - Files: implementer decides based on existing test conventions.
    - Steps:
-     * Step 1: write failing test covering: <list each convertible step verbatim, with the mock/fake/fixture noted>
-     * Step 2: verify test fails for the right reason
-     * Step 3: implement (only if test fails because the production code is missing the behavior; usually the production code already exists and the test just confirms it - in which case skip to step 4)
-     * Step 4: verify test passes
-     * Step 5: commit
+     * Step 1: READ the phase's actual implementation files + existing tests FIRST. Ground the synthetic test in real code, not the plan prose. The plan describes intent; the impl is the contract being tested. Mirror the existing tests' mock/fake/fixture style so the synthetic test contract matches production wiring (avoid mock-graph drift = false greens).
+     * Step 2: write failing test covering: <list each convertible step verbatim, with the mock/fake/fixture noted>
+     * Step 3: verify test fails for the right reason
+     * Step 4: implement (only if test fails because the production code is missing the behavior; usually the production code already exists and the test just confirms it - in which case skip to step 5)
+     * Step 5: verify test passes
+     * Step 6: commit
    ```
 
    This synthetic task gets treated EXACTLY like any plan task by fly: dispatched by an implementer subagent, reviewed by spec + code reviewers, etc. It's distinguished in the checklist with `[SYNTHETIC: integration-test]` prefix on the task title so reviewers know its provenance.
 
-4. Truly-manual steps stay in the Phase end-state verification block under `Residual manual test:`. Verification tag is binary (`tests-only` if no residual; `has-residual` if some). The end-of-session codex-browser-verify synthetic task (see below) handles most of the residual. The end-of-session deferred-resolution task ALWAYS composes a "Try it yourself" walkthrough when the diff has user-facing surface - REQUIRED steps for `has-residual` phases, OPTIONAL eyeballing steps for `tests-only` phases (visual polish, animations, copy that tests can't verify).
+5. Truly-manual steps stay in the Phase end-state verification block under `Residual manual test:`. Verification tag is binary (`tests-only` if no residual; `has-residual` if some). The end-of-session codex-browser-verify synthetic task (see below) handles most of the residual. The end-of-session deferred-resolution task ALWAYS composes a "Try it yourself" walkthrough when the diff has user-facing surface - REQUIRED steps for `has-residual` phases, OPTIONAL eyeballing steps for `tests-only` phases (visual polish, animations, copy that tests can't verify).
 
-5. If a manual verification TASK in the plan (not a paragraph) is fully covered by the synthetic integration test (or by existing phase tests per step 2), **drop the original task** from the consolidated checklist. Note in Decisions block: "Task <N> (<title>) folded into <new synthetic task>." or "Task <N> covered by existing Task <M>; dropped." Don't leave the redundant task in the checklist for fly to figure out it should skip.
+6. If a manual verification TASK in the plan (not a paragraph) is fully covered by the synthetic integration test (or by existing phase tests per step 2), **drop the original task** from the consolidated checklist. Note in Decisions block: "Task <N> (<title>) folded into <new synthetic task>." or "Task <N> covered by existing Task <M>; dropped." Don't leave the redundant task in the checklist for fly to figure out it should skip.
 
 If a phase has NO verification steps in the plan, skip injection for that phase.
 
