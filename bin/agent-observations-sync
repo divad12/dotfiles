@@ -1,0 +1,22 @@
+#!/bin/bash
+# Auto-commits and pushes ~/.agents/observations/ if there are uncommitted changes.
+# Wired to a launchd job (com.davidhu.agent-observations-sync) that fires every 10 min.
+# Agent-agnostic: any tool that writes observation logs gets synced.
+
+set -euo pipefail
+
+# launchd's default PATH is minimal; ensure git + ssh are findable on any Mac.
+export PATH="/usr/local/bin:/opt/homebrew/bin:/usr/bin:/bin"
+
+REPO="${HOME}/.agents/observations"
+
+[[ -d "${REPO}/.git" ]] || { echo "not a git repo: ${REPO}" >&2; exit 1; }
+
+cd "${REPO}"
+
+# Nothing to do if working tree is clean.
+[[ -z "$(git status --porcelain)" ]] && exit 0
+
+git add -A
+git commit -m "auto: sync observations $(date -u +%Y-%m-%dT%H:%M:%SZ)" --quiet
+git push --quiet origin main

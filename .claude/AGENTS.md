@@ -33,6 +33,20 @@ Before diving into a task, state which `docs/ai/` files you're loading:
 
 To install this system in a project: `/adaptive-docs-init`. To refactor existing bloated root instructions into it: `/adaptive-docs-extract`.
 
+## Skill Auto-Invocation
+
+- **`task-observer` (One Skill to Rule Them All):** Invoke at the start of EVERY task-oriented session - any session where you'll use tools to produce deliverables. Captures patterns, corrections, and skill-improvement candidates as you work.
+
+  **Override default log location.** The skill defaults to `<workspace>/skill-observations/log.md` (per-project, local-only). Use this instead:
+
+  | Default | **Use instead** |
+  |---|---|
+  | `<workspace>/skill-observations/log.md` | `~/.agents/observations/<project-slug>/log.md` |
+  | `<workspace>/skill-observations/archive/log-<date>.md` | `~/.agents/observations/<project-slug>/archive/log-<date>.md` |
+  | `<workspace>/skill-observations/cross-cutting.md` | `~/.agents/observations/<project-slug>/cross-cutting.md` |
+
+  `<project-slug>` is the basename of the current git toplevel (`git rev-parse --show-toplevel | xargs basename`). If outside a git repo, use `_meta`. Centralized at `~/.agents/observations/` so the M/W/F cloud review (a `/schedule` agent on `divad12/agent-observations`) can read across all projects. A `launchd` job auto-commits/pushes that repo every 10 minutes.
+
 ## Superpowers Directory Overrides
 
 The superpowers skills (brainstorming, writing-plans, etc.) default to saving under `docs/superpowers/`. In any of my projects, override these defaults:
