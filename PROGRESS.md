@@ -11,10 +11,9 @@ None.
 
 ## Up Next
 - [ ] Resolve the existing `.claude/skills` to `.agents/skills` symlink migration.
-- [ ] Move the launchd plist into dotfiles + an install step (currently lives only at `~/Library/LaunchAgents/`, not version-controlled).
 
 ## Recently Done
-- [x] [worktree: elated-buck-046da7] Installed task-observer ("One Skill to Rule Them All") with centralized observations repo, launchd auto-push, and M/W/F cloud review routine.
+- [x] [worktree: elated-buck-046da7] Installed task-observer ("One Skill to Rule Them All") with centralized observations repo, launchd auto-push (plist version-controlled in dotfiles via `Library/LaunchAgents/`), and M/W/F cloud review routine.
 - [x] [worktree: master] Made `/deep-review` Codex/Claude-Code aware for independent review dispatch.
 
 ## Blockers

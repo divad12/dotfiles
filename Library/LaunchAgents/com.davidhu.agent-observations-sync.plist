@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.davidhu.agent-observations-sync</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>/Users/david/dotfiles/bin/agent-observations-sync</string>
+    </array>
+
+    <key>StartInterval</key>
+    <integer>600</integer>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>StandardOutPath</key>
+    <string>/Users/david/Library/Logs/agent-observations-sync.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>/Users/david/Library/Logs/agent-observations-sync.err.log</string>
+</dict>
+</plist>
