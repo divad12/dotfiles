@@ -124,8 +124,9 @@ while IFS= read -r rel; do
     continue
   fi
   # Match this review path to its Outcome line to find the advertised findings=N.
-  # Escape forward slashes for regex.
-  esc_rel=$(printf '%s' "$rel" | sed 's/[][\\.$*/^]/\\&/g')
+  # Escape ERE metacharacters so paths like task-32+33-combined.md don't
+  # turn `+` into a one-or-more quantifier.
+  esc_rel=$(printf '%s' "$rel" | sed 's/[][\\.$*/^+?(){}|]/\\&/g')
   OUTCOME_LINE=$(grep -E "review: ${esc_rel}(\$|[^A-Za-z0-9_./-])" "$CHECKLIST" | head -1 || true)
   ADV_COUNT=$(printf '%s' "$OUTCOME_LINE" | grep -oE 'findings=[0-9]+' | head -1 | sed 's/findings=//')
   if [ -z "${ADV_COUNT:-}" ]; then
