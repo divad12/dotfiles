@@ -22,6 +22,12 @@ Execute a preflight checklist by:
 
 `/fly` does NOT invoke `superpowers:subagent-driven-development` as a skill. It owns its per-task loop and uses that skill's prompt templates by reading them at runtime.
 
+## Fire-and-forget
+
+The user runs `/fly` and walks away for hours. Don't pause to ask, offer options, or wait for decisions. When something fails: try, escalate, then defer with FIXME and continue. The deferred-resolution task at session end is the user's inbox.
+
+**Halt only on:** integrity gate failure you can't fix yourself, or phase regression that persists after fix-implementer retries. When halting, print: `HALT: <reason>. Run /compact then re-invoke /fly <checklist>. Mid-flight pickup resumes from this task.`
+
 ## Helper Scripts
 
 Five bash scripts live adjacent to this SKILL.md. Use the "Base directory for this skill" path injected by the runtime to locate them:
@@ -148,7 +154,7 @@ Standard Task-dispatch flow per steps A-G below.
    - `description`: `Implement <task id>: <task name>`
    - `prompt`: the substituted template
 
-   **If you believe the checklist's model assignment is wrong**, HALT. Tell the user: "Task <id> checklist says Model: <X>, but the task appears to need <Y> because <reason>. Edit the checklist and re-run?" Then stop. Do NOT silently drift - upgrading "to be safe" or downgrading "because this looks easy" both break the commitment contract and make the audit trail lie.
+   Use the checklist's Model annotation verbatim. If you think it's wrong, log a note in deferred.md and continue - the user reviews at session end. Don't pause to ask.
 
    Same rule for REVIEWER model dispatch in step E and session-gate dispatches: the `model` parameter is copied verbatim from the checklist annotation.
 
@@ -159,7 +165,7 @@ Standard Task-dispatch flow per steps A-G below.
 ### B. Handle implementer status
 
 - **DONE** or **DONE_WITH_CONCERNS**: proceed. If DONE_WITH_CONCERNS, read the concerns - fix them before review if they're about correctness; note and proceed if they're observations.
-- **NEEDS_CONTEXT**: provide missing context (ask the user if needed) and re-dispatch.
+- **NEEDS_CONTEXT**: provide best-effort context from already-read files and re-dispatch. If still NEEDS_CONTEXT after retry, defer with FIXME and continue. Don't pause to ask.
 - **BLOCKED**: assess per subagent-driven-development's escalation guidance - more context, upgrade model, or break down task.
 
 ### C. Tick plan-step checkboxes
@@ -241,7 +247,7 @@ Parse the reviewer's output. Every admissible finding has a unique number, a pri
 
 2. Wait for fix report (if dispatched). Missing finding numbers or failed inline Edits = BLOCKED.
 
-3. BLOCKED retries escalate: inline → fix-implementer dispatch; default-model dispatch → upgraded model. If still BLOCKED, evaluate defer criteria; otherwise halt and surface.
+3. BLOCKED retries escalate: inline → fix-implementer dispatch; default-model dispatch → upgraded model. Still BLOCKED: defer with FIXME and continue.
 
 4. Re-dispatch reviewer (Reviewer Independence Override, fresh diff). Re-reviewer overwrites the prior review. Reviewer dispatch stays strict regardless of how fixes were applied - the integrity gate validates the re-review the same way. Loop until no `[fix]` admissible findings remain.
 
@@ -281,7 +287,7 @@ bash $SCRIPT_DIR/integrity-check.sh <task-id> <plan-dir> <task-sha>
 
 Output:
 - `PASS` (exit 0) - integrity verified. Proceed to the next task.
-- `HALT: <reason>` (exit 1) - STOP immediately. Do NOT try to patch the symptom (re-dispatching, re-writing, tweaking slots). Surface the HALT reason to the user verbatim. This is drift detection; the user needs to see it.
+- `HALT: <reason>` (exit 1) - STOP immediately. Do NOT try to patch the symptom (re-dispatching, re-writing, tweaking slots). Surface verbatim with the recovery hint: `HALT: <reason>. Run /compact then re-invoke /fly <checklist>. Mid-flight pickup resumes from this task.`
 
 Why this gate exists, what the script checks, and the agent-agnostic caveat: see `references/integrity-gate.md`.
 
@@ -310,7 +316,7 @@ NO reviewer subagent at phase boundaries. Per-phase deep-reviews are gone; one s
    ```
 
    - `regressions=0`: phase regression check passes. Fill the Phase Regression Check Outcome with `tests_pass=N tests_fail=N regressions=0`. Continue to the next phase.
-   - `regressions>0`: HALT. Dispatch a fix-implementer with the regression list. After fix-implementer returns, re-run the regression script. Loop until regressions=0. If fix-implementer BLOCKs at upgraded model after 2 tries, write to deferred.md AND halt `/fly` - do NOT silently ignore regressions.
+   - `regressions>0`: dispatch a fix-implementer with the regression list, re-run the script, loop until regressions=0. If fix-implementer BLOCKs at upgraded model after 2 tries, halt with the compact-restart hint (continuing on a broken codebase makes every subsequent task fail).
 
 ### Phase Normal Review (conditional)
 
@@ -364,7 +370,7 @@ Locate the `## Session Gate: /deep-review over <scope>` block. Scope is the cumu
 
 Update Resolution slot when writing: `Action: Deferred to <plan-basename>-deferred.md §N`. Create the file with the header before appending `§1` if it doesn't exist.
 
-More than 1-2 defer entries per review = signal. Either reviewer is mis-disposing (re-dispatch), or task scope is too big (halt and surface). Don't accumulate defers silently.
+More than 1-2 defer entries per review = signal. If reviewer seems to be mis-disposing, re-dispatch once; otherwise log a `## Defer rate note` line in deferred.md and continue. Fire-and-forget: don't pause to ask.
 
 ## Final Verification
 
@@ -395,7 +401,8 @@ If you catch yourself thinking any of these, STOP - you're about to violate the 
 | Skip `dispatch-reviewer.sh` and just type the model into the Task call ("haiku is faster", "sonnet for the small diff", "the checklist annotation is obvious") | Run the script. Always. The `MODEL` value goes in verbatim. integrity-check.sh reads `message.model` from the JSONL and HALTs if the dispatched model doesn't match the checklist. Skipping the script doesn't get you out of the verification - it just means the HALT lands later, after wasted reviewer work. |
 | Skip a review ("trivial", "code looks fine", "I read the diff") | Review = dispatched subagent + on-disk file. No dispatch, no review. Per-task integrity gate catches this; do not try to override. |
 | Dispatch haiku reviewer when checklist says sonnet ("the diff is small", "just test fixtures", "haiku is fine here") | DRIFT. Halt, edit the checklist explicitly, then re-dispatch. integrity-check.sh verifies the JSONL `message.model` against the checklist annotation post-hoc; you can't get away with it. |
-| Use a different model than checklist says (upgrade "to be safe" or downgrade "looks easy") | Checklist IS the contract. Silent drift breaks the audit trail. If the model is wrong, HALT and ask user to edit. |
+| Use a different model than checklist says (upgrade "to be safe" or downgrade "looks easy") | Checklist IS the contract. Silent drift breaks the audit trail. Use it verbatim; if you think it's wrong, log a note in deferred.md and continue. |
+| Pause to ask the user "should I plow on, stop here, or pivot?" - even with a polite "I'll keep going if no answer" | The user is gone for hours. /fly is fire-and-forget. Pick the default (plow on), log uncertainty in deferred.md, keep moving. The deferred-resolution task surfaces it at the end. |
 | Skip TDD because the task text didn't mention it | Implementer dispatch always appends TDD override. Do TDD. |
 | Stretch inline-fix path ("basically a rename, just a few extra lines", "I see what the reviewer means") | Inline-fix is for trivial verbatim slam-dunks. If you have to think, dispatch. |
 | Consolidate / merge / paraphrase reviewer findings | Every numbered finding processed by number. `findings == fixed + deferred` invariant. Halt if violated. |
