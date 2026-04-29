@@ -280,9 +280,13 @@ If a phase has NO verification steps in the plan, skip injection for that phase.
 
 ### Codex-browser-verify synthetic task
 
-When this session has any phase whose verification involves browser interaction (clicking, navigating, observing UI behavior), inject ONE `[SYNTHETIC: codex-browser-verify]` task per checklist - placed near the end, just BEFORE the deferred-resolution synthetic task. Codex has native browser execution; this synthetic task dispatches codex to do the real-browser equivalent of what the integration test covers in jsdom plus any visual fidelity / runtime concerns jsdom can't catch.
+Inject `[SYNTHETIC: codex-browser-verify]` ONLY when THIS checklist's session has actual browser-verifiable work - i.e., at least one task in this checklist mounts UI, modifies UI flow, or has a verification step that involves clicking/navigating/observing UI behavior. If this session is backend-only / foundations / data-layer / pure infra (no UI mounted, no flows to click), DO NOT inject the task at all - omit it from the checklist entirely.
 
-Skip injection if no phase in this session has browser-verifiable work, or if the user's environment doesn't have codex available (set via tunable `codex_browser_enabled = true`; if false, residual manual stuff falls back to Try-it-yourself).
+This is per-checklist, not feature-level. Multi-session plans where Session 1 = backend foundations and Session 2 = UI wire-up: Session 1's checklist has NO codex-browser-verify task; Session 2's does.
+
+Also skip if `codex_browser_enabled = false`. When skipped, residual manual stuff falls back to Try-it-yourself.
+
+Codex has native browser execution; when injected, this task dispatches codex to do the real-browser equivalent of what the integration test covers in jsdom plus any visual fidelity / runtime concerns jsdom can't catch.
 
 ```markdown
 ### Task final.codex-browser-verify [SYNTHETIC: codex-browser-verify] | Model: codex (external) | Mode: subagent | LOC: ~0 | Review: skip
@@ -412,7 +416,7 @@ Apply the decision logic in "Decisions Preflight Makes" to the parsed plan:
 12. **Phase verification tagging** - tests-only or has-residual based on convertibility analysis (step 13).
 13. **Manual-test convertibility analysis** - for each phase, classify each verification step as convertible (write integration test) or truly-manual. Inject synthetic integration-test task if any convertible. See "Manual-test convertibility analysis" above.
 14. **Plan split preparation** - for multi-session plans (>single_file_cap tasks), prepare per-session plan files. Synthetic tasks count toward `single_file_cap`. For single-session plans, no split needed.
-15. **Codex-browser-verify synthetic task** - if any phase in this session has browser-verifiable work AND `codex_browser_enabled = true`, inject ONE `[SYNTHETIC: codex-browser-verify]` task per checklist (placed near end, before deferred-resolution).
+15. **Codex-browser-verify synthetic task** - inject ONE `[SYNTHETIC: codex-browser-verify]` task per checklist ONLY if THIS checklist's session has actual browser-verifiable work AND `codex_browser_enabled = true`. Per-session check, not feature-level: backend-only / foundations / pure-infra sessions get NO codex-browser-verify task. Omit from checklist entirely when not needed.
 16. **Deferred resolution synthetic task** - inject one `[SYNTHETIC: deferred-resolution]` task at end of EVERY checklist (single-session: after Final Gate, before Fly Verification; multi-session: end of each checklist-N.md so each session clears its own backlog).
 
 ### 2b. Propose session breakdown (interactive - plans with >20 tasks only)
