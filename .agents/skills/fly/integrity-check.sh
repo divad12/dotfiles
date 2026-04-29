@@ -148,7 +148,11 @@ for F in "${EXPECTED_FILES[@]}"; do
     for AGENT_FILE in $AGENT_FILES; do
       # First user message in the JSONL - has `"type":"user"` near the top.
       # Match either the full path or just the basename in the message body.
-      if head -1 "$AGENT_FILE" 2>/dev/null | grep -qE "$F|$BASENAME"; then
+      # Use fixed-string match (-F) because review file paths contain regex meta
+      # characters: `+` (in consolidated task IDs like task-2.1+2.2-combined.md)
+      # and `.` (between segments and before the .md extension). Pass two -e
+      # patterns instead of `|` because `-F` doesn't interpret alternation.
+      if head -1 "$AGENT_FILE" 2>/dev/null | grep -qF -e "$F" -e "$BASENAME"; then
         WRITING_AGENT="$AGENT_FILE"
         break
       fi
