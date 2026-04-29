@@ -6,8 +6,14 @@ Universal rules for AI coding agents. `CLAUDE.md` symlinks here.
 
 - Read root `PROGRESS.md` at session start.
 - Use context7, or the agent's equivalent docs MCP, for code generation, setup/configuration, and library/API docs. Resolve and fetch docs without waiting for an explicit ask.
-- If the project has `docs/ai/`, treat it as source of truth. Read matching
-  docs before work and announce: `📖 Loading context: docs/ai/<file>.md`.
+- **Adaptive docs.** Read the matching file BEFORE relevant work and
+  announce `📖 Loading context: <path>.md`.
+  - Per-project: if the project has `docs/ai/`, treat it as source of truth.
+  - Global (`~/dotfiles/docs/ai/`):
+
+  | Task | Doc |
+  |---|---|
+  | Editing AGENTS.md, .agents/skills/, docs/ai/ | writing-docs.md |
 - Re-read the hard rules before implementation.
 
 ## Session Tools
