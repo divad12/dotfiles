@@ -1,6 +1,6 @@
 ---
 name: new-session
-description: "Set up a worktree session with env files and a unique dev server port. Use when the user says 'new session', 'start a session', 'new worktree', or wants to work on a feature in isolation. Also use when the user asks to 'start fresh' or 'spin up a workspace'."
+description: "Use when the user says 'new session', 'start a session', 'new worktree', 'start fresh', or 'spin up a workspace'."
 user-invocable: true
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: critique
-description: "Visually critique the current UI/UX by taking screenshots, evaluating what's good and what could be improved, and acting on findings. Use when the user says 'critique', 'critique the UI', 'how does it look', 'check the UI', 'visual review', or 'polish the UI'. Also use proactively after implementing frontend features to catch visual issues before presenting to the user."
+description: "Use when the user says 'critique', 'how does it look', 'check the UI', 'visual review', or 'polish the UI'. Also use proactively after frontend changes."
 user-invocable: true
 ---
 

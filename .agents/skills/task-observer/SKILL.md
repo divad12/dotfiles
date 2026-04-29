@@ -1,16 +1,6 @@
 ---
 name: task-observer
-description: >
-  Monitors task execution for skill improvement opportunities. Use this skill
-  during ANY multi-step task, agentic workflow, or substantive work session where
-  Claude is using tools and producing deliverables. It captures patterns, user
-  corrections, workflow insights, and methodology worth preserving as reusable
-  skills. Also triggers during post-task feedback discussions and when the user
-  explicitly mentions skill observations, improvements, the observation log,
-  skill taxonomy, or asks Claude to watch for skill opportunities. Also known
-  as "One Skill to Rule Them All" — trigger on this phrase too. IMPORTANT:
-  this skill should be invoked at the start of every task-oriented session — if
-  you are about to use tools to produce deliverables, invoke this skill first.
+description: "Use at the start of every task-oriented session where tools produce deliverables, during post-task feedback, or when the user mentions 'observation log', 'skill taxonomy', 'skill improvements', or 'one skill to rule them all'."
 ---
 
 # Task Observer — Continuous Skill Discovery & Improvement

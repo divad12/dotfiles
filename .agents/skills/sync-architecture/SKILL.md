@@ -1,6 +1,6 @@
 ---
 name: sync-architecture
-description: "Update docs/ai/architecture.md when the codebase has drifted. Detects structural changes (new/deleted/renamed modules) under the paths the diagram covers and updates the mermaid block directly - no approval gate. Use when the user says 'sync architecture', 'update the architecture diagram', 'check the arch diagram', 'refresh architecture', 'audit the diagram'. Also auto-invoked by /save and /deep-review when drift is detected. Also use after adding, removing, or renaming a top-level component (new API route module, new shared-function module, schema restructure)."
+description: "Use when the user says 'sync architecture', 'update the architecture diagram', 'refresh architecture', or 'audit the diagram'. Also auto-invoked by /save and /deep-review, or after adding, removing, or renaming a top-level module."
 user-invocable: true
 ---
 

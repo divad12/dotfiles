@@ -1,6 +1,6 @@
 ---
 name: adaptive-docs-init
-description: "Bootstrap the agent-agnostic adaptive documentation system in a project: create docs/ai/, .agents/skills/, the .claude/skills symlink, root AGENTS.md, writing-docs.md, and optionally a starter docs/ai/architecture.md with a mermaid diagram placeholder. Use when the user says 'set up adaptive docs', 'set up the doc system', 'init docs', 'add agent docs to this project', or wants to apply the three-layer docs architecture to a new project. Works for any agent that supports AGENTS.md (Claude Code, Codex, Cursor, Windsurf, Aider)."
+description: "Use when the user says 'set up adaptive docs', 'init docs', 'add agent docs to this project', or wants to bootstrap the three-layer docs/ai/ + AGENTS.md structure in a new project."
 user-invocable: true
 ---
 

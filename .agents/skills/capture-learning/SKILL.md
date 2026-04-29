@@ -1,6 +1,6 @@
 ---
 name: capture-learning
-description: "Capture a learning from this session into project documentation. Use after fixing bugs, receiving user feedback, discovering patterns, or any moment worth preserving for future sessions. Also triggered by the /save skill's documentation step. Also use when the user says 'update the docs', 'write the docs', 'document this', 'add this to the docs', 'capture this', or 'remember this for next time'."
+description: "Use when the user says 'document this', 'capture this', 'remember this for next time', 'update the docs', or after fixing bugs and discovering patterns worth preserving. Also triggered by /save."
 user-invocable: true
 argument-hint: "[what was learned]"
 ---

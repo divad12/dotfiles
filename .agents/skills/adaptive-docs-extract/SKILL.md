@@ -1,6 +1,6 @@
 ---
 name: adaptive-docs-extract
-description: "Refactor an existing bloated AGENTS.md or CLAUDE.md into the three-layer agent-agnostic adaptive docs system. Identifies topics that should become docs/ai/ files, suggests skill triggers, and proposes directories for nested AGENTS.md guardrails. Use when the user says 'extract docs', 'split AGENTS.md', 'split CLAUDE.md', 'refactor the docs', 'apply adaptive docs to existing project', 'slim AGENTS.md', 'slim CLAUDE.md', or has sprawling root instructions they want to break up."
+description: "Use when the user says 'extract docs', 'split AGENTS.md', 'split CLAUDE.md', 'refactor the docs', 'slim AGENTS.md', or has sprawling root instructions to break up."
 user-invocable: true
 ---
 

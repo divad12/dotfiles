@@ -1,6 +1,6 @@
 ---
 name: bugfix-tdd
-description: "Fix a bug by first writing a failing test that reproduces it, then fixing the code to make the test pass. The test becomes a permanent regression guard. Triggers automatically when the user reports a bug, says 'fix', 'broken', 'doesn't work', 'regression', or describes unexpected behavior."
+description: "Use when the user reports a bug or says 'fix', 'broken', 'doesn't work', 'regression', or describes unexpected behavior."
 ---
 
 # Bugfix TDD

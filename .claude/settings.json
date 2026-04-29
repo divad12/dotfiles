@@ -3,20 +3,103 @@
     "commit": "",
     "pr": ""
   },
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Read(*)",
+      "Edit(*)",
+      "Write(*)",
+      "Glob(*)",
+      "Grep(*)",
+      "mcp__*",
+      "Bash(npm update:*)",
+      "Bash(ls:*)",
+      "Bash(cat:*)",
+      "Bash(node --version:*)",
+      "Bash(npm --version:*)",
+      "Bash(npm cache clean:*)",
+      "Bash(npm install:*)",
+      "Bash(npx prisma db push:*)",
+      "Bash(npx shadcn@latest add button card input label select dialog tabs toast dropdown-menu --yes --cache /tmp/npm-cache-journology)",
+      "Bash(npx:*)",
+      "Bash(git status:*)",
+      "Bash(git add:*)",
+      "Bash(git commit -m \"$\\(cat <<''EOF''\nInitial project setup: Next.js 14 + Prisma + Supabase + shadcn/ui\n\n- Next.js 14 App Router with TypeScript, Tailwind CSS, ESLint\n- Prisma schema with 11 tables for journey/event data model\n- Supabase auth helpers \\(server + client\\) and Prisma singleton\n- shadcn/ui components: button, card, input, label, select, dialog, tabs, toast, dropdown-menu\n- Seed script with Bond Night example data \\(6 guests, 4 clues, 6 venues, 6 message templates\\)\n- Project docs: requirements, schema reference, setup checklist\nEOF\n\\)\")",
+      "Bash(git remote add:*)",
+      "Bash(git branch:*)",
+      "Bash(git push:*)",
+      "Bash(git commit:*)",
+      "Bash(find:*)",
+      "Bash(npm run build:*)",
+      "WebFetch(domain:github.com)",
+      "Bash(curl:*)",
+      "Bash(playwright-cli open:*)",
+      "Bash(playwright-cli console:*)",
+      "Bash(playwright-cli reload:*)",
+      "Bash(playwright-cli close:*)",
+      "Bash(playwright-cli screenshot:*)",
+      "Bash(pkill:*)",
+      "Bash(playwright-cli goto:*)",
+      "Bash(playwright-cli snapshot:*)",
+      "Bash(playwright-cli click:*)",
+      "Bash(node -e:*)",
+      "Bash(lsof:*)",
+      "Bash(xargs kill:*)",
+      "Bash(npm test:*)",
+      "WebFetch(domain:boristane.com)",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d.get\\(''''mcpServers'''',{}\\), indent=2\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); servers=d.get\\(''''mcpServers'''',{}\\); [print\\(k\\) for k in servers]\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\({k:v for k,v in d.items\\(\\) if ''''mcp'''' in k.lower\\(\\) or ''''server'''' in k.lower\\(\\)}, indent=2\\)\\)\")",
+      "Bash(python3 -c \":*)",
+      "Bash(python3 -c \"import sys,json; print\\(json.dumps\\(json.load\\(sys.stdin\\), indent=2\\)\\)\")",
+      "Bash(python3 -c \"import sys,json; d=json.load\\(sys.stdin\\); print\\(json.dumps\\(d, indent=2\\)\\)\")",
+      "WebSearch"
+    ],
+    "defaultMode": "dontAsk"
+  },
+  "model": "claude-opus-4-6[1M]",
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Read",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/read-once/hook.sh"
+          }
+        ]
+      }
+    ],
+    "PostCompact": [
+      {
+        "matcher": "",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/.claude/read-once/compact.sh"
+          }
+        ]
+      }
+    ],
+    "SessionStart": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"MANDATORY pre-flight: Invoke the task-observer skill via the Skill tool BEFORE your first tool call. NEVER produce deliverables without it. Skipping it loses observations and breaks the meta-skill loop. (One Skill to Rule Them All)\"}}'"
+          }
+        ]
+      }
+    ]
+  },
   "enabledPlugins": {
-    "review-loop@hamel-review": true,
-    "claude-code-setup@claude-plugins-official": true,
-    "code-review@claude-plugins-official": true,
+    "code-review@claude-plugins-official": false,
     "code-simplifier@claude-plugins-official": true,
     "explanatory-output-style@claude-plugins-official": true,
-    "claude-md-management@claude-plugins-official": true,
     "figma@claude-plugins-official": true,
     "skill-creator@claude-plugins-official": true,
     "supabase@claude-plugins-official": true,
-    "vercel@claude-plugins-official": true,
-    "telegram@claude-plugins-official": true,
     "context7@claude-plugins-official": true,
-    "feature-dev@claude-plugins-official": true,
     "superpowers@claude-plugins-official": true
   },
   "extraKnownMarketplaces": {
@@ -27,5 +110,11 @@
       }
     }
   },
-  "skipDangerousModePermissionPrompt": true
+  "effortLevel": "high",
+  "skipDangerousModePermissionPrompt": true,
+  "statusLine": {
+    "type": "command",
+    "command": "npx -y ccstatusline@latest",
+    "padding": 0
+  }
 }

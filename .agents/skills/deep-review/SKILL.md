@@ -1,6 +1,6 @@
 ---
 name: deep-review
-description: "Run a thorough six-way code review: collateral change audit, the orchestrator's own diff analysis, a rule compliance audit (re-reads CLAUDE.md and project docs to catch shortcuts from context pressure), a simplification/code-quality pass, an independent reviewer from the other agent family, and a UI usability review (if frontend changes are present) - all in parallel. Consolidates findings, auto-fixes must-fix and easy-win items, flags collateral changes for user decision, runs a verification round, then presents remaining suggestions. Use when the user says 'deep review', 'thorough review', 'full review', 'triple review', or 'ultra review'."
+description: "Use when the user says 'deep review', 'thorough review', 'full review', 'triple review', or 'ultra review'."
 user-invocable: true
 ---
 

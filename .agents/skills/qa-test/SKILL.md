@@ -1,6 +1,6 @@
 ---
 name: qa-test
-description: "Launch a browser-only QA tester that clicks through the running app like a real user, with no access to source code. Tests flows end-to-end and reports PASS/FAIL/CONCERN per scenario. Use when the user says 'QA test', 'test the UI', 'click through it', 'test the flows', or when the build skill decides a complex multi-step feature needs end-to-end validation."
+description: "Use when the user says 'QA test', 'test the UI', 'click through it', or 'test the flows', or when end-to-end browser validation is needed."
 user-invocable: true
 ---
 
