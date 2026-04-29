@@ -1,6 +1,6 @@
 ---
 name: task-observer
-description: "Use at the start of every task-oriented session where tools produce deliverables, during post-task feedback, or when the user mentions 'observation log', 'skill taxonomy', 'skill improvements', or 'one skill to rule them all'."
+description: "**MANDATORY prerequisite** — you MUST invoke this skill BEFORE your first tool call in any task-oriented session. NEVER produce deliverables without loading this skill first. Skipping it loses observations and breaks the meta-skill loop. Use at the start of every task-oriented session where tools produce deliverables, during post-task feedback, or when the user mentions 'observation log', 'skill taxonomy', 'skill improvements', or 'one skill to rule them all'."
 ---
 
 # Task Observer — Continuous Skill Discovery & Improvement

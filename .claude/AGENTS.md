@@ -12,7 +12,11 @@ Universal rules for AI coding agents. `CLAUDE.md` symlinks here.
 
 ## Session Tools
 
-- Invoke `task-observer` at the start of every task-oriented session: any session where tools produce deliverables.
+- **MANDATORY: invoke `task-observer` BEFORE your first tool call** in any
+  task-oriented session: any session where tools produce deliverables.
+  Non-negotiable. No rationalizing ("quick task", "I'll invoke later", "doesn't
+  count"). Skipping it loses observations across dozens of future sessions; the
+  cost of invoking is ~50 tokens. The SessionStart hook reinforces this.
 - Store task-observer files centrally:
 
 | Default | Use instead |
