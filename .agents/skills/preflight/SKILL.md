@@ -182,26 +182,19 @@ When in doubt, use `combined`. Only escalate to `separate` when the task clearly
 
 Defaults: spec=haiku, code=sonnet, normal-phase=sonnet. Upgrade one tier when the task/phase is complex (multi-file, subtle correctness, broad scope, high blast-radius). If implementer is opus, code reviewer is at least opus. `/deep-review` owns its own model logic; preflight does not override.
 
-### Phase review gate
+### Phase end-of-phase regression check (no review gate)
 
-- `deep-review` (DEFAULT) - run `/deep-review` over the phase diff. Deep-review happens right after the phase completes while context is fresh and fixes are cheap. This is the default for all phases.
-- `normal` - dispatch code-reviewer over the phase diff. Only for trivially small phases (see downgrade rule below).
+Phases do NOT get their own `/deep-review` gate. Per-phase deep-review burns context redundantly when one session-end deep-review can cover the same diff at lower total cost. Phases still run a regression check (run tests, no subagent dispatch) to catch breakage early before continuing to the next phase.
 
-**Downgrade rule:** a phase may use `normal` review instead of `/deep-review` only if ALL of:
-  - Phase has <= 3 tasks.
-  - All tasks in the phase are haiku-tier.
-  - Phase scope is single-concern (1-2 files, no cross-cutting changes).
+### Session deep-review gate (always)
 
-If any condition fails, the phase gets `/deep-review`. When in doubt, default to `/deep-review`.
+Every checklist gets exactly ONE `/deep-review` at the end of the session, covering the cumulative diff for all that session's tasks. This is the "session gate" or "checklist gate" - same thing, replaces the old per-phase gates.
 
-### Final review gate
-
-- `deep-review` - covers phases that only had normal review (i.e., phases that were downgraded by the rule above).
-- `not needed` - skipped if every phase already has `/deep-review` coverage. This is the common case with the default-deep rule.
+Multi-session plans: each `checklist-N.md` has its own session-end deep-review covering THAT session's diff. They don't share or chain.
 
 ### Deep-review coverage invariant
 
-**Every task's code must be in at least one deep-review scope before shipping.** With the default-deep rule, most plans satisfy this automatically (every phase is deep-reviewed, no final gate needed). Final gate is only required when a phase was downgraded to normal review.
+**Every task's code must be in the session-end deep-review's scope.** Trivially satisfied: the session deep-review's scope is the cumulative diff of every task in the session. No task escapes coverage.
 
 ### Multi-file split logic
 
@@ -214,7 +207,7 @@ If `total_task_count > single_file_cap`:
 - **Splitting principles:**
   1. Respect plan phase boundaries; never split a phase across files if it fits within `single_file_cap`.
   2. If a single phase exceeds `single_file_cap`, split at task boundaries and emit a warning: `Phase <N> (<T> tasks) exceeds single_file_cap <cap>; split at task boundaries across files <a>-<b>.`
-  3. Per-phase `/deep-review` gates stay on their original phases (which stay together in one file). Final `/deep-review` gate + Fly Verification block live ONLY on checklist `K`.
+  3. Each `checklist-N.md` has its OWN session-end deep-review gate covering only its own session's diff. Sessions are independent; deep-review does not chain across them. Fly Verification block lives at the end of EVERY checklist (each session is its own complete run).
   4. Per-session plan files are self-contained (goal, conventions, key references, verbatim task content). Together the plan-N + checklist-N pair is self-contained for the session.
 
 (Header / decisions block / next-file pointer formats are spec'd in Checklist Format below.)
@@ -315,7 +308,7 @@ Plan steps:
 
 ### Deferred resolution synthetic task
 
-Always inject a `[SYNTHETIC: deferred-resolution]` task at the end of EVERY checklist (single-session: after the Final Gate, before Fly Verification; multi-session: end of each `checklist-N.md` so each session clears its own backlog before handing off). This task wraps up any items that landed in `<plan>-deferred.md` during this session's run, so fly itself stays mechanical and doesn't burn context classifying/resolving deferred items.
+Always inject a `[SYNTHETIC: deferred-resolution]` task at the end of EVERY checklist (after the Session Gate, before Fly Verification). For multi-session plans this means each `checklist-N.md` has its own deferred-resolution task so each session clears its own backlog before handing off. This task wraps up any items that landed in `<plan>-deferred.md` during this session's run, so fly itself stays mechanical and doesn't burn context classifying/resolving deferred items.
 
 For multi-session plans: each session's deferred-resolution task processes ALL §N entries currently in `<plan>-deferred.md` (sessions append to the same file across runs; previously-resolved entries already have `Status: RESOLVED in <SHA>` lines and are skipped). The user gets per-session "needs your input" prompts and "Try it yourself" walkthroughs, not a giant pile at the end of session K.
 
@@ -326,7 +319,7 @@ The injected task is a no-op when deferred.md is absent or empty, so it's safe t
 
 Goal: do as much of the deferred work as possible automatically; surface the rest clearly so the user can decide.
 
-**Why review:** the fix-implementer commits this task lands run AFTER Final Gate / Phase Gates - they have no other reviewer coverage. One combined review at task end covers the cumulative diff (`git diff <task-start-sha>..HEAD`) for all auto-resolved §N fixes. If zero §N entries auto-resolved (all surfaced to user, none dispatched), the reviewer sees an empty diff and emits `No issues.`.
+**Why review:** the fix-implementer commits this task lands run AFTER the Session Gate - they have no other reviewer coverage. One combined review at task end covers the cumulative diff (`git diff <task-start-sha>..HEAD`) for all auto-resolved §N fixes. If zero §N entries auto-resolved (all surfaced to user, none dispatched), the reviewer sees an empty diff and emits `No issues.`.
 
 If `<plan-basename>-deferred.md` is missing or contains zero `## §` entries: print "No deferred items." and skip to the "Try it yourself" section below.
 
@@ -408,8 +401,8 @@ Apply the decision logic in "Decisions Preflight Makes" to the parsed plan:
 5. **Per-task model** - read each task's text and classify into haiku/sonnet/opus.
 6. **Review policy** - default `combined`; mark adjacent trivial tasks as `batched-with <neighbors>` (max batch size 3). Inline-mode tasks get the same review policy as subagent-mode (default `combined`); only the implementer dispatch is skipped, the reviewer dispatch still runs.
 7. **Reviewer models per gate** - apply defaults with per-task upgrades.
-8. **Phase review gates** - default `/deep-review` for every phase. Downgrade to `normal` only for trivially small phases (<=3 haiku tasks, single-concern). See "Phase review gate" for the downgrade rule.
-9. **Final review gate** - needed only if any phase was downgraded to normal (rare with default-deep). Skipped when all phases have `/deep-review` coverage (the common case).
+8. **Phase end-of-phase regression check** - run-tests-only gate at the end of each phase. No reviewer subagent. Catches breakage before next phase.
+9. **Session deep-review gate** - exactly one `/deep-review` at the end of every checklist, covering the session's cumulative diff. No exceptions.
 10. **TDD audit** - for each task, check for failing-test steps; mark tasks needing injection.
 11. **Multi-file split** - if total task count > `single_file_cap`, compute `K` and allocate phases/tasks to files 1..K per the splitting rules.
 12. **Phase verification tagging** - tests-only or has-residual based on convertibility analysis (step 13).
@@ -661,28 +654,27 @@ If the plan has no "Phase end-state test" paragraph for a phase, both lines read
 Phase gate at the end of each phase block (after the end-state verification):
 
 ```markdown
-### Phase <N> Gate (reviewer: <model>)
-- [ ] <Normal code-review on Phase N diff | /deep-review on Phase N diff> - Outcome: `<fill>`
+### Phase <N> Regression Check
+- [ ] Run tests; verify no regressions on Phase N diff - Outcome: `<fill>` (`tests_pass=N tests_fail=N regressions=0`)
 - [ ] Phase <N> gate resolution - Action: `<fill>`
 ```
 
-### Final gate block (LAST file only in split mode; always present in single-file mode unless not needed)
+No reviewer subagent dispatched at phase boundaries. The session-end deep-review covers review.
 
-If needed:
+### Session deep-review gate (END of every checklist)
+
+Always present, every checklist (single-session OR per checklist-N.md in multi-session). Covers the cumulative diff for THIS session's tasks.
 
 ```markdown
-## Final Gate: /deep-review over <scope description>
+## Session Gate: /deep-review over <scope description>
 - [ ] Outcome: `<fill>`
-- [ ] Final gate resolution - Action: `<fill>`
+- [ ] Session gate resolution - Action: `<fill>`
 ```
 
-If every phase already has deep-review:
+Scope description for single-session: `all session tasks (<base-sha>^..HEAD)`.
+Scope description for multi-session: `session N tasks (<session-N-base-sha>^..HEAD)`. Each session-N's gate covers ONLY its own session's commits, not prior sessions'.
 
-```markdown
-**Final gate not needed - all phases have deep-review coverage.**
-```
-
-In split mode, files 1..K-1 do NOT contain a Final Gate block or the "not needed" sentinel. They end with the next-file pointer instead.
+In split mode, EVERY checklist file (1..K) has its own Session Gate. They are independent gates, each covering only that session's diff.
 
 ### Deferred resolution task (every checklist file)
 

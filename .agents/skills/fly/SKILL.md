@@ -17,17 +17,18 @@ Execute a preflight checklist by:
 1. Dispatching implementer subagents using upstream prompt templates (read at runtime from the superpowers plugin cache).
 2. Running spec and code reviewers; auto-dispatching fix-implementers on findings.
 3. Filling SHA, Outcome, and Resolution slots in the checklist as work progresses.
-4. Running phase-level and final review gates per the checklist.
+4. Running per-phase regression checks and a single session-end deep-review gate per the checklist.
 5. Final verification sweep: all boxes ticked, all slots filled, deep-review invariant satisfied.
 
 `/fly` does NOT invoke `superpowers:subagent-driven-development` as a skill. It owns its per-task loop and uses that skill's prompt templates by reading them at runtime.
 
 ## Helper Scripts
 
-Four bash scripts live adjacent to this SKILL.md in the same directory. Use the "Base directory for this skill" path injected by the runtime to locate them:
+Five bash scripts live adjacent to this SKILL.md in the same directory. Use the "Base directory for this skill" path injected by the runtime to locate them:
 
 ```
-<base-dir>/integrity-check.sh   - per-task reviewer-dispatch verification
+<base-dir>/dispatch-reviewer.sh - MANDATORY reviewer-dispatch contract resolver (run BEFORE every reviewer Task call)
+<base-dir>/integrity-check.sh   - per-task reviewer-dispatch + model verification
 <base-dir>/final-verify.sh      - end-of-run checklist sweep
 <base-dir>/phase-regression.sh  - phase gate regression check
 <base-dir>/tick-steps.sh        - bulk-tick plan-step checkboxes
@@ -67,7 +68,7 @@ Announce the detected mode at start:
 
 ## Multi-File Checklist Support
 
-`/fly` executes exactly ONE checklist file per invocation. Each checklist has a companion per-session plan file (e.g., `plan-1.md`): the checklist tracks progress, the plan file holds task content. Together they form a complete session: its own tasks, its own phase gates, and (if present) its own final gate.
+`/fly` executes exactly ONE checklist file per invocation. Each checklist has a companion per-session plan file (e.g., `plan-1.md`): the checklist tracks progress, the plan file holds task content. Together they form a complete session: its own tasks, its own phase regression checks, and its own session deep-review gate.
 
 When a plan is large enough that preflight splits it, preflight emits multiple checklist files alongside the plan, typically named like:
 
@@ -79,7 +80,7 @@ In that case, the user runs `/fly <checklist-N>` once per file, in order, each i
 
 ## Template Resolution
 
-Template Resolution applies ONLY to per-task and phase-level dispatches of implementer, spec-reviewer, and code-quality-reviewer subagents. It does NOT apply to deep-review gate dispatches - those invoke the `/deep-review` skill directly via the Skill tool in main context, without templates. See "Phase Gates - Deep-review" and "Final Gate" for that pattern.
+Template Resolution applies ONLY to per-task and phase-level dispatches of implementer, spec-reviewer, and code-quality-reviewer subagents. It does NOT apply to deep-review gate dispatches - those invoke the `/deep-review` skill directly via the Skill tool in main context, without templates. See "Session Gate" for that pattern.
 
 For in-scope dispatches (per-task + normal phase review + batched review):
 
@@ -98,7 +99,7 @@ Templates `/fly` resolves this way:
 - `code-quality-reviewer-prompt.md` - used when dispatching code reviewer (step G) and normal phase review
 
 NOT resolved via this mechanism:
-- `/deep-review` gates - invoked via Skill tool inside a dispatched subagent (see Phase Gates). No template, no paraphrase.
+- `/deep-review` gates - invoked via Skill tool inside a dispatched subagent (see Session Gate). No template, no paraphrase.
 - Fix-implementer dispatches - reuse the implementer template, just substituting different placeholders.
 
 If Glob returns no match for an in-scope template, the plugin cache doesn't contain it (upstream rename, new plugin version, cache cleared). Halt and tell the user: "Upstream templates not found at <pattern>. Check plugin install or update the Glob pattern."
@@ -156,9 +157,9 @@ Standard Task-dispatch flow as detailed below in steps A-G.
 
    **If you believe the checklist's model assignment is wrong for this task**, HALT. Tell the user: "Task <id> checklist says Model: <X>, but the task appears to need <Y> because <reason>. Edit the checklist and re-run?" Then stop. Do NOT silently drift - upgrading "to be safe" or downgrading "because this looks easy" both break the commitment contract and make the audit trail lie.
 
-   Same rule applies to REVIEWER model dispatch in steps E/G and all phase/final gate dispatches: the `model` parameter is copied verbatim from the checklist annotation. No orchestrator discretion on review-gate models.
+   Same rule applies to REVIEWER model dispatch in steps E/G and all session-gate dispatches: the `model` parameter is copied verbatim from the checklist annotation. No orchestrator discretion on review-gate models.
 
-   **Exception: fix-implementer dispatches** (step F, H, and phase-gate fix loops) are NOT governed by a checklist annotation. The fixer defaults to the task's implementer model but may upgrade on its own judgment when a finding is architecturally gnarly or when the default-model fix BLOCKED. That's discretionary, not contract-gated, because there's no checklist entry to violate.
+   **Exception: fix-implementer dispatches** (step F, H, and session-gate fix loops) are NOT governed by a checklist annotation. The fixer defaults to the task's implementer model but may upgrade on its own judgment when a finding is architecturally gnarly or when the default-model fix BLOCKED. That's discretionary, not contract-gated, because there's no checklist entry to violate.
 
 5. Wait for the implementer's report.
 
@@ -194,13 +195,32 @@ Read the implementer's report for the commit SHA. Edit the checklist to replace 
 
 For tasks annotated `Review: combined` (default): dispatch ONE reviewer covering both spec + code concerns.
 
+**Step 0 (MANDATORY): resolve the dispatch contract before doing anything else.**
+
+```
+bash $SCRIPT_DIR/dispatch-reviewer.sh <checklist-path> <task-id> combined <task-sha>
+```
+
+The script parses the checklist for the task's `(reviewer: <model>)` annotation and emits canonical key=value lines:
+
+```
+MODEL=sonnet
+REVIEW_PATH=/abs/path/to/reviews/task-<id>-combined.md
+DIFF_CMD=git show <sha>
+PROMPT_HEADER_NOTE=...
+```
+
+You **copy these values verbatim** into the Task call. The orchestrator never types the model string by hand. This is how reviewer-model drift sneaks in (e.g. silently downgrading sonnet to haiku to save cost). Any value the script emits is contract; if it's wrong, edit the checklist and re-run the script - do not modify the script's output before passing to Task.
+
+If the script exits non-zero, HALT and surface the error - it means the checklist is missing a reviewer annotation that `/preflight` should have written.
+
 1. Resolve `code-quality-reviewer-prompt.md` via Glob + Read.
-2. Review file path: `<plan-dir>/reviews/task-<id>-combined.md`. Create `reviews/` if missing.
+2. Review file path: use `REVIEW_PATH` from the script.
 3. Substitute placeholders:
    - `[FULL TEXT of task requirements]` → the task's text from the per-session plan file.
    - `[From implementer's report]` → the implementer's summary, placed under the heading `## Implementer-Reported Summary (untrusted)`.
-4. Append a `## Actual Diff` section containing the output of `git show <task-sha>`.
-5. Append the Reviewer Independence Override block verbatim, with `<review-file-path>` replaced by the absolute path.
+4. Append a `## Actual Diff` section containing the output of `DIFF_CMD`.
+5. Append the Reviewer Independence Override block verbatim, with `<review-file-path>` replaced by `REVIEW_PATH`.
 6. Add a `## Review scope` section to the prompt with explicit dual focus:
    ```
    This is a COMBINED review covering both spec and code concerns. Emit findings under both lenses:
@@ -209,14 +229,14 @@ For tasks annotated `Review: combined` (default): dispatch ONE reviewer covering
    ```
 7. Dispatch via Task tool:
    - `subagent_type`: `general-purpose`
-   - `model`: the reviewer model specified in the checklist (typically the higher of spec+code defaults; sonnet for most)
+   - `model`: **`MODEL` value from the script, verbatim**. Not your judgment, not "haiku for cost", not "opus to be safe". Whatever the script printed.
    - `description`: `Combined review <task id>`
    - `prompt`: the substituted + augmented template
 8. Wait for report. Verify the review file exists. If missing, re-dispatch; if fails again, halt.
 9. Read the review file. `### Finding N:` sections are source of truth.
 10. Fill the `Combined review` Outcome slot using the structured format.
 
-**For `Review: separate` tasks** (high-risk: opus implementer / security / schema / broad blast-radius): use the legacy two-step pattern - dispatch spec-reviewer first (file: `task-<id>-spec.md`), then code-reviewer (file: `task-<id>-code.md`), filling the `Spec review` and `Code review` Outcome slots separately. Same fix-loop semantics apply per review.
+**For `Review: separate` tasks** (high-risk: opus implementer / security / schema / broad blast-radius): use the legacy two-step pattern - dispatch spec-reviewer first (run `dispatch-reviewer.sh ... spec ...` to get its model + path), then code-reviewer (run `dispatch-reviewer.sh ... code ...` similarly), filling the `Spec review` and `Code review` Outcome slots separately. Same fix-loop semantics apply per review. Spec and code reviewers often have DIFFERENT models in the checklist (e.g. spec haiku + code sonnet) - the script's per-call output is what guarantees you don't conflate them.
 
 ### F. Handle findings
 
@@ -265,7 +285,7 @@ For tasks annotated `Review: batched-with <neighbor-ids>`:
 
 ## Reviewer Independence Override
 
-Every reviewer dispatch (per-task combined or separate in E, batched review in G, phase gate review, final gate) MUST include the Reviewer Independence Override block, appended AFTER the upstream template's placeholder substitutions.
+Every reviewer dispatch (per-task combined or separate in E, batched review in G, session gate) MUST include the Reviewer Independence Override block, appended AFTER the upstream template's placeholder substitutions.
 
 The block lives at `$SCRIPT_DIR/reviewer-override.md` (sibling to this SKILL.md). Read it once per session and cache. Substitute `<review-file-path>` with the absolute path the orchestrator assigns (see "Review Artifact Files").
 
@@ -368,7 +388,11 @@ After filling BOTH Outcome slots for a task (end of step H for the standard spec
 
 Under context pressure, the orchestrator can forge review artifact files directly (write a plausible file with a `findings-count: 0` YAML header and a `No issues.` body) without ever dispatching a reviewer subagent. All the existing mtime, size, and YAML-header checks pass because the orchestrator is the one writing the file. Self-report cannot catch this failure mode; on-disk evidence from Claude Code's own per-subagent JSONL transcripts can.
 
-The integrity-check script reads the CC subagent transcripts at `~/.claude/projects/<encoded-cwd>/<session>/subagents/agent-*.jsonl` and verifies that a real subagent actually wrote to the review file path AND did non-trivial work (at least 3 tool calls, consistent with reading the diff and writing the review).
+The integrity-check script reads the CC subagent transcripts at `~/.claude/projects/<encoded-cwd>/<session>/subagents/agent-*.jsonl` and verifies:
+
+1. A real subagent actually authored the review file (matched by prompt-text containing the review path).
+2. The subagent did non-trivial work (at least 3 tool calls, consistent with reading the diff and writing the review).
+3. **The subagent ran on the EXACT model the checklist annotated** for that task and review type. Reads `message.model` from the JSONL, normalizes to a family (haiku/sonnet/opus), and compares against the `(reviewer: <model>)` annotation from the checklist. Catches silent model downgrades (e.g. sonnet checklist annotation but haiku-dispatched reviewer to save cost) - the post-hoc enforcement of the dispatch-reviewer.sh contract.
 
 ### Invocation
 
@@ -385,7 +409,7 @@ Output is one line on stdout:
 
 ### Batched tasks
 
-For tasks annotated `Review: batched-with <neighbor-ids>` that are NOT the last task in the batch: the script returns `PASS` silently because no review files are expected on non-last batched tasks. The phase gate (phase regression check + phase review gate) catches missing batch reviews. Run the integrity gate against the batch's LAST task id, where the review files actually live.
+For tasks annotated `Review: batched-with <neighbor-ids>` that are NOT the last task in the batch: the script returns `PASS` silently because no review files are expected on non-last batched tasks. The session gate catches missing batch reviews. Run the integrity gate against the batch's LAST task id, where the review files actually live.
 
 ### Agent-agnostic caveat
 
@@ -395,85 +419,50 @@ The script is Claude Code specific. It depends on the `~/.claude/projects/.../su
 
 Every 10 completed tasks (before task 11, 21, ...), Read this SKILL.md to refresh discipline against late-session drift. One Read per 10 tasks; triggers at most twice per `/fly` run.
 
-## Phase Gates
+## Phase Regression Check
 
-After all tasks in phase complete (all per-task slots filled):
-
-### Phase regression check (MANDATORY, runs before review gate)
+After all tasks in a phase complete (all per-task slots filled):
 
 Per-task TDD catches regressions inside each task's scope. Phase regression check catches regressions task-level tests didn't cover (unrelated tests newly broken, integration failures, etc.). Also defangs "it was a pre-existing failure" gaslighting: pre-existing = proven by running test at base commit, not asserted.
+
+NO reviewer subagent is dispatched at phase boundaries. Per-phase deep-reviews are gone; one session-end deep-review covers all that session's tasks at lower total cost.
 
 1. Invoke the regression script:
 
      bash $SCRIPT_DIR/phase-regression.sh <phase-first-commit-sha>^ <phase-last-commit-sha>
 
-   (The caret `^` on the base SHA expands to its parent in the script's git
-   invocations.)
+   (The caret `^` on the base SHA expands to its parent in the script's git invocations.)
 
 2. Parse the single-line output:
 
      tests_pass=N tests_fail=N regressions=K | <test1> | <test2> | ...
 
-   - If regressions=0: phase gate may proceed. Cache the `tests_pass=N
-     tests_fail=N regressions=0;` prefix - it MUST prefix this phase's
-     gate Outcome slot when it gets filled below.
-   - If regressions>0: HALT the phase gate. Dispatch a fix-implementer
-     with the regression list. After fix-implementer returns, re-run the
-     regression script. Loop until regressions=0. If fix-implementer
-     BLOCKs at upgraded model after 2 tries, write to deferred.md AND
-     halt `/fly` - do NOT silently ignore regressions.
-
-3. Prefix the Phase Gate Outcome with the `tests_pass=N tests_fail=N
-   regressions=0;` token when the review gate below fills it.
-
-### Phase review gate
-
-After regression check passes, run review gate per checklist's annotation:
-
-- **Normal review** (`Phase N Gate (reviewer: <model>)` with `Normal code-review on Phase N diff`):
-  1. Compute phase diff: `git diff <phase-N-first-commit-sha>^..<phase-N-last-commit-sha>`.
-  2. Dispatch code reviewer via `code-quality-reviewer-prompt.md` template, with phase diff as subject.
-  3. Fill Outcome slot with summary.
-  4. If findings: same auto-fix loop as per-task reviews. Fill Resolution.
-
-- **Deep-review** (`Phase N Gate (reviewer: ...)` with `/deep-review on Phase N diff`):
-
-  `/fly` MUST actually invoke `/deep-review` skill via Skill tool. Paraphrasing skill's 6-review structure into bespoke reviewer prompt is NOT equivalent. Loses what skill has been tuned to do (parallel independent cross-agent review, Chrome MCP UI review, rule compliance audit, simplification pass, collateral change audit, orchestrator diff analysis), and destroys audit trail (user can't tell whether real skill ran).
-
-  **Dispatch pattern: direct Skill tool invocation in main context**
-
-  Invoke `/deep-review` directly via the Skill tool from main fly context. Do NOT wrap in a Task-dispatched subagent - subagents cannot nest-dispatch Task, which `/deep-review` may need internally for its parallel sub-reviewers.
-
-  1. Invoke via Skill tool: `/deep-review` with scope `git diff <phase-base>^..<phase-head>`.
-  2. When `/deep-review` completes, process its findings list as in step F (classify, auto-fix, deferred-write, reconciliation invariant). Do NOT accept prose summary in place of enumerated findings.
-  3. Fill Phase Gate Outcome using structured format, prefixed with regression check metrics:
-
-         tests_pass=N tests_fail=N regressions=0; findings=N fixed=N deferred=N; <summary>
-
-  4. `/deep-review` has own auto-fix mechanism internally. If it reports certain findings already auto-fixed, count those in `fixed`. Findings it flagged as deferred go into `/fly`'s deferred.md (same file, don't create separate one).
-
-  Context cost note: running `/deep-review` in main context adds its sub-reviewer output to fly's transcript. With 1M context and <=20 tasks per session, this is acceptable. The alternative (subagent wrapper) fails due to nested Task dispatch restrictions.
-
-  **Independent reviewer caveat:** `/deep-review` chooses the other agent family as the independent reviewer. When that reviewer is Codex, `codex review --base <X>` takes a BRANCH name, not a SHA. Phase-gate scope is a SHA range (`<phase-base>^..<phase-head>`). The `/deep-review` skill owns the reviewer-specific dispatch details, including creating a temp branch for Codex or feeding the exact SHA-range diff to Claude Code. Do NOT skip the independent reviewer - it's load-bearing for deep-review.
+   - If regressions=0: phase regression check passes. Fill the Phase Regression Check Outcome with `tests_pass=N tests_fail=N regressions=0`. Continue to the next phase.
+   - If regressions>0: HALT. Dispatch a fix-implementer with the regression list. After fix-implementer returns, re-run the regression script. Loop until regressions=0. If fix-implementer BLOCKs at upgraded model after 2 tries, write to deferred.md AND halt `/fly` - do NOT silently ignore regressions.
 
 ### Phase end-state verification
 
-After filling the phase gate Outcome + Resolution, check the phase's end-state verification section (written by preflight):
+After filling the Phase Regression Check Outcome + Resolution, check the phase's end-state verification section (written by preflight):
 
-- **tests-only**: nothing to do per-phase. End-of-run synthetic deferred-resolution task still composes an OPTIONAL "Try it yourself" walkthrough so user can eyeball visual polish / copy / animations that tests can't see.
-- **has-residual**: nothing to do per-phase. End-of-run synthetic deferred-resolution task collects `Residual manual test` lines and surfaces them as the REQUIRED "Try it yourself" walkthrough.
+- **tests-only**: nothing to do per-phase. End-of-session synthetic deferred-resolution task still composes an OPTIONAL "Try it yourself" walkthrough so user can eyeball visual polish / copy / animations that tests can't see.
+- **has-residual**: nothing to do per-phase. End-of-session synthetic deferred-resolution task collects `Residual manual test` lines and surfaces them as the REQUIRED "Try it yourself" walkthrough.
 
-## Final Gate
+## Session Gate (end of every checklist)
 
-After all phases complete and all per-task and phase gates have been processed, check the checklist's final gate:
+After all phases complete + their regression checks pass, run the session-end deep-review. Always present, every checklist (single-session OR per-checklist-N.md):
 
-- If `## Final Gate: /deep-review over <scope>` exists:
-  1. Invoke `/deep-review` directly via Skill tool (same as Phase Gate deep-review pattern - direct invocation, no subagent wrapper). Scope per checklist annotation.
-  2. Process returned findings with accounting invariant (`findings = fixed + deferred`). Default disposition is `[fix]`; only legitimately-defer findings go to deferred.md.
-  3. Fill Outcome slot using structured format: `findings=N fixed=N deferred=N; <summary>`.
-  4. Fill Resolution slot per outcome (Fixed / deferred references / mix).
+Locate the `## Session Gate: /deep-review over <scope>` block (always present, written by preflight). Scope is the cumulative diff for THIS session's tasks (`<session-base-sha>^..HEAD` per checklist annotation).
 
-- If `**Final gate not needed - all phases have deep-review coverage.**` exists: skip; nothing to do.
+1. Invoke `/deep-review` directly via Skill tool from main fly context. Do NOT wrap in a Task-dispatched subagent - subagents cannot nest-dispatch Task, which `/deep-review` may need internally for its parallel sub-reviewers.
+2. Process returned findings with accounting invariant (`findings = fixed + deferred`). Default disposition is `[fix]`; only legitimately-defer findings go to deferred.md. Do NOT accept prose summary in place of enumerated findings.
+3. Fill Session Gate Outcome using structured format: `findings=N fixed=N deferred=N; <summary>`.
+4. Fill Session Gate Resolution slot per outcome (Fixed / deferred references / mix).
+
+`/deep-review` has its own internal auto-fix mechanism. If it reports findings already auto-fixed, count those in `fixed`. Findings flagged as deferred go into `/fly`'s deferred.md (same file, don't create separate one).
+
+**Independent reviewer caveat:** when `/deep-review`'s independent reviewer is Codex, `codex review --base <X>` takes a BRANCH name, not a SHA. Session-gate scope is a SHA range. The `/deep-review` skill owns the reviewer-specific dispatch details (temp branch for Codex, exact SHA-range diff for Claude Code). Do NOT skip the independent reviewer - it's load-bearing.
+
+Context cost note: running `/deep-review` in main context adds its sub-reviewer output to fly's transcript. With 1M context and <=20 tasks per session, this is acceptable. The alternative (subagent wrapper) fails due to nested Task dispatch restrictions.
 
 ## Deferred File Handling
 
@@ -497,7 +486,7 @@ Update Resolution slot when writing: `Action: Deferred to <plan-basename>-deferr
 
 ## Final Verification
 
-After all tasks, phase gates, and final gate are processed, run the
+After all tasks, phase regression checks, and session gate are processed, run the
 verification block at the bottom of the checklist. Verification is
 performed by a single bash script invocation:
 
@@ -509,7 +498,7 @@ Script output:
   checkbox in the checklist (via Edit) and emit the Completion message.
 - `HALT: <summary>` on failure: the preceding lines enumerate specific
   failures (unticked boxes, unfilled slots, mismatched findings counts,
-  missing phase-gate regression prefix, etc.). Do NOT tick verification
+  missing phase regression check prefix, etc.). Do NOT tick verification
   checkboxes. Surface the full failure list to the user.
 - `WARN: ...` lines are soft signals (e.g., fabrication-pattern rate
   exceeded). Surface to the user but do not HALT.
@@ -543,7 +532,9 @@ If you catch yourself thinking any of these, STOP - you're about to violate the 
 
 | If you're tempted to... | Reality |
 |---|---|
+| Skip `dispatch-reviewer.sh` and just type the model into the Task call ("haiku is faster", "sonnet for the small diff", "the checklist annotation is obvious") | Run the script. Always. The `MODEL` value goes in verbatim. integrity-check.sh reads `message.model` from the JSONL and HALTs if the dispatched model doesn't match the checklist. Skipping the script doesn't get you out of the verification - it just means the HALT lands later, after wasted reviewer work. |
 | Skip a review ("trivial", "code looks fine", "I read the diff") | Review = dispatched subagent + on-disk file. No dispatch, no review. Per-task integrity gate catches this; do not try to override. |
+| Dispatch haiku reviewer when checklist says sonnet ("the diff is small", "just test fixtures", "haiku is fine here") | DRIFT. Halt, edit the checklist explicitly, then re-dispatch. Audit trail must say sonnet ran when the checklist said sonnet. integrity-check.sh verifies the JSONL `message.model` against the checklist annotation post-hoc; you can't get away with it. Every silent downgrade in this session got caught by that check. |
 | Use a different model than checklist says (upgrade "to be safe" or downgrade "looks easy") | Checklist IS the contract. Silent drift breaks the audit trail. If the model is wrong, HALT and ask user to edit. Same for reviewer model. |
 | Skip TDD because the task text didn't mention it | Implementer dispatch always appends TDD override. Do TDD. |
 | Consolidate / merge / paraphrase reviewer findings | Every numbered finding processed by number. `findings == fixed + deferred` invariant. Halt if violated. |
