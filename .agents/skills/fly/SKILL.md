@@ -277,15 +277,13 @@ Optional: `inadmissible=N`. Invariant: `findings == fixed + deferred`.
 - All fixed, none deferred: `Fixed in <last-fix-commit-sha>`.
 - Some deferred: `Fixed in <sha>; N deferred to -deferred.md §A-§Z` (or just the defer reference if nothing was fixed inline).
 
-### G. Batched tasks
+### G. Phase-deferred tasks
 
-For tasks annotated `Review: batched-with <neighbor-ids>`:
-- Skip step E for tasks that are NOT the last task in the batch.
-- For the LAST task in the batch, run combined review on the combined diff (`git diff <first-batch-commit>^..<last-batch-commit>`). Review file path: `<plan-dir>/reviews/batch-<first-id>-<last-id>-combined.md`. Fill the `Batch review` slots on the last task.
+For tasks annotated `Review: phase`: skip step E (no per-task review). The task's diff gets covered by the Phase Normal Review at end of phase (see "Phase Normal Review" below).
 
 ## Reviewer Independence Override
 
-Every reviewer dispatch (per-task combined or separate in E, batched review in G, session gate) MUST include the Reviewer Independence Override block, appended AFTER the upstream template's placeholder substitutions.
+Every reviewer dispatch (per-task combined or separate in E, phase normal review, session gate) MUST include the Reviewer Independence Override block, appended AFTER the upstream template's placeholder substitutions.
 
 The block lives at `$SCRIPT_DIR/reviewer-override.md` (sibling to this SKILL.md). Read it once per session and cache. Substitute `<review-file-path>` with the absolute path the orchestrator assigns (see "Review Artifact Files").
 
@@ -440,9 +438,21 @@ NO reviewer subagent is dispatched at phase boundaries. Per-phase deep-reviews a
    - If regressions=0: phase regression check passes. Fill the Phase Regression Check Outcome with `tests_pass=N tests_fail=N regressions=0`. Continue to the next phase.
    - If regressions>0: HALT. Dispatch a fix-implementer with the regression list. After fix-implementer returns, re-run the regression script. Loop until regressions=0. If fix-implementer BLOCKs at upgraded model after 2 tries, write to deferred.md AND halt `/fly` - do NOT silently ignore regressions.
 
+### Phase Normal Review (conditional)
+
+If the checklist's phase block contains a `### Phase <N> Normal Review` block (preflight emits this only when at least one task in the phase is annotated `Review: phase`):
+
+1. Compute the cumulative diff for `Review: phase` tasks in this phase. Their commit SHAs are in their filled SHA slots; the phase normal review's scope is the union (`git diff <first-phase-task-sha>^..<last-phase-task-sha>` works if they're contiguous; otherwise pass each SHA range explicitly).
+2. Dispatch code-reviewer via `code-quality-reviewer-prompt.md` template against that diff. Review file path: `<plan-dir>/reviews/phase-<N>-normal-review.md`.
+3. Append the Reviewer Independence Override block; substitute review-file path.
+4. Wait for report. Process findings via the same step F fix-loop semantics.
+5. Fill the Phase Normal Review Outcome (`findings=N fixed=N deferred=N; <summary>`) and Resolution.
+
+If no Phase Normal Review block exists in the checklist for this phase, skip - all tasks were reviewed individually.
+
 ### Phase end-state verification
 
-After filling the Phase Regression Check Outcome + Resolution, check the phase's end-state verification section (written by preflight):
+After filling the Phase Regression Check Outcome + Resolution (and Phase Normal Review if present), check the phase's end-state verification section (written by preflight):
 
 - **tests-only**: nothing to do per-phase. End-of-session synthetic deferred-resolution task still composes an OPTIONAL "Try it yourself" walkthrough so user can eyeball visual polish / copy / animations that tests can't see.
 - **has-residual**: nothing to do per-phase. End-of-session synthetic deferred-resolution task collects `Residual manual test` lines and surfaces them as the REQUIRED "Try it yourself" walkthrough.

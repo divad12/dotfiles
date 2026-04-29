@@ -131,7 +131,7 @@ Final task count: <N> → <M>. Confirm? (y / n / edit per-merge)
 
 On confirmation, write consolidated task list with comma-separated provenance in the IDs (e.g., `### Task 2.1+2.2+2.3:`) so the plan trail stays auditable. On "n", use original list. On "edit", let user remove specific merges.
 
-Run BEFORE per-task model assignment, batched-with, and convertibility analysis - all downstream decisions operate on the post-consolidation list.
+Run BEFORE per-task model assignment, review policy, and convertibility analysis - all downstream decisions operate on the post-consolidation list.
 
 Always run, regardless of plan size. Even small plans benefit from saved dispatches.
 
@@ -147,7 +147,7 @@ For each task (post-consolidation), estimate LOC delta. Use judgment based on th
 - Estimate is rough (±50%). Used as advisory signal, not hard gate.
 
 Then assign:
-- LOC < `loc_inline_threshold` (default 30) → `Mode: inline`. Orchestrator does work directly. Task's review folds into next non-inline task via `Review: batched-with <next-task-id>`.
+- LOC < `loc_inline_threshold` (default 30) → `Mode: inline`. Orchestrator does work directly; reviewer dispatch unchanged (default `combined`).
 - LOC >= threshold → `Mode: subagent` (default). Standard Task-dispatch flow.
 
 **Tail-inline edge case:** if the last task in a phase is inline, fold its review into the PREVIOUS non-inline task's review (since there's no next task). If the entire phase is inline (rare), upgrade the smallest inline task to subagent so the phase has at least one review anchor.
@@ -170,13 +170,17 @@ Default to sonnet. The cost of a haiku mistake + re-dispatch + re-review exceeds
 
 - `combined` (DEFAULT) - dispatches ONE reviewer covering both spec + code concerns in a structured prompt. Halves per-task review dispatches without losing independence.
 - `separate` - dispatches spec-reviewer + code-reviewer as two separate dispatches. Use only for high-risk tasks: opus implementer, security-adjacent, schema migration, broad blast-radius, or anything where the spec and code concerns are weighty enough that focused review per concern catches more.
-- `batched-with <neighbor-ids>` - groups genuinely trivial adjacent tasks into a single post-batch combined review. Rules:
-  - Max batch size: 3 tasks.
-  - Tasks must be adjacent in the plan's task order.
-  - Each task must be individually trivial (haiku-model-eligible, 1-file scope).
-  - The batch's review gate lives on the LAST task in the batch.
+- `phase` - skip per-task review; the phase-end normal review picks this task up alongside any other `Review: phase` tasks in the same phase. Use for genuinely trivial tasks (haiku-tier, 1-file scope) where individual review is overkill but you don't want the work entirely unreviewed.
 
-When in doubt, use `combined`. Only escalate to `separate` when the task clearly meets a high-risk signal.
+When in doubt, use `combined`. Only escalate to `separate` when the task clearly meets a high-risk signal. Only use `phase` for trivial tasks where the phase's bulk review catches enough.
+
+### Phase normal review (conditional)
+
+If any task in a phase is annotated `Review: phase`, the phase gets a normal code-review at its end (after the regression check). Reviewer covers the cumulative diff of all `Review: phase` tasks in that phase.
+
+If no task in the phase has `Review: phase` (i.e. every task got its own combined/separate review), no phase-level review runs. Skip directly to the next phase.
+
+Replaces the old "batched-with <neighbor-ids>" mechanic - simpler since the phase boundary already exists, no need to attach batch reviews to a specific task in the batch.
 
 ### Reviewer model per gate
 
@@ -399,7 +403,7 @@ Apply the decision logic in "Decisions Preflight Makes" to the parsed plan:
 3. **Task consolidation pass (interactive)** - judgment-based greedy merge of over-decomposed adjacent tasks per "Task consolidation pass". Show user the proposed merges WITH per-task and per-merged-group LOC estimates; on confirmation, write the consolidated task list. Always run.
 4. **LOC re-estimation + inline mode** - after consolidation, re-estimate LOC for merged groups; tag each task `Mode: inline` (LOC < `loc_inline_threshold`) or `Mode: subagent`. Synthetic tasks always `subagent`.
 5. **Per-task model** - read each task's text and classify into haiku/sonnet/opus.
-6. **Review policy** - default `combined`; mark adjacent trivial tasks as `batched-with <neighbors>` (max batch size 3). Inline-mode tasks get the same review policy as subagent-mode (default `combined`); only the implementer dispatch is skipped, the reviewer dispatch still runs.
+6. **Review policy** - default `combined`. Mark genuinely trivial tasks `phase` to defer their review to the phase-end normal review (replaces the old `batched-with` mechanic). Inline-mode tasks default to `combined` like subagent tasks (only implementer dispatch is skipped, reviewer dispatch still runs); mark them `phase` if you want phase-end pickup instead.
 7. **Reviewer models per gate** - apply defaults with per-task upgrades.
 8. **Phase end-of-phase regression check** - run-tests-only gate at the end of each phase. No reviewer subagent. Catches breakage before next phase.
 9. **Session deep-review gate** - exactly one `/deep-review` at the end of every checklist, covering the session's cumulative diff. No exceptions.
@@ -566,7 +570,7 @@ Multi-session case (each file 1..K):
 - <N> tasks across <M> phases
 - Deep-review coverage: <summary>
 - Per-task models: <per-phase or per-task summary>
-- Review batching: <list of batched task groups> | none
+- Phase normal review: <list of phases that need it> | none (all tasks reviewed individually)
 - TDD gaps injected: <list of task IDs> | none
 - LOC distribution: avg <N>, median <N>; inline <X>, subagent <Y>; smallest <id>=<N>, largest <id>=<N>
 - Phase verification tags: <per-phase summary, e.g., "Phase 0: tests-only, Phase 1: suggest-verify">
@@ -584,7 +588,7 @@ In split mode, the `Split:` line lists the sibling checklist file paths (e.g., `
 Tasks are tracking-only (no embedded plan content):
 
 ```markdown
-### Task <id> | Model: <haiku|sonnet|opus> | Mode: <inline | subagent> | LOC: ~<N> | Review: <combined | separate | batched-with <neighbor-ids>>
+### Task <id> | Model: <haiku|sonnet|opus> | Mode: <inline | subagent> | LOC: ~<N> | Review: <combined | separate | phase>
 
 Plan steps:
 - [ ] Step 1: <title extracted from plan>
@@ -628,13 +632,7 @@ Review gates:
 (For tasks with `Review: separate`, use the legacy two-block format: `Spec review` + `Spec review resolution` + `Code review` + `Code review resolution`.)
 ```
 
-For batched tasks, individual tasks omit their own review gates; the LAST task in the batch carries a shared batch review gate:
-
-```markdown
-Batch review gate (covers Task <a>, Task <b>, Task <c>):
-- [ ] Batch review (reviewer: <model>) - Outcome: `<fill>`
-- [ ] Batch review resolution - Action: `<fill>`
-```
+For tasks annotated `Review: phase`, omit per-task review gates entirely. The phase-end normal review (below) covers them collectively.
 
 Phase end-state verification block (before the phase gate, at the end of each phase's tasks - AFTER any synthetic integration-test task):
 
@@ -656,10 +654,18 @@ Phase gate at the end of each phase block (after the end-state verification):
 ```markdown
 ### Phase <N> Regression Check
 - [ ] Run tests; verify no regressions on Phase N diff - Outcome: `<fill>` (`tests_pass=N tests_fail=N regressions=0`)
-- [ ] Phase <N> gate resolution - Action: `<fill>`
+- [ ] Phase <N> regression resolution - Action: `<fill>`
 ```
 
-No reviewer subagent dispatched at phase boundaries. The session-end deep-review covers review.
+If any task in the phase has `Review: phase`, ALSO emit a Phase Normal Review block right after the regression check (replaces the old "batch review" attached to last task in batch):
+
+```markdown
+### Phase <N> Normal Review (covers Tasks <a>, <b>, <c> with Review: phase)
+- [ ] Code review of cumulative diff for `Review: phase` tasks (reviewer: <model>) - Outcome: `<fill>`
+- [ ] Phase <N> review resolution - Action: `<fill>`
+```
+
+If no task in the phase has `Review: phase`, omit this block entirely. Skip directly to next phase.
 
 ### Session deep-review gate (END of every checklist)
 
@@ -736,7 +742,7 @@ Key decisions:
 - <N> tasks across <M> phases
 - Deep-review coverage: <summary, e.g., "Final deep-review covers all phases">
 - Per-task models: <summary, e.g., "Phase 1 -> haiku, Phase 2 -> sonnet">
-- Review batching: <e.g., "Task 2 + Task 3 batched" or "none">
+- Phase normal review: <e.g., "Phase 1, Phase 3" or "none">
 - TDD gaps injected: <e.g., "Task 2, Task 3" or "none">
 - LOC distribution: avg <N>, median <N>; inline <X>, subagent <Y>; smallest <id>=<N>, largest <id>=<N>
 - Synthetic integration tests injected: <e.g., "Phase 1, Phase 3" or "none">
@@ -771,7 +777,7 @@ Key decisions (plan-wide):
 - <N> tasks across <M> phases
 - Deep-review coverage: <summary>
 - Per-task models: <summary>
-- Review batching: <summary or "none">
+- Phase normal review: <summary or "none">
 - TDD gaps injected: <summary or "none">
 - Synthetic integration tests injected: <e.g., "Phase 1, Phase 3" or "none">
 - Residual manual verification: <count, e.g., "0 phases (all automated)" or "Phase 2: 1 step (real Places API drift smoke)">
