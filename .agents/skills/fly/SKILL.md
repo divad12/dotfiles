@@ -15,7 +15,7 @@ Execute a preflight checklist. Walks tasks, dispatches subagents, fills slots, a
 
 Execute a preflight checklist by:
 1. Dispatching implementer subagents using upstream prompt templates (read at runtime from the superpowers plugin cache).
-2. Running spec and code reviewers; auto-dispatching fix-implementers on non-trivial findings (pragmatic-inline for verbatim ≤5-line stylistic fixes).
+2. Running spec and code reviewers; fixing findings inline or via fix-implementer dispatch (orchestrator's call per finding).
 3. Filling SHA, Outcome, and Resolution slots in the checklist as work progresses.
 4. Running per-phase regression checks and a single session-end deep-review gate per the checklist.
 5. Final verification sweep: all boxes ticked, all slots filled, deep-review invariant satisfied.
@@ -112,7 +112,7 @@ Inline flow:
 4. Tick all plan-step checkboxes via `bash $SCRIPT_DIR/tick-steps.sh <checklist-path> <task-id> 1,2,...`.
 5. Fill SHA slot.
 6. Proceed to step E (dispatch reviewer) and onward EXACTLY as for subagent mode. The reviewer doesn't care that the orchestrator did the implement - it reviews the actual diff.
-7. Fix-loop on review findings: pragmatic-inline path applies (see step F). For inline-mode tasks, orchestrator does ALL fixes directly regardless of size - it has the code context already from doing the original work, so the trivial-only ≤5-line gate doesn't apply here. Tag the commit `(orch-inline, task <id>)`.
+7. Fix-loop on review findings: orchestrator does all fixes directly (already has the code context). Tag commit `(orch-inline, task <id>)`.
 
 If you can't commit cleanly (tests fail, conflict), HALT and surface to user.
 
@@ -235,31 +235,17 @@ Parse the reviewer's output. Every admissible finding has a unique number, a pri
 
 **Fix loop (all `[fix]` findings, highest priority first):**
 
-1. Sort findings by priority (critical → major → minor → cosmetic). Then partition each finding into ONE of two paths based on the criteria below.
+1. Order by priority (critical → major → minor → cosmetic). For each finding, choose a path - your judgment, but lean conservative:
+   - **Inline (orchestrator does it).** Trivial verbatim fix from the reviewer that you can apply with one Edit and no test changes. Commit `fix: §<n> <title> (orch-inline, task <id>)`. Inline-mode tasks always go this path.
+   - **Dispatch fix-implementer.** Everything else. Default model: task's implementer model; upgrade if BLOCKED or architecturally gnarly. **When in doubt, dispatch** - saving one dispatch isn't worth a silent regression.
 
-2. **Pragmatic-inline (orchestrator does it directly, no Task dispatch).** Use this path ONLY when ALL of the following hold for the finding:
-   - Reviewer's suggested fix is verbatim or near-verbatim (rename, missing comment, typo, dead-line removal, unused-import removal, formatting nit, missing default value, simple type-annotation tightening).
-   - Net diff is ≤5 lines, single file.
-   - No behavior change - purely stylistic / clarity / type-only / dead-code.
-   - No test changes needed (production tests still pass unchanged).
+2. Wait for fix report (if dispatched). Missing finding numbers or failed inline Edits = BLOCKED.
 
-   Mechanic: orchestrator applies the change via Edit, runs the affected test file via Bash if any test references the touched lines, and commits with message `fix: §<finding-num> <short title> (orch-inline, task <task-id>)`. The `task <id>` substring is required so final-verify.sh can grep the commit. Tag `(orch-inline)` distinguishes from fix-implementer dispatches in audit trail.
+3. BLOCKED retries escalate: inline → fix-implementer dispatch; default-model dispatch → upgraded model. If still BLOCKED, evaluate defer criteria; otherwise halt and surface.
 
-   Inline-mode tasks ALWAYS use this path - orchestrator IS the implementer for those by definition; everything is orch-inline by default.
+4. Re-dispatch reviewer (Reviewer Independence Override, fresh diff). Re-reviewer overwrites the prior review. Reviewer dispatch stays strict regardless of how fixes were applied - the integrity gate validates the re-review the same way. Loop until no `[fix]` admissible findings remain.
 
-3. **Fix-implementer dispatch (default for non-trivial findings).** Use this path for everything else: logic changes, multi-file fixes, anything needing TDD, anything where the diff might fan out unexpectedly, anything you're not sure about.
-
-   Dispatch a fresh fix-implementer via Task tool. Default model: the task's implementer model from the checklist. The fixer may upgrade if a specific finding is architecturally gnarly or if the default-model fix BLOCKs - discretionary, not contract-gated. Craft a fix prompt listing each dispatched `[fix]` finding by number, priority, citation, and suggested fix. The fixer's report must reference which finding numbers were addressed.
-
-   **When in doubt, dispatch.** Pragmatic-inline is for the verbatim ≤5-line slam-dunk; if you find yourself thinking "is this 8 lines maybe ok" or "this rename touches 2 files but they're related", dispatch instead. Saving one dispatch isn't worth a silent regression.
-
-4. Wait for fix-implementer report (if dispatched). If any dispatched `[fix]` number is missing from the report, treat that finding as BLOCKED. Pragmatic-inline findings that the orchestrator chose not to apply (e.g., the Edit failed) are also BLOCKED.
-
-5. For BLOCKED findings: retry once - if originally pragmatic-inline, dispatch a fix-implementer for the retry (escalation path). If originally dispatched, retry with upgraded model (fresh dispatch). If still BLOCKED, evaluate whether the finding actually meets a defer criterion - if yes, move it to deferred.md with the BLOCKED reason. If no, halt and surface to the user.
-
-6. Re-dispatch reviewer (full cycle: Reviewer Independence Override, fresh diff). The re-reviewer writes to the SAME review file path, overwriting the prior review. Reviewer dispatch stays strict regardless of whether fixes were inline or dispatched - the integrity gate validates this re-review the same way. Loop until no `[fix]` admissible findings remain.
-
-**Why this two-path mechanic exists:** every fix-implementer dispatch costs ~5-20k boot tokens before doing work. For a 2-line typo fix that the reviewer described verbatim, the boot cost is the entire cost. Halving fix dispatches via pragmatic-inline saves real tokens without weakening the review contract: the integrity gate guards reviewer authorship, not fix authorship, and the re-review on a real subagent catches any orchestrator-inline fix that went wrong.
+Why inline is safe: the integrity gate guards reviewer authorship, not fix authorship, and the re-review runs on a real subagent so any orchestrator-inline fix that went wrong gets caught.
 
 **Deferred-write (only `[defer]` findings + any `[fix]` that legitimately blocked):**
 
@@ -411,8 +397,7 @@ If you catch yourself thinking any of these, STOP - you're about to violate the 
 | Dispatch haiku reviewer when checklist says sonnet ("the diff is small", "just test fixtures", "haiku is fine here") | DRIFT. Halt, edit the checklist explicitly, then re-dispatch. integrity-check.sh verifies the JSONL `message.model` against the checklist annotation post-hoc; you can't get away with it. |
 | Use a different model than checklist says (upgrade "to be safe" or downgrade "looks easy") | Checklist IS the contract. Silent drift breaks the audit trail. If the model is wrong, HALT and ask user to edit. |
 | Skip TDD because the task text didn't mention it | Implementer dispatch always appends TDD override. Do TDD. |
-| Use pragmatic-inline for a fix that's >5 lines, multi-file, or might touch behavior ("it's basically a rename", "the suggested fix looks straightforward enough") | Pragmatic-inline is for verbatim ≤5-line stylistic fixes only. Anything that needs TDD, anything that fans out, anything you have to think about - dispatch. The fix dispatch you saved doesn't pay for the silent regression you shipped. |
-| Use pragmatic-inline to fix a finding the reviewer described in prose without a concrete suggested change ("I see what they mean") | Verbatim-or-near-verbatim is part of the criteria. If you're inferring the fix, you're not in pragmatic-inline territory; dispatch. |
+| Stretch inline-fix path ("basically a rename, just a few extra lines", "I see what the reviewer means") | Inline-fix is for trivial verbatim slam-dunks. If you have to think, dispatch. |
 | Consolidate / merge / paraphrase reviewer findings | Every numbered finding processed by number. `findings == fixed + deferred` invariant. Halt if violated. |
 | Defer a finding without one of the 3 valid criteria | Reject the disposition and re-dispatch reviewer. Default = `[fix]`. |
 | Write "Looks good" in an Outcome slot | Outcome needs `findings=N fixed=N deferred=N (review: <path>)`. Final verification rejects prose-only. |
