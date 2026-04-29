@@ -38,7 +38,6 @@ Keep the feature folder together: `design.md`, `plan.md`, `checklist.md`,
 
 ## Writing
 
-- No em dashes in user-facing text: docs, specs, checklists, commit messages, or PR descriptions. Use " - ", a period, or rewrite the sentence.
 - Comment the why, not the what.
 - When tightening docs, remove redundancy without softening corrective guardrails.
 
