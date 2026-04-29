@@ -1,52 +1,60 @@
 ---
 name: close-session
-description: "Tear down the current worktree session: merge into main, stop the dev server, delete the branch and worktree folder. Use when the user says 'close session', 'end session', 'clean up', 'tear down', or 'done with this worktree'."
+description: "Use when the user asks to close, end, clean up, tear down, or finish a worktree/session after work is landed."
 user-invocable: true
 ---
 
 # Close Session
 
-Cleanly shut down the current worktree session. Ensures work is merged into main before removing anything.
+Cleanly shut down the current worktree session. Ensures work is merged into the
+target branch before removing anything.
 
 ## Prerequisites
 
-You must be inside a worktree (not the main repo). If you're in the main repo, tell the user there's nothing to close.
+You must be inside a worktree, not the target repo/worktree. If you're already
+in the target repo, tell the user there's nothing to close.
 
 ## Steps
 
 ### 1. Gather session info (single command)
 
-Run this to collect everything needed for the session file and teardown:
+Set `TARGET_BRANCH` to the branch being landed into, then run this to collect
+everything needed for the session file and teardown:
 ```bash
 WORKTREE_PATH=$(git rev-parse --show-toplevel) && \
-MAIN_REPO=$(git worktree list | grep '\[main\]' | awk '{print $1}') && \
 BRANCH=$(git rev-parse --abbrev-ref HEAD) && \
+git worktree list && \
+TARGET_BRANCH="<target branch>" && \
+TARGET_REPO=$(git worktree list | awk -v target="[$TARGET_BRANCH]" 'index($0, target) {print $1; exit}') && \
+test -n "$TARGET_REPO" && \
 PORT=$(grep -o '"port": [0-9]*' .claude/launch.json 2>/dev/null | head -1 | grep -o '[0-9]*') && \
 UNCOMMITTED=$(git status --porcelain) && \
 echo "WORKTREE_PATH=$WORKTREE_PATH" && \
-echo "MAIN_REPO=$MAIN_REPO" && \
 echo "BRANCH=$BRANCH" && \
+echo "TARGET_BRANCH=$TARGET_BRANCH" && \
+echo "TARGET_REPO=$TARGET_REPO" && \
 echo "PORT=$PORT" && \
 echo "UNCOMMITTED=$UNCOMMITTED" && \
-if [ "$WORKTREE_PATH" = "$MAIN_REPO" ]; then echo "ERROR: You are in the main repo, not a worktree."; exit 1; fi && \
+if [ "$WORKTREE_PATH" = "$TARGET_REPO" ]; then echo "ERROR: You are in the target repo, not a worktree."; exit 1; fi && \
 if [ -n "$UNCOMMITTED" ]; then echo "WARNING: Uncommitted changes exist"; fi && \
-git log main..$BRANCH --oneline 2>/dev/null && \
+git log "$TARGET_BRANCH"..$BRANCH --oneline 2>/dev/null && \
 echo "---FILES---" && \
-git diff --name-only main..$BRANCH 2>/dev/null
+git diff --name-only "$TARGET_BRANCH"..$BRANCH 2>/dev/null
 ```
 
-If you're in the main repo, stop. If there are uncommitted changes, ask the user what to do.
+If the target branch is unclear, ask the user. If you're in the target repo,
+stop. If there are uncommitted changes, ask the user what to do.
 
-### 2. Ensure work is merged into main
+### 2. Ensure work is merged into the target
 
 ```bash
-git -C "$MAIN_REPO" merge-base --is-ancestor "$BRANCH" main
+git -C "$TARGET_REPO" merge-base --is-ancestor "$BRANCH" "$TARGET_BRANCH"
 ```
 If this fails (exit code non-zero), run the `/merge` skill first. Wait for it to complete.
 
 ### 3. Write the session file (MANDATORY)
 
-This is the most important step. Use the **Write tool** to create a session file at `$MAIN_REPO/.claude/sessions/<descriptive-name>.md`.
+This is the most important step. Use the **Write tool** to create a session file at `$TARGET_REPO/.claude/sessions/<descriptive-name>.md`.
 
 **File naming:** Name the file based on what the session actually did, NOT the branch name. Use kebab-case. Examples:
 - `horizontal-designer-gantt-bars.md` (not `claude-objective-kilby.md`)
@@ -57,7 +65,7 @@ Include:
 - **Date** - today's date
 - **Branch** - the branch name
 - **Summary** - what was worked on (1-3 sentences)
-- **Key changes** - bullet list of main additions/changes/fixes
+- **Key changes** - bullet list of primary additions/changes/fixes
 - **Commits** - from step 1's git log output
 - **Decisions and rationale** - every notable decision, what was chosen over what, and why
 - **Discussion context** - user feedback, rejected approaches, "we tried X but it didn't work because Y"
@@ -67,7 +75,7 @@ Include:
 
 Be generous with detail in Decisions and Discussion - these prevent future sessions from re-debating.
 
-After writing, verify with `ls -la "$MAIN_REPO/.claude/sessions/<BRANCH_SLUG>.md"`.
+After writing, verify with `ls -la "$TARGET_REPO/.claude/sessions/<BRANCH_SLUG>.md"`.
 
 ### 4. Tell the user, then tear down (single command)
 
@@ -76,15 +84,15 @@ Report what will happen: branch name, worktree path, port being freed.
 Then run the **entire teardown as one bash command**:
 
 ```bash
-MAIN_REPO="<absolute path>" && \
+TARGET_REPO="<absolute path>" && \
 WORKTREE_PATH="<absolute path>" && \
 BRANCH="<branch name>" && \
 PORT="<port number>" && \
 (lsof -ti:$PORT 2>/dev/null | xargs kill 2>/dev/null; true) && \
-rm -f "$MAIN_REPO/.claude/ports/$PORT" && \
+rm -f "$TARGET_REPO/.claude/ports/$PORT" && \
 rm -rf "$WORKTREE_PATH/.playwright-mcp" && \
 find "$WORKTREE_PATH" -maxdepth 1 -name '*.png' -delete 2>/dev/null; \
-cd "$MAIN_REPO" && \
+cd "$TARGET_REPO" && \
 git worktree remove "$WORKTREE_PATH" --force && \
 git branch -d "$BRANCH" 2>/dev/null; \
 echo "SESSION_CLOSED"

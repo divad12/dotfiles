@@ -49,6 +49,7 @@ The `Context loaded: <file>` line at the top of each `docs/ai` file is intention
 Skill frontmatter is routing metadata, not a mini-doc.
 
 - `description` describes when the skill applies.
+- `description` starts with "Use when..." and names triggering conditions only.
 - `description` avoids workflow summaries that let an agent skip reading the body.
 - Body should usually be one or two lines: read the relevant `docs/ai` file, plus conditional extra docs.
 - If a skill needs heavy details, put them in a referenced file and load them conditionally.
