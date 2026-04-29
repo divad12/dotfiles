@@ -73,12 +73,21 @@ REVIEW_PATH="$REVIEWS_DIR/$REVIEW_FILE"
 # ----------------------------------------------------------------------------
 
 case "$REVIEW_TYPE" in
-  spec|code|combined)
+  spec|code|combined|batch)
     # Find the task's section, then grep for the matching reviewer line.
-    # awk: print lines from `### Task <id>` to the next `### Task` or `### Phase`.
+    # Use literal-string match (substr/length), not regex - so consolidated IDs
+    # like "2.1+2.2+2.3" or dotted IDs like "final.deferred-resolution" don't
+    # get interpreted as regex metacharacters.
     TASK_BLOCK=$(awk -v id="$TASK_ID" '
-      /^### Task / { in_block = ($0 ~ "^### Task " id "([^0-9]|$)") }
-      /^### (Phase|Final|Task) / && !match($0, "^### Task " id "([^0-9]|$)") && in_block { in_block = 0 }
+      function is_task_header(line, want,    prefix, plen, nc) {
+        prefix = "### Task " want
+        plen = length(prefix)
+        if (substr(line, 1, plen) != prefix) return 0
+        nc = substr(line, plen + 1, 1)
+        return (nc == "" || nc == " " || nc == ":" || nc == "-")
+      }
+      /^### Task / { in_block = is_task_header($0, id) }
+      /^### (Phase|Final|Task) / && !is_task_header($0, id) && in_block { in_block = 0 }
       in_block { print }
     ' "$CHECKLIST")
     [ -n "$TASK_BLOCK" ] || { echo "ERROR: no task block found for id=$TASK_ID in $CHECKLIST" >&2; exit 1; }
@@ -87,6 +96,7 @@ case "$REVIEW_TYPE" in
       spec)     LABEL="Spec review" ;;
       code)     LABEL="Code review" ;;
       combined) LABEL="Combined review" ;;
+      batch)    LABEL="Batch review" ;;
     esac
 
     # Match e.g. `- [ ] Spec review (reviewer: haiku) - Outcome: ...`
@@ -94,18 +104,6 @@ case "$REVIEW_TYPE" in
     LINE=$(printf '%s\n' "$TASK_BLOCK" | grep -E "^- \[[ x]\] $LABEL \(reviewer: [a-zA-Z0-9_-]+\)" | head -1 || true)
     [ -n "$LINE" ] || { echo "ERROR: reviewer line '$LABEL (reviewer: ...)' not found in task $TASK_ID block" >&2; exit 1; }
 
-    MODEL=$(printf '%s' "$LINE" | sed -n 's/.*(reviewer: \([a-zA-Z0-9_-]*\)).*/\1/p')
-    ;;
-  batch)
-    # Batched-review tasks. The checklist annotates the LAST task in the batch
-    # with `Combined review` like a normal combined task, so reuse that path.
-    TASK_BLOCK=$(awk -v id="$TASK_ID" '
-      /^### Task / { in_block = ($0 ~ "^### Task " id "([^0-9]|$)") }
-      /^### (Phase|Final|Task) / && !match($0, "^### Task " id "([^0-9]|$)") && in_block { in_block = 0 }
-      in_block { print }
-    ' "$CHECKLIST")
-    LINE=$(printf '%s\n' "$TASK_BLOCK" | grep -E "^- \[[ x]\] Batch review \(reviewer: [a-zA-Z0-9_-]+\)" | head -1 || true)
-    [ -n "$LINE" ] || { echo "ERROR: 'Batch review (reviewer: ...)' line not found in task $TASK_ID block" >&2; exit 1; }
     MODEL=$(printf '%s' "$LINE" | sed -n 's/.*(reviewer: \([a-zA-Z0-9_-]*\)).*/\1/p')
     ;;
   phase)

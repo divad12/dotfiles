@@ -29,14 +29,19 @@ if [ ! -f "$CHECKLIST" ]; then
 fi
 
 # Locate the task block: [start_line, end_line) inclusive of start, exclusive of end.
-# Start = line matching "### Task <TASK_ID> " (space after id) OR "### Task <TASK_ID>$".
+# Start = line beginning "### Task <TASK_ID>" followed by space, colon, dash, or EOL.
 # End = next "### " or "## " header after start, or EOF.
+#
+# Use literal-string match (substr/length), not regex, so consolidated IDs like
+# "2.1+2.2+2.3" or paths with "." don't get interpreted as regex metacharacters.
 BOUNDS=$(awk -v tid="$TASK_ID" '
-  BEGIN { start=0; end=0 }
+  BEGIN { start=0; end=0; prefix = "### Task " tid; plen = length(prefix) }
   {
     if (start == 0) {
-      # Match "### Task <tid>" followed by space, colon, dash, or end-of-line.
-      if ($0 ~ "^### Task " tid "([ :\\-]|$)") { start = NR; next }
+      if (substr($0, 1, plen) == prefix) {
+        nc = substr($0, plen + 1, 1)
+        if (nc == "" || nc == " " || nc == ":" || nc == "-") { start = NR; next }
+      }
     } else if (end == 0) {
       if ($0 ~ /^### / || $0 ~ /^## /) { end = NR; exit }
     }
