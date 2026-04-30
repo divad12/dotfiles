@@ -46,16 +46,45 @@ Principle:      Every user-facing input must make invalid states unrepresentable
 
 Write the **principle** as the main rule. Use the specific fix as an illustrative example underneath.
 
+### Contract-change example
+
+When the bug involves a removed field, renamed type, changed response shape,
+modified helper behavior, or other shared surface, climb to the contract level.
+
+```
+Specific fix:   Clue save payload still sent venueId: null
+     ↑ Why?
+Class of bug:   Client payload drifted from the route schema
+     ↑ Why?
+Pattern:        A model/API contract changed without updating every consumer
+     ↑ Why?
+Principle:      When you change a shared contract, you own every consumer of that contract
+```
+
+Shared contracts include data-model fields, Zod schemas, HTTP request/response
+shapes, hook return types, cache shapes, helper behavior, enum values,
+component props, callback semantics, seed fixtures, and docs.
+
+This principle is high enough to find sibling bugs, but still actionable: the
+implementer or reviewer can search usages, trace callers, update fixtures/docs,
+and add tests or lint rules that make old consumers fail.
+
 ### How to climb
 
 1. **What happened?** The specific bug, feedback, or discovery.
 2. **What class does this belong to?** What other bugs share the same root cause?
 3. **What principle, if followed, would have prevented all of them?** This is what goes in the docs.
-4. **Is there an even higher principle?** Stop when the next level up becomes too vague to be actionable.
+4. **Did a shared contract change?** If yes, name the contract and the consumer
+   classes that should have moved with it.
+5. **Is there an even higher principle?** Stop when the next level up becomes too vague to be actionable.
 
 The sweet spot is the highest level that's still **actionable** - concrete enough that a developer would know what to do differently. "Be careful" is too vague. "Every form input must have min/max bounds matching the domain model" is actionable.
 
 **One more level.** Once you think you've found the principle, try climbing one more rung. Ask: "Is there an even more general rule that subsumes this?" Often there is. Example: "Every form input must have min/max bounds" generalizes to "Make invalid states unrepresentable at the input layer." The more general version covers more future cases. Only stop when the next level becomes too vague to act on.
+
+After writing the principle, ask what would enforce it next time: a regression
+test, lint rule, schema/contract scan, shared helper, checklist, or docs change.
+If no mechanical guardrail exists yet, record the best candidate.
 
 ## Format
 
