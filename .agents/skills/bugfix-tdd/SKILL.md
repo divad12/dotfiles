@@ -55,7 +55,25 @@ Run the full test suite to confirm:
 npm test -- --run
 ```
 
-### 5. Summarize
+### 5. Route the learning
+
+After the fix passes, route the bug through the project's learning system if it
+exists.
+
+- If the project has fixed-bug logs such as `CODEX_FIXED.md`, record the
+  concrete user-facing bug, fix, regression coverage, and verification.
+- If the project has `LESSONS_LEARNED.md`, add or update the root-cause lesson.
+  Climb from symptom to bug class to the highest actionable principle.
+- If the project has `BUG_PATTERNS.md`, update it only when the fix reveals a
+  new reusable bug class or materially clarifies an existing one.
+- If the report was useful UX polish rather than a correctness bug, route it to
+  `ENHANCEMENTS.md` when present.
+
+Do not duplicate the full incident in every file. Fixed-bug logs are specific,
+lessons bridge incident to principle, and bug patterns are the compact hunting
+map for future agents.
+
+### 6. Summarize
 
 Tell the user:
 - What the bug was (root cause)
