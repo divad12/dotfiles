@@ -59,11 +59,10 @@ npm test -- --run
 
 After the fix passes, discover and route through the project's learning system
 if it exists. Search the repo for `BUG_PATTERNS.md`, `LESSONS_LEARNED.md`,
-`BUGS_FIXED.md`, legacy `CODEX_FIXED.md`, and `ENHANCEMENTS.md`; read the
-pattern/routing doc before updating the others.
+`BUGS_FIXED.md`, and `ENHANCEMENTS.md`; read the pattern/routing doc before
+updating the others.
 
-- If the project has fixed-bug logs such as `BUGS_FIXED.md` or legacy
-  `CODEX_FIXED.md`, record the
+- If the project has fixed-bug logs such as `BUGS_FIXED.md`, record the
   concrete user-facing bug, fix, regression coverage, and verification.
 - If the project has `LESSONS_LEARNED.md`, add or update the root-cause lesson.
   Climb from symptom to bug class to the highest actionable principle.
