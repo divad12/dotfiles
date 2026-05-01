@@ -52,6 +52,8 @@ Write the **principle** as the main rule. Use the specific fix as an illustrativ
 2. **What class does this belong to?** What other bugs share the same root cause?
 3. **What principle, if followed, would have prevented all of them?** This is what goes in the docs.
 4. **Is there an even higher principle?** Stop when the next level up becomes too vague to be actionable.
+5. **Did this involve a shared contract?** If a shared type, API shape, schema field, cache key, or data model changed, name the contract and list its consumer classes (components, hooks, routes, tests, fixtures, docs). This surfaces sibling bugs the fix may have missed.
+6. **What enforcement hook would prevent this class?** Identify one candidate: a failing test, lint rule, schema scan, shared helper, or docs/ai rule. A principle without an enforcement candidate is a note; with one it becomes a guardrail.
 
 The sweet spot is the highest level that's still **actionable** - concrete enough that a developer would know what to do differently. "Be careful" is too vague. "Every form input must have min/max bounds matching the domain model" is actionable.
 
@@ -124,3 +126,4 @@ Want me to adjust the wording or move it somewhere else?
 - **Duplicating.** Writing the same principle in two docs. Pick one, reference from the other.
 - **Stuffing root CLAUDE.md.** Only truly universal principles go there. Topic-specific learnings go in topic-specific docs.
 - **Skipping the code comment.** The docs capture the principle. The code comment captures the "why" at the exact location where someone will encounter the code.
+- **Stopping before the guardrail.** A fixed bug class without an enforcement candidate (test, lint rule, shared helper) is only half-learned. Always identify what would make the next similar mistake harder to write.
