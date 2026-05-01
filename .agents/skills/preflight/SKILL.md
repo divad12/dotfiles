@@ -46,15 +46,19 @@ Format specs and large literal templates live next to this skill. Read them only
 
 ## Input
 
-Path to plan file. Preferred location: `docs/specs/YYYY-MM-DD-<feature>/plan.md`. Works on any markdown plan with task and phase sections.
+Path to plan file. Works on any markdown plan with task and phase sections, in any directory. Artifacts land alongside it (see Feature folder convention).
 
 ## Feature folder convention
 
-All artifacts for a feature live in one folder: `docs/specs/YYYY-MM-DD-<feature>/`
+The **feature folder is the plan file's parent directory**. All preflight + fly artifacts (checklist, per-session splits, reviews/, deferred.md) get written there alongside the plan. No relocation, no derived `docs/specs/<date>-<feature>/` path.
+
+This works for any layout: `docs/specs/m3/plan.md` puts artifacts in `docs/specs/m3/`; `docs/specs/2026-04-18-whatsapp-connector/plan.md` puts them in `docs/specs/2026-04-18-whatsapp-connector/`. Use whatever the team's existing convention is.
+
+Typical contents after preflight + fly:
 
 ```
-docs/specs/2026-04-18-whatsapp-connector/
-  design.md              (spec from brainstorming)
+<feature-folder>/
+  design.md              (spec from brainstorming, optional)
   plan.md                (plan from writing-plans - frozen audit trail)
   checklist.md           (preflight output, single-session plans)
   plan-1.md, plan-2.md   (per-session plan splits, multi-session plans)
@@ -62,10 +66,6 @@ docs/specs/2026-04-18-whatsapp-connector/
   deferred.md            (created by fly if findings deferred)
   reviews/               (review artifact files from fly)
 ```
-
-If the plan file is NOT already inside a feature folder, preflight derives `docs/specs/YYYY-MM-DD-<feature>/` from the plan's filename, creates it, moves the plan in as `plan.md`, and moves any sibling `design.md` or `*-design.md` along with it. Prints `Relocated plan to <new-path>. Feature folder: <folder>.` and continues with the relocated path.
-
-If the plan is already inside a feature folder, skip relocation.
 
 ## Output
 
