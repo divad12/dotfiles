@@ -16,7 +16,7 @@ Set up a worktree with everything needed to run the dev server - env files copie
    ```
    If the current working directory is already inside `.claude/worktrees/`, you're in a worktree that was created externally (e.g. by Claude Code desktop). Skip to step 3.
 
-   If you're in the main repo, use the `EnterWorktree` tool to create one. Let it generate a name (or use one the user provides).
+   If you're in the main repo, first run `git worktree list` to check whether a clean existing worktree is available on the target branch. If one exists with no uncommitted changes, prefer it over creating a new one — reusing minimises workspace sprawl and stale port locks. Only create a new worktree when no suitable one exists, then use the `EnterWorktree` tool. Let it generate a name (or use one the user provides).
 
 2. **Identify the main repo root.**
    The main repo is always the entry in `git worktree list` with `[main]`:
