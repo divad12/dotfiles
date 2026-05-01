@@ -129,10 +129,11 @@ Run BEFORE per-task model assignment, review policy, and convertibility analysis
 
 For each task (post-consolidation), estimate LOC delta:
 
-- Count code in fenced ``` ``` ``` blocks the plan provides verbatim (usually transcribed near 1:1).
+- Count code in fenced ``` blocks the plan provides verbatim (usually transcribed near 1:1).
 - Read prose steps for approximate scope: "add X validation" ≈ 10-20 LOC; "extract helper" ≈ 30-50 LOC; "create new component" ≈ 80-200 LOC; "wire prop through 3 layers" ≈ 30-60 LOC.
 - Test files inflate LOC. Weight tests at ~0.5x for the threshold check, but include full count in the estimate.
 - Estimate is rough (±50%). Advisory signal, not hard gate.
+- When a task step involves calling an API route (e.g. `fetch('/api/...')`, `apiMutate`, or any named route handler), read the actual route handler before finalizing the LOC estimate. Check for `ReadableStream`, SSE streaming helpers, or `EventSource` patterns — these indicate server-sent events, which require a stream-based client integration significantly more complex than a plain POST. Flag SSE routes in the task description and size them as a dedicated task rather than a single pseudocode call line.
 
 Then assign:
 - LOC < `loc_inline_threshold` (default 30) → `Mode: inline`. Orchestrator does work directly; reviewer dispatch unchanged.
