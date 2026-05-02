@@ -1,9 +1,13 @@
 ---
 name: task-observer
-description: "**MANDATORY prerequisite** — you MUST invoke this skill BEFORE your first tool call in any task-oriented session. NEVER produce deliverables without loading this skill first. Skipping it loses observations and breaks the meta-skill loop. Use at the start of every task-oriented session where tools produce deliverables, during post-task feedback, or when the user mentions 'observation log', 'skill taxonomy', 'skill improvements', or 'one skill to rule them all'."
+description: "**MANDATORY prerequisite** — you MUST invoke this skill BEFORE your first tool call in any task-oriented session. NEVER produce deliverables without loading this skill first. Skipping it loses observations and breaks the meta-skill loop. Use at the start of every task-oriented session where tools produce deliverables, during post-task feedback, or when the user mentions 'observation log', 'skill taxonomy', 'skill improvements', or 'one skill to rule them all'. EXCEPTION: skip entirely when running as a subagent (Task-dispatched session) — the parent agent observes on subagents' behalf and subagent contexts have no user-feedback signal."
 ---
 
 # Task Observer — Continuous Skill Discovery & Improvement
+
+<SUBAGENT-STOP>
+If you were dispatched as a subagent (Task-tool dispatch) to execute a specific delegated task, skip this skill and proceed with your task. The parent agent owns observation logging and will capture any patterns it sees in your output. Subagent contexts have no user-feedback signal, so logging from inside a subagent fragments observations across sessions and produces noise without value.
+</SUBAGENT-STOP>
 
 **Created by Eoghan Henn / [rebelytics.com](https://rebelytics.com)**
 

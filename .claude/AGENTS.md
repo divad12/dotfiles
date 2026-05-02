@@ -18,7 +18,7 @@ Universal rules for AI coding agents. `CLAUDE.md` symlinks here.
 
 ## Session Tools
 
-- **MANDATORY: invoke `task-observer` BEFORE your first tool call** in any task-oriented session where tools produce deliverables. Non-negotiable. No rationalizing ("quick task", "I'll invoke later", "doesn't count"). Skipping it loses observations across dozens of future sessions; the cost is ~50 tokens. The SessionStart hook reinforces this.
+- **MANDATORY: invoke `task-observer` BEFORE your first tool call** in any task-oriented session where tools produce deliverables. Non-negotiable. No rationalizing ("quick task", "I'll invoke later", "doesn't count"). Skipping it loses observations across dozens of future sessions; the cost is ~50 tokens. The SessionStart hook reinforces this. **Subagents skip** — Task-dispatched sessions have no user-feedback signal; the parent agent owns observation logging for delegated work.
 - Store task-observer files centrally:
 
 | Default | Use instead |
