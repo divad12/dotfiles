@@ -46,13 +46,24 @@ Format specs and large literal templates live next to this skill. Read them only
 
 ## Input
 
-Path to plan file. Works on any markdown plan with task and phase sections, in any directory. Artifacts land alongside it (see Feature folder convention).
+Path to plan file. Works on any markdown plan with task and phase sections, in any directory. Preflight creates a dedicated feature folder next to it, moves the plan in, and writes artifacts there (see Feature folder convention).
 
 ## Feature folder convention
 
-The **feature folder is the plan file's parent directory**. All preflight + fly artifacts (checklist, per-session splits, reviews/, deferred.md) get written there alongside the plan. No relocation, no derived `docs/specs/<date>-<feature>/` path.
+Each plan gets its own dedicated subfolder created next to the plan file. The plan moves into it, and all preflight + fly artifacts (checklist, per-session splits, reviews/, deferred.md) live there too.
 
-This works for any layout: `docs/specs/m3/plan.md` puts artifacts in `docs/specs/m3/`; `docs/specs/2026-04-18-whatsapp-connector/plan.md` puts them in `docs/specs/2026-04-18-whatsapp-connector/`. Use whatever the team's existing convention is.
+**Slug derivation:** subfolder name = plan basename minus `.md` and minus a trailing `-plan`, `-implementation-plan`, or `-design` suffix if present. Examples:
+
+| Plan path | Feature folder |
+|---|---|
+| `docs/specs/m3/05-implementation-plan.md` | `docs/specs/m3/05-implementation/` |
+| `docs/specs/m3/07-universal-clues-plan.md` | `docs/specs/m3/07-universal-clues/` |
+| `docs/specs/2026-04-18-whatsapp-connector.md` | `docs/specs/2026-04-18-whatsapp-connector/` (no suffix to strip) |
+| `docs/specs/m3/05-implementation/plan.md` | `docs/specs/m3/05-implementation/` (already a feature folder, no relocation) |
+
+**Idempotency check:** if the plan file is already named `plan.md` (or `plan-N.md`) and lives in a folder that contains it as the only `*.md` named that way, treat the parent dir as the feature folder and skip relocation. Otherwise, create the subfolder and move the plan into it as `plan.md`.
+
+**Sibling design file:** if a sibling `<same-stripped-prefix>-design.md` exists next to the plan (e.g., `05-implementation-design.md` next to `05-implementation-plan.md`), move it into the feature folder as `design.md`.
 
 Typical contents after preflight + fly:
 
@@ -66,6 +77,8 @@ Typical contents after preflight + fly:
   deferred.md            (created by fly if findings deferred)
   reviews/               (review artifact files from fly)
 ```
+
+Print one line on relocation: `Created feature folder <path>; moved plan.md (and design.md if present).`
 
 ## Output
 
