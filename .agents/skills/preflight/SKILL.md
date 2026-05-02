@@ -157,6 +157,60 @@ Then assign:
 
 **Surface LOC in consolidation output:** include estimated LOC per task and per merged group. Tasks well under `loc_subagent_target` (100) are stronger merge candidates.
 
+### Doc routing per task
+
+**Why:** subagents dispatched by `/fly` don't inherit the orchestrator's CLAUDE.md / SessionStart context. They walk into the task blind to project conventions and miss `docs/ai/` files that the main agent would have read. This causes expensive failures (e.g., a subagent OOM-ing on a Vitest test that `docs/ai/testing-patterns.md` warns about).
+
+For each task (post-consolidation), scan task content (title + step titles + any plan file paths the task touches) against the topic patterns below. For each matching topic, look up actual `docs/ai/` files in the project and add them to the task's `Pre-reading:` list.
+
+**Topic -> keyword -> filename-pattern map** (filename patterns are matched against the project's `docs/ai/` directory listing):
+
+```
+tests:        test, vitest, spec, jest, playwright, e2e, regression
+              -> *test*.md, writing-tests.md, testing*.md
+
+forms:        form, dialog, modal, input, validation, submit
+              -> *form*.md, building-forms.md, form-guidelines.md, dialog*.md
+
+api:          api/, route handler, endpoint, supabase auth, server action
+              -> *api*.md, api-routes.md, api-patterns.md, route*.md
+
+data-model:   prisma, schema, migration, seed, table, db push, relation
+              -> *schema*.md, data-model.md, *prisma*.md
+
+optimistic:   useMutation, optimistic, cache, invalidate, query, react query
+              -> optimistic*.md, *mutation*.md, *cache*.md
+
+ui:           component, button, layout, card, page, design system, css, tailwind
+              -> ui-components.md, *component*.md, design*.md
+
+domain:       (project-specific - e.g., journey, stop, message, clue, venue, guest in Journology)
+              -> domain.md, *domain*.md
+
+git:          rebase, merge, conflict, commit, branch, worktree, push
+              -> git.md, *git*.md
+
+review:       review, audit, simplify, codex
+              -> review.md, *review*.md
+
+writing:      docs, comments, instructions
+              -> writing-docs.md
+```
+
+Topics are advisory - first-pass keyword match. Multiple topics can match a single task (a task that adds a form to a new API route hits both `forms` and `api`). Stack the pre-reading lists.
+
+**Resolution algorithm:**
+1. Scan task content against keywords. Collect matched topics.
+2. For each matched topic, list the project's `docs/ai/` directory and find files matching any of that topic's filename patterns. Take all matches.
+3. Deduplicate the combined file list.
+4. If nothing matched, omit `Pre-reading:` from the task block entirely.
+
+**Handle absence gracefully:** if `docs/ai/` doesn't exist in the project, skip doc routing for all tasks (no `Pre-reading:` lines anywhere). If a topic matches but no file exists in `docs/ai/` for that topic, silently drop it. Don't list non-existent files.
+
+**Project override:** if the project has `docs/ai/preflight-routes.md`, read it instead of using the default map. Format: same topic blocks, with the keyword and filename-pattern lines per topic. Lets projects with idiosyncratic docs/ai/ structures customize without editing preflight itself.
+
+**Synthetic tasks** (integration-test, codex-browser-verify, deferred-resolution): the integration-test gets `tests` topic matching automatically. Others get no auto-routing.
+
 ### Per-task model assignment
 
 - **sonnet** (DEFAULT) - most tasks. Multi-file changes, integration, pattern matching, endpoints, services. Also for tasks that seem simple but touch test infrastructure or shared utilities.
@@ -283,6 +337,7 @@ Apply the decision logic in "Decisions Preflight Makes" to the parsed plan, in t
 2. **LOC estimation (pre-consolidation pass)** - feeds the consolidation pass.
 3. **Task consolidation pass (interactive)** - judgment-based greedy merge with user confirmation. Always run.
 4. **LOC re-estimation + inline mode** - after consolidation, tag each task `Mode: inline` or `Mode: subagent`. Synthetic tasks always `subagent`.
+4b. **Doc routing per task** - scan content vs. keyword map; resolve to actual `docs/ai/` files; emit `Pre-reading:` line per task. Skipped if `docs/ai/` absent.
 5. **Per-task model** - haiku/sonnet/opus.
 6. **Review policy** - default `combined`. Mark genuinely trivial tasks `phase` to defer review to phase-end. Inline-mode tasks default to `combined` like subagent tasks (only implementer dispatch is skipped, reviewer dispatch still runs).
 7. **Reviewer models per gate** - apply defaults with per-task upgrades.

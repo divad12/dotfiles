@@ -144,9 +144,14 @@ Standard Task-dispatch flow per steps A-G below.
 
    2. **Extra steps from preflight audit** (execute these before the plan's own steps):
       <list of [INJECTED] step titles from the checklist for this task>
+
+   3. **REQUIRED PRE-READING (read these BEFORE any tool call - do not skip):**
+      <comma-separated list from the task's `Pre-reading:` line in the checklist>
+
+      Subagents do not inherit the orchestrator's CLAUDE.md or SessionStart context, so these docs must be loaded explicitly. They contain project conventions and gotchas (e.g., memory-pressure patterns, schema invariants) that prevent expensive failures.
    ```
 
-   If no injected steps, still include the section but say "None."
+   If no injected steps, say "None." If the task has no `Pre-reading:` line in the checklist, omit section 3 entirely.
 
 4. Dispatch via Task tool:
    - `subagent_type`: `general-purpose`
@@ -212,6 +217,17 @@ If the script exits non-zero, HALT and surface - it means the checklist is missi
    - `[From implementer's report]` → the implementer's summary, under the heading `## Implementer-Reported Summary (untrusted)`.
 4. Append a `## Actual Diff` section containing the output of `DIFF_CMD`.
 5. Append the Reviewer Independence Override block verbatim (read once from `$SCRIPT_DIR/reviewer-override.md`, cache for the session). Substitute `<review-file-path>` with `REVIEW_PATH`.
+5b. If the task has a `Pre-reading:` line in the checklist, append:
+
+   ```
+   ## Required Pre-Reading
+
+   Before evaluating the diff, read these project convention docs - they encode the rules the implementation should comply with:
+   <comma-separated list from the task's Pre-reading: line>
+   ```
+
+   Reviewers without this context flag valid code as wrong (or miss real violations). Skip this section if the task has no Pre-reading line.
+
 6. Add a `## Review scope` section to the prompt with explicit dual focus:
    ```
    This is a COMBINED review covering both spec and code concerns. Emit findings under both lenses:

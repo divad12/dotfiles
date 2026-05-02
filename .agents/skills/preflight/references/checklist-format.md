@@ -51,6 +51,7 @@ Tasks are tracking-only (no embedded plan content):
 
 ```markdown
 ### Task <id> | Model: <haiku|sonnet|opus> | Mode: <inline | subagent> | LOC: ~<N> | Review: <combined | separate | phase>
+Pre-reading: <comma-separated docs/ai/*.md paths>
 
 Plan steps:
 - [ ] Step 1: <title extracted from plan>
@@ -67,6 +68,8 @@ Review gates:
 ```
 
 No **Files:** block, no embedded task text, no code blocks. Fly reads task content from the plan file (plan.md for single-session, plan-N.md for multi-session).
+
+The `Pre-reading:` line is OMITTED when no docs/ai/ files matched (don't emit an empty `Pre-reading:` or `Pre-reading: none` line). Fly's dispatch prompt should include "REQUIRED PRE-READING: <files>" verbatim from this line when present.
 
 ## Synthetic integration-test task
 
