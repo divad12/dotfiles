@@ -356,6 +356,8 @@ Locate the `## Session Gate: /deep-review over <scope>` block. Scope is the cumu
 
 **Prefer doing over deferring.** Default is fix-inline; the synthetic deferred-resolution task at end of run will process whatever does land in the deferred file anyway. The 3 valid defer criteria (needs user decision / phase-sized / extremely risky) are spec'd canonically in `reviewer-override.md` - reviewers see them there.
 
+**Anything user-relevant you notice mid-run that ISN'T a review finding** - tooling bug you worked around (e.g. "tick-steps.sh broke on consolidated IDs, edited checklist by hand"), plan defect (e.g. "plan's example test code missed jsdom env"), convention drift, anything you'd otherwise be tempted to mention in a "Known issues" status update - append a §N entry to deferred.md NOW with a one-line description and any context the deferred-resolution task needs to format it properly. The synthetic task at session end will translate it into user-facing-impact framing per the global "Surfacing to the User" rule. Don't keep these in your head and dump them on the user later in dev-todo form.
+
 `<plan-basename>-deferred.md` format. Each finding gets its own `§N` entry:
 
 ```markdown
@@ -385,9 +387,9 @@ How to react to PASS / HALT / WARN / DEFERRED output (including the spawn_task h
 ## Completion
 
 After final verification passes:
-1. Print final report: tasks completed, commits made, time taken. **Do NOT independently list deferred items here.** The synthetic deferred-resolution task is the SINGLE canonical surface for deferred items - it has already enforced the user-facing impact discipline (see global AGENTS.md / CLAUDE.md "Surfacing to the User"). Re-listing raw `§N` entries from deferred.md in the final report bypasses that discipline and leaks dev jargon to the user.
-2. Surface the synthetic deferred-resolution task's return value verbatim if you haven't already (its structured "Need your input" / "Try it yourself" output). If it returned "No items need your input" + walkthrough, just surface that.
-3. If you want to mention deferred items in the final report at all, only the COUNT is acceptable (e.g., "2 items still in plan-1-deferred.md - see surfaced blocks above"). Never list `§N` titles or descriptions; that's the synthetic task's job and it's already done.
+1. Print final report: tasks completed, commits made, time taken. **No "Known issues" / "Things to flag" / "Notes for next time" sections in your own voice - ever.** The synthetic deferred-resolution task is the SINGLE canonical surface for everything user-facing about this run: review-findings deferred, tooling bugs, plan defects, anything else. It has enforced the user-facing-impact discipline (global AGENTS.md "Surfacing to the User"); your own voice has not. If you have something the user should know, you should have already appended it to deferred.md as a §N entry mid-run (see Deferred File Handling) so the synthetic task formatted it properly.
+2. Surface the synthetic deferred-resolution task's return value verbatim (its structured "Need your input" / "Try it yourself" output). If it returned "No items need your input" + walkthrough, just surface that.
+3. Mentioning the deferred-item count is fine ("2 items still in plan-1-deferred.md - see surfaced blocks above"). Never list `§N` titles, descriptions, or your own commentary on them.
 4. **DO NOT mention `/ship` or prompt the user about shipping.** User decides when to ship; nudging adds noise.
 
 ## Discipline: shortcuts to NEVER take
@@ -403,6 +405,7 @@ If you catch yourself thinking any of these, STOP - you're about to violate the 
 | Dispatch haiku reviewer when checklist says sonnet ("the diff is small", "just test fixtures", "haiku is fine here") | DRIFT. Halt, edit the checklist explicitly, then re-dispatch. integrity-check.sh verifies the JSONL `message.model` against the checklist annotation post-hoc; you can't get away with it. |
 | Use a different model than checklist says (upgrade "to be safe" or downgrade "looks easy") | Checklist IS the contract. Silent drift breaks the audit trail. Use it verbatim; if you think it's wrong, log a note in deferred.md and continue. |
 | Pause to ask the user "should I plow on, stop here, or pivot?" - even with a polite "I'll keep going if no answer" | The user is gone for hours. /fly is fire-and-forget. Pick the default (plow on), log uncertainty in deferred.md, keep moving. The deferred-resolution task surfaces it at the end. |
+| Emit a "Known issues / Things to flag / Notes for next time" list in your own voice (mid-run status, end-of-run report, or anywhere else) - even if it feels helpful | Append each item to deferred.md as a §N entry the moment you notice it. The deferred-resolution synthetic task is the SOLE surface for anything user-facing about this run; it formats with mandatory user-facing-impact framing. Your own voice doesn't, and dev-todo phrasing leaks past the user. |
 | Skip TDD because the task text didn't mention it | Implementer dispatch always appends TDD override. Do TDD. |
 | Stretch inline-fix path ("basically a rename, just a few extra lines", "I see what the reviewer means") | Inline-fix is for trivial verbatim slam-dunks. If you have to think, dispatch. |
 | Consolidate / merge / paraphrase reviewer findings | Every numbered finding processed by number. `findings == fixed + deferred` invariant. Halt if violated. |
