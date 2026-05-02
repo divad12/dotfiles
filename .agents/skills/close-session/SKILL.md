@@ -89,7 +89,6 @@ WORKTREE_PATH="<absolute path>" && \
 BRANCH="<branch name>" && \
 PORT="<port number>" && \
 (lsof -ti:$PORT 2>/dev/null | xargs kill 2>/dev/null; true) && \
-rm -f "$TARGET_REPO/.claude/ports/$PORT" && \
 rm -rf "$WORKTREE_PATH/.playwright-mcp" && \
 find "$WORKTREE_PATH" -maxdepth 1 -name '*.png' -delete 2>/dev/null; \
 cd "$TARGET_REPO" && \
