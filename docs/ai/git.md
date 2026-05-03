@@ -11,6 +11,8 @@
   set of meaningful commits.
 - Use `git rebase <target>` by default. Keep history linear when the rebase is
   practical.
+- Treat the local target branch as the landing authority. Do not use
+  `origin/<target>` to decide whether a rebase or merge is needed.
 - Use a merge commit only as a narrow exception: after history cleanup, rebasing
   the branch is still more error-prone than resolving conflicts once.
 - Tell the user before choosing a history tradeoff. The ramification is what
@@ -25,6 +27,34 @@ single default branch. Do not assume every repo lands to `main`; some use
 `master`, and feature programs may land into a branch like `m3`.
 
 If the target is unclear, ask before rewriting history or landing commits.
+
+## Local Target Only
+
+All landing decisions use the local target branch. Do not fetch, pull, or switch
+the comparison base to `origin/<target>` unless the user explicitly asks.
+
+Forbidden shortcut:
+
+```bash
+git merge-base --is-ancestor origin/<target> HEAD
+```
+
+That check answers whether the branch contains the remote-tracking ref, not
+whether it is ready to land into the local target branch. It can hide that the
+local target worktree is stale or that the agent silently changed the base of
+comparison.
+
+Use the local target instead:
+
+```bash
+git merge-base --is-ancestor <target> HEAD
+git log --oneline --decorate <target>..HEAD
+```
+
+If the agent believes `origin/<target>` has relevant commits, tell the user the
+ramification: remote-tracking refs may be newer than the local landing branch,
+but the current workflow lands into the local target. Ask before fetching,
+pulling, or treating `origin/<target>` as authoritative.
 
 ## Before Merging to the Target
 
@@ -90,6 +120,12 @@ Instead, rebase the feature branch by default, then `git merge --ff-only` to
 advance the target. If ff-only fails, the histories diverged; rebase first
 unless the merge-commit exception applies.
 
+### Do not substitute `origin/<target>` for the local target
+
+Remote-tracking refs are not the landing branch. If local `<target>` is stale,
+surface that as a decision for the user instead of declaring the branch current
+because it contains `origin/<target>`.
+
 ### Rebase: `--ours` and `--theirs` are swapped
 
 During `git rebase`, `--ours` is the branch you're rebasing onto (`<target>`)
@@ -112,6 +148,8 @@ can safely rebase afterward without losing other work.
 
 - `git log --oneline <target>..HEAD` shows only meaningful commits before
   landing.
+- `git merge-base --is-ancestor <target> HEAD` is checked against the local
+  target, not `origin/<target>`.
 - `git merge --ff-only <branch>` advances the target when the branch is rebased.
 - `git rev-parse HEAD` on the feature branch matches `git rev-parse <target>`
   after a successful fast-forward merge.

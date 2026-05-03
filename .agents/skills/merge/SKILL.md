@@ -27,11 +27,19 @@ fast-forward the target to include the new commits. The target may be `main`,
    ```
    If the target branch is unclear, ask the user. Do not assume `main`: some
    repos use `master`, and some work lands into integration branches like `m3`.
+   Do not use `origin/$TARGET_BRANCH` to decide whether the branch is current;
+   the landing target is the local target branch.
 
 2. **Inspect branch-only commits**:
    ```bash
+   if git merge-base --is-ancestor "$TARGET_BRANCH" HEAD; then
+     echo "Branch contains local $TARGET_BRANCH"
+   else
+     echo "Branch needs rebase onto local $TARGET_BRANCH"
+   fi
    git log --oneline --decorate "$TARGET_BRANCH"..HEAD
    ```
+   These checks must use the local target branch, not `origin/$TARGET_BRANCH`.
    If the branch contains noisy workstream, checkpoint, review-fix, or fixup
    commits, squash them before advancing the target. User-facing ramification:
    the target branch history stays readable, so future debugging shows the
@@ -91,4 +99,6 @@ fast-forward the target to include the new commits. The target may be `main`,
   documented exception: replaying the already-cleaned branch is more error-prone
   than resolving conflicts once.
 - **Resolve conflicts interactively.** If a rebase conflict occurs, show the user what conflicted and fix it. Don't abort unless explicitly asked.
-- **Local only.** All operations use the local target branch, not `origin/<target>`. Do not `git fetch` or `git pull`. Do not push unless the user explicitly asks.
+- **Local only.** All operations and readiness checks use the local target
+  branch, not `origin/<target>`. Do not `git fetch` or `git pull`. Do not push
+  unless the user explicitly asks.
