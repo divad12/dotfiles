@@ -161,6 +161,31 @@ if ! git worktree add --detach "$TMPDIR_WT" "$BASE_PARENT" >/dev/null 2>&1; then
   exit 1
 fi
 
+# Propagate the source repo's node_modules into the temp worktree.
+#
+# Why: many JS/TS projects (e.g. Next.js apps backed by Claude Code worktrees)
+# symlink node_modules into each worktree via a setup script; the temp worktree
+# the regression check creates has no such symlink. Without it, every test
+# invocation at the base-parent fails with "module not found", which the
+# FAIL/FAILED/✗ regex below does NOT match — so the script counts ZERO failures
+# at base, and any test failing at HEAD then appears to be a "regression" even
+# when it's pre-existing. In a recent fly run this produced 51 false-positive
+# regression reports across three phase checks.
+#
+# Strategy: prefer mirroring the source repo's existing setup. If it's a
+# symlink, replicate the symlink (cheap, no I/O, no double-install). If it's a
+# real directory, symlink to it (same semantics; allows tests to read deps
+# without copying gigabytes). Only act if node_modules exists in the source.
+if [ -L "$REPO_ROOT/node_modules" ]; then
+  TARGET=$(readlink "$REPO_ROOT/node_modules")
+  case "$TARGET" in
+    /*) ln -s "$TARGET" "$TMPDIR_WT/node_modules" ;;
+    *)  ln -s "$REPO_ROOT/$TARGET" "$TMPDIR_WT/node_modules" ;;
+  esac
+elif [ -d "$REPO_ROOT/node_modules" ]; then
+  ln -s "$REPO_ROOT/node_modules" "$TMPDIR_WT/node_modules"
+fi
+
 BASE_OUT=$(run_tests "$TMPDIR_WT")
 BASE_FAILS=$(printf '%s\n' "$BASE_OUT" | sed -n 's/^FAIL://p' | sort -u)
 
