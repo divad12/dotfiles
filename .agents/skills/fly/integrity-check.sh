@@ -28,11 +28,51 @@
 #      catches silent model downgrades (e.g. sonnet checklist annotation
 #      but haiku-dispatched reviewer to save cost).
 #
+# The reviewer annotation parser accepts both forms (matching dispatch-reviewer.sh):
+#   (reviewer: sonnet)                       -> "sonnet"
+#   (reviewer: spec=haiku, code=sonnet)      -> "sonnet" (max by rank)
+# Rank: haiku < sonnet < opus. Unknown model names get rank 0; the first
+# parts[i] is then used as a fallback so we don't HALT on a typo.
+#
 # Agent-agnostic caveat: this check relies on the CC subagent transcript
 # layout. On non-CC agents (Codex, Cursor, etc.) this path will not exist;
 # callers should skip the check in that case.
 
 set -euo pipefail
+
+# Extract the model name from a `(reviewer: ...)` annotation in $1.
+# Handles both single (`sonnet`) and dual (`spec=haiku, code=sonnet`) forms.
+# Output is the resolved single-model name. Mirrors dispatch-reviewer.sh's
+# extract_reviewer_model so the two contracts stay aligned.
+extract_reviewer_model() {
+  printf '%s' "$1" | awk '
+    {
+      if (match($0, /\(reviewer: [^)]+\)/)) {
+        s = substr($0, RSTART + 11, RLENGTH - 12)
+        if (index(s, "=") > 0) {
+          rank["haiku"]  = 1
+          rank["sonnet"] = 2
+          rank["opus"]   = 3
+          best = ""
+          best_r = 0
+          n = split(s, parts, /, */)
+          for (i = 1; i <= n; i++) {
+            sub(/^[a-zA-Z]+=/, "", parts[i])
+            gsub(/^ +| +$/, "", parts[i])
+            r = (parts[i] in rank) ? rank[parts[i]] : 0
+            if (r > best_r) { best_r = r; best = parts[i] }
+          }
+          if (best_r > 0) print best
+          else if (n > 0) { sub(/^[a-zA-Z]+=/, "", parts[1]); print parts[1] }
+          else print s
+        } else {
+          gsub(/^ +| +$/, "", s)
+          print s
+        }
+      }
+    }
+  '
+}
 
 TASK_ID="${1:?task-id required}"
 PLAN_DIR="${2:?plan-dir required}"
@@ -235,17 +275,18 @@ for F in "${EXPECTED_FILES[@]}"; do
           combined) LABEL="Combined review" ;;
           batch)    LABEL="Batch review" ;;
         esac
-        LINE=$(printf '%s\n' "$TASK_BLOCK" | grep -E "^- \[[ x]\] $LABEL \(reviewer: [a-zA-Z0-9_-]+\)" | head -1 || true)
-        EXPECTED_MODEL=$(printf '%s' "$LINE" | sed -n 's/.*(reviewer: \([a-zA-Z0-9_-]*\)).*/\1/p')
+        # `[^)]+` matches both single (`sonnet`) and dual (`spec=haiku, code=sonnet`) forms.
+        LINE=$(printf '%s\n' "$TASK_BLOCK" | grep -E "^- \[[ x]\] $LABEL \(reviewer: [^)]+\)" | head -1 || true)
+        EXPECTED_MODEL=$(extract_reviewer_model "$LINE")
         ;;
       phase)
         # task-id is the phase number for phase reviews.
-        LINE=$(grep -E "^### Phase $TASK_ID Gate \(reviewer: [a-zA-Z0-9_-]+\)" "$CHECKLIST" | head -1 || true)
-        EXPECTED_MODEL=$(printf '%s' "$LINE" | sed -n 's/.*(reviewer: \([a-zA-Z0-9_-]*\)).*/\1/p')
+        LINE=$(grep -E "^### Phase $TASK_ID Gate \(reviewer: [^)]+\)" "$CHECKLIST" | head -1 || true)
+        EXPECTED_MODEL=$(extract_reviewer_model "$LINE")
         ;;
       final)
-        LINE=$(grep -E "Final Gate.*\(reviewer: [a-zA-Z0-9_-]+\)" "$CHECKLIST" | head -1 || true)
-        EXPECTED_MODEL=$(printf '%s' "$LINE" | sed -n 's/.*(reviewer: \([a-zA-Z0-9_-]*\)).*/\1/p')
+        LINE=$(grep -E "Final Gate.*\(reviewer: [^)]+\)" "$CHECKLIST" | head -1 || true)
+        EXPECTED_MODEL=$(extract_reviewer_model "$LINE")
         ;;
     esac
 

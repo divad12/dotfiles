@@ -70,7 +70,51 @@ REVIEW_PATH="$REVIEWS_DIR/$REVIEW_FILE"
 # the checklist says, with no fallback to the task's implementer model - if
 # the reviewer model is missing we HALT, because that's a checklist defect
 # preflight should have caught.
+#
+# Supported annotation forms (both accepted; output is always a single model):
+#   (reviewer: sonnet)                          -> "sonnet"
+#   (reviewer: spec=haiku, code=sonnet)         -> "sonnet"   (max by rank)
+#   (reviewer: spec=opus,  code=sonnet)         -> "opus"     (max by rank)
+#
+# /preflight currently emits the dual `spec=X, code=Y` form for combined-review
+# tasks; we collapse it here by picking the higher-capability model so a single
+# combined reviewer can cover both lenses. Rank: haiku < sonnet < opus. Unknown
+# model names get rank 0 and are passed through verbatim only if no ranked
+# model is present.
 # ----------------------------------------------------------------------------
+
+# Extract the model name from a `(reviewer: ...)` annotation in $1.
+# Handles both single (`sonnet`) and dual (`spec=haiku, code=sonnet`) forms.
+# Stdin is unused; output is the resolved model name (single token).
+extract_reviewer_model() {
+  printf '%s' "$1" | awk '
+    {
+      if (match($0, /\(reviewer: [^)]+\)/)) {
+        s = substr($0, RSTART + 11, RLENGTH - 12)
+        if (index(s, "=") > 0) {
+          rank["haiku"]  = 1
+          rank["sonnet"] = 2
+          rank["opus"]   = 3
+          best = ""
+          best_r = 0
+          n = split(s, parts, /, */)
+          for (i = 1; i <= n; i++) {
+            sub(/^[a-zA-Z]+=/, "", parts[i])
+            gsub(/^ +| +$/, "", parts[i])
+            r = (parts[i] in rank) ? rank[parts[i]] : 0
+            if (r > best_r) { best_r = r; best = parts[i] }
+          }
+          if (best_r > 0) print best
+          else if (n > 0) { sub(/^[a-zA-Z]+=/, "", parts[1]); print parts[1] }
+          else print s
+        } else {
+          gsub(/^ +| +$/, "", s)
+          print s
+        }
+      }
+    }
+  '
+}
 
 case "$REVIEW_TYPE" in
   spec|code|combined|batch)
@@ -99,29 +143,31 @@ case "$REVIEW_TYPE" in
       batch)    LABEL="Batch review" ;;
     esac
 
-    # Match e.g. `- [ ] Spec review (reviewer: haiku) - Outcome: ...`
+    # Match e.g. `- [ ] Spec review (reviewer: haiku) - Outcome: ...` (single form)
+    # or         `- [ ] Combined review (reviewer: spec=haiku, code=sonnet) - Outcome: ...` (dual form)
+    # `[^)]+` keeps the regex tight to the parens content while accepting both forms.
     # Tolerate `- [x]` already ticked.
-    LINE=$(printf '%s\n' "$TASK_BLOCK" | grep -E "^- \[[ x]\] $LABEL \(reviewer: [a-zA-Z0-9_-]+\)" | head -1 || true)
+    LINE=$(printf '%s\n' "$TASK_BLOCK" | grep -E "^- \[[ x]\] $LABEL \(reviewer: [^)]+\)" | head -1 || true)
     [ -n "$LINE" ] || { echo "ERROR: reviewer line '$LABEL (reviewer: ...)' not found in task $TASK_ID block" >&2; exit 1; }
 
-    MODEL=$(printf '%s' "$LINE" | sed -n 's/.*(reviewer: \([a-zA-Z0-9_-]*\)).*/\1/p')
+    MODEL=$(extract_reviewer_model "$LINE")
     ;;
   phase)
-    # `### Phase N Gate (reviewer: <model>)`
-    LINE=$(grep -E "^### Phase $TASK_ID Gate \(reviewer: [a-zA-Z0-9_-]+\)" "$CHECKLIST" | head -1 || true)
+    # `### Phase N Gate (reviewer: <model>)` (single or dual form)
+    LINE=$(grep -E "^### Phase $TASK_ID Gate \(reviewer: [^)]+\)" "$CHECKLIST" | head -1 || true)
     [ -n "$LINE" ] || { echo "ERROR: '### Phase $TASK_ID Gate (reviewer: ...)' header not found in $CHECKLIST" >&2; exit 1; }
-    MODEL=$(printf '%s' "$LINE" | sed -n 's/.*(reviewer: \([a-zA-Z0-9_-]*\)).*/\1/p')
+    MODEL=$(extract_reviewer_model "$LINE")
     ;;
   final)
     # `## Final Gate: /deep-review over <scope>` followed somewhere by the
     # Outcome line; or a `(reviewer: <model>)` annotation in the same section.
     # Try a few patterns.
-    LINE=$(grep -E "Final Gate.*\(reviewer: [a-zA-Z0-9_-]+\)" "$CHECKLIST" | head -1 || true)
+    LINE=$(grep -E "Final Gate.*\(reviewer: [^)]+\)" "$CHECKLIST" | head -1 || true)
     if [ -z "$LINE" ]; then
       LINE=$(grep -E "## Final Gate" "$CHECKLIST" | head -1 || true)
     fi
     [ -n "$LINE" ] || { echo "ERROR: Final Gate section not found in $CHECKLIST" >&2; exit 1; }
-    MODEL=$(printf '%s' "$LINE" | sed -n 's/.*(reviewer: \([a-zA-Z0-9_-]*\)).*/\1/p')
+    MODEL=$(extract_reviewer_model "$LINE")
     [ -n "$MODEL" ] || { echo "ERROR: Final Gate found but no '(reviewer: <model>)' annotation; edit checklist." >&2; exit 1; }
     ;;
 esac
