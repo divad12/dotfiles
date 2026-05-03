@@ -24,7 +24,30 @@ for f in .env .env.local .env.production.local; do
 done
 
 # 3. Symlink node_modules from main repo.
-[ -e node_modules ] || ln -s "$MAIN_REPO/node_modules" ./node_modules
+#
+# Two ways this can go wrong with absolute paths:
+#   1. $MAIN_REPO came from `git worktree list` which canonicalises paths;
+#      if the script was invoked through a Dropbox symlink chain (Dropbox ->
+#      Dropbox (Personal)), the resulting link target may be `/Users/x/
+#      Dropbox/node_modules` which doesn't actually exist directly.
+#   2. Renaming the parent dir later breaks the absolute target.
+#
+# Use a relative target instead: this worktree is always at
+# <main>/.claude/worktrees/<name>, so ../../../node_modules from here always
+# points at the main repo's node_modules. Survives renames and Dropbox
+# canonicalisation quirks.
+#
+# `-e` follows symlinks, so a previous broken symlink (target doesn't exist)
+# returns false and we recreate it. `-L` would treat a broken symlink as
+# present and skip the fix, which is what bit this script in the past.
+if [ ! -e node_modules ]; then
+  rm -f node_modules  # clear any stale broken symlink
+  ln -s ../../../node_modules ./node_modules
+  if [ ! -e node_modules ]; then
+    echo "warning: node_modules symlink target does not resolve. Worktree may not be at <main>/.claude/worktrees/<name>." >&2
+    rm -f node_modules
+  fi
+fi
 
 # 4. Pick a random unused port in 3001-9999 (3000 reserved for main repo).
 # lsof check is enough at session start - HMR-induced false negatives only
