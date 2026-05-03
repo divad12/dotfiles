@@ -1,0 +1,323 @@
+#!/usr/bin/env python3
+"""
+Cheap AI coworker for bulk reading, summarization, and boilerplate.
+Called by Claude Code / Codex / any AI agent to offload token-heavy grunt work.
+
+Usage:
+    ask-intern "summarize this codebase's auth flow"
+    ask-intern -f src/main.py -f src/utils.py "what do these modules do?"
+    ask-intern -t tests/test_user.py -f src/user.py "write pytest tests"
+    ask-intern --stats                # show usage dashboard
+    ask-intern -v "debug this"        # verbose: show full request/response
+
+Env vars:
+    OPENROUTER_API_KEY      - required
+    INTERN_MODEL            - default: deepseek/deepseek-v4-flash
+    INTERN_MAX_TOKENS       - default: 8192 (read mode)
+    INTERN_MAX_TOKENS_WRITE - default: 16384 (write-to-file mode)
+"""
+
+import sys
+import os
+import json
+import argparse
+import time
+import re
+import shlex
+from urllib.request import Request, urlopen
+from urllib.error import HTTPError
+
+API_URL = "https://openrouter.ai/api/v1/chat/completions"
+CONFIG_FILE = os.path.expanduser(os.environ.get("INTERN_ENV_FILE", "~/.config/ask-intern/env"))
+ENV_NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
+
+
+def load_env_file(path):
+    """Load simple KEY=value exports without executing shell code."""
+    try:
+        with open(path) as f:
+            lines = f.readlines()
+    except FileNotFoundError:
+        return
+    except OSError:
+        return
+
+    for line in lines:
+        try:
+            parts = shlex.split(line, comments=True, posix=True)
+        except ValueError:
+            continue
+        if not parts:
+            continue
+        if parts[0] == "export":
+            parts = parts[1:]
+        for part in parts:
+            if "=" not in part:
+                continue
+            key, value = part.split("=", 1)
+            if ENV_NAME.fullmatch(key) and key not in os.environ:
+                os.environ[key] = value
+
+
+load_env_file(CONFIG_FILE)
+DEFAULT_MODEL = os.environ.get("INTERN_MODEL", "deepseek/deepseek-v4-flash")
+MAX_TOKENS_READ = int(os.environ.get("INTERN_MAX_TOKENS", "8192"))
+MAX_TOKENS_WRITE = int(os.environ.get("INTERN_MAX_TOKENS_WRITE", "16384"))
+STATS_FILE = os.path.expanduser("~/.config/ask-intern/stats.tsv")
+
+# Pricing per million tokens (input, output)
+MODEL_PRICING = {
+    "deepseek/deepseek-v4-flash": (0.14, 0.28),
+    "deepseek/deepseek-v4-pro": (0.435, 0.87),
+    "deepseek/deepseek-chat-v3.1": (0.15, 0.75),
+    "deepseek/deepseek-chat-v3-0324": (0.20, 0.77),
+    "google/gemini-2.5-flash": (0.15, 0.60),
+}
+OPUS_PRICING = (15.0, 75.0)
+
+
+def fatal(msg):
+    print(f"ask-intern: {msg}", file=sys.stderr)
+    sys.exit(1)
+
+
+def print_stats():
+    if not os.path.exists(STATS_FILE):
+        print("No usage data yet.")
+        return
+
+    from datetime import datetime, timezone, timedelta
+
+    now = datetime.now(timezone.utc)
+    today = now.strftime("%Y-%m-%d")
+    week_ago = (now - timedelta(days=7)).strftime("%Y-%m-%d")
+
+    total_calls = 0
+    total_in = 0
+    total_out = 0
+    total_cost = 0.0
+    total_opus = 0.0
+    total_secs = 0.0
+
+    week_calls = 0
+    week_cost = 0.0
+    week_opus = 0.0
+
+    today_calls = 0
+    today_cost = 0.0
+    today_opus = 0.0
+
+    with open(STATS_FILE) as f:
+        next(f)  # skip header
+        for line in f:
+            parts = line.strip().split("\t")
+            if len(parts) < 6:
+                continue
+            total_calls += 1
+            total_in += int(parts[2])
+            total_out += int(parts[3])
+            total_cost += float(parts[4])
+            total_opus += float(parts[5])
+            if len(parts) >= 7:
+                total_secs += float(parts[6])
+
+            ts_date = parts[0][:10]
+            if ts_date >= week_ago:
+                week_calls += 1
+                week_cost += float(parts[4])
+                week_opus += float(parts[5])
+            if ts_date == today:
+                today_calls += 1
+                today_cost += float(parts[4])
+                today_opus += float(parts[5])
+
+    saved = total_opus - total_cost
+    pct = f"{saved/total_opus*100:.0f}%" if total_opus > 0 else "n/a"
+
+    print(f"{'─' * 45}")
+    print(f"  ask-intern usage stats")
+    print(f"{'─' * 45}")
+    print(f"  All time:   {total_calls} calls | ${total_cost:.4f} spent | ${saved:.4f} saved ({pct})")
+    print(f"  This week:  {week_calls} calls | ${week_cost:.4f} spent | ${week_opus - week_cost:.4f} saved")
+    print(f"  Today:      {today_calls} calls | ${today_cost:.4f} spent | ${today_opus - today_cost:.4f} saved")
+    print(f"{'─' * 45}")
+    print(f"  Tokens:     {total_in:,} in / {total_out:,} out")
+    if total_calls > 0 and total_secs > 0:
+        print(f"  Avg latency:{total_secs/total_calls:.1f}s")
+    print(f"  Opus equiv: ${total_opus:.4f}")
+    print(f"{'─' * 45}")
+
+
+def log_usage(model, in_tok, out_tok, elapsed):
+    from datetime import datetime, timezone
+
+    pricing = MODEL_PRICING.get(model, (0.50, 1.00))
+    cost = (in_tok * pricing[0] + out_tok * pricing[1]) / 1_000_000
+    opus_cost = (in_tok * OPUS_PRICING[0] + out_tok * OPUS_PRICING[1]) / 1_000_000
+
+    row = "\t".join([
+        datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+        model,
+        str(in_tok),
+        str(out_tok),
+        f"{cost:.6f}",
+        f"{opus_cost:.6f}",
+        f"{elapsed:.2f}",
+    ])
+
+    try:
+        is_new = not os.path.exists(STATS_FILE)
+        stats_dir = os.path.dirname(STATS_FILE)
+        if stats_dir:
+            os.makedirs(stats_dir, exist_ok=True)
+        with open(STATS_FILE, "a") as f:
+            if is_new:
+                f.write("timestamp\tmodel\tin_tokens\tout_tokens\tcost_usd\topus_equivalent_usd\tlatency_s\n")
+            f.write(row + "\n")
+    except OSError:
+        pass
+
+
+def main():
+    parser = argparse.ArgumentParser(
+        description="Ask a cheap model to do grunt work.",
+        usage="ask-intern [-f FILE ...] [-t TARGET] [-v] [PROMPT]",
+    )
+    parser.add_argument("prompt", nargs="*", help="The prompt/question")
+    parser.add_argument("-f", "--file", action="append", default=[], help="Files to include as context")
+    parser.add_argument("-t", "--target", default=None, help="Write output directly to this file path")
+    parser.add_argument("-m", "--model", default=DEFAULT_MODEL, help="Model ID override")
+    parser.add_argument("-s", "--system", default=None, help="System prompt override")
+    parser.add_argument("-v", "--verbose", action="store_true", help="Print full request/response to stderr")
+    parser.add_argument("--stats", action="store_true", help="Print usage stats and exit")
+    args = parser.parse_args()
+
+    if args.stats:
+        print_stats()
+        return
+
+    load_env_file(CONFIG_FILE)
+    api_key = os.environ.get("OPENROUTER_API_KEY")
+    if not api_key:
+        fatal("OPENROUTER_API_KEY not set. Get one at https://openrouter.ai/keys")
+
+    # Build context from files
+    context_parts = []
+    for fpath in args.file:
+        try:
+            with open(fpath) as f:
+                content = f.read()
+            context_parts.append(f"<file path=\"{fpath}\">\n{content}\n</file>")
+        except (IOError, OSError) as e:
+            fatal(f"Cannot read {fpath}: {e}")
+
+    # Read stdin if piped
+    if not sys.stdin.isatty():
+        stdin_content = sys.stdin.read()
+        if stdin_content.strip():
+            context_parts.append(f"<stdin>\n{stdin_content}\n</stdin>")
+
+    prompt = " ".join(args.prompt) if args.prompt else ""
+
+    if not prompt and not context_parts:
+        fatal("Nothing to do. Provide a prompt, files (-f), or pipe input.")
+
+    if not prompt:
+        prompt = "Analyze and summarize the provided content."
+
+    # Mode-specific system prompts and token limits
+    if args.target:
+        default_system = (
+            "You are a code generator. Output ONLY the file content — no markdown fences, "
+            "no explanation, no preamble. The output will be written directly to a file."
+        )
+        max_tokens = MAX_TOKENS_WRITE
+    else:
+        default_system = (
+            "You are a precise code analyst. Answer directly without preamble. "
+            "Focus on what code does, key design decisions, and non-obvious relationships. "
+            "Be specific — cite function names and data flows."
+        )
+        max_tokens = MAX_TOKENS_READ
+
+    system_msg = args.system or default_system
+
+    # Split corpus and question into separate messages for prefix caching.
+    # OpenRouter/DeepSeek cache the prefix of the message array — putting the
+    # stable file content first means repeated queries on the same files hit cache.
+    messages = [{"role": "system", "content": system_msg}]
+    if context_parts:
+        messages.append({"role": "user", "content": "\n\n".join(context_parts)})
+        messages.append({"role": "user", "content": prompt})
+    else:
+        messages.append({"role": "user", "content": prompt})
+
+    payload = {
+        "model": args.model,
+        "max_tokens": max_tokens,
+        "messages": messages,
+    }
+
+    if args.verbose:
+        print(f"[verbose] POST {API_URL}", file=sys.stderr)
+        print(f"[verbose] model={args.model} max_tokens={max_tokens}", file=sys.stderr)
+        print(f"[verbose] messages ({len(messages)}):", file=sys.stderr)
+        for i, m in enumerate(messages):
+            content_preview = m["content"][:200] + ("..." if len(m["content"]) > 200 else "")
+            print(f"[verbose]   [{i}] {m['role']}: {content_preview}", file=sys.stderr)
+
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json",
+        "HTTP-Referer": "https://github.com/davidhu/dotfiles",
+        "X-OpenRouter-Title": "ask-intern",
+    }
+
+    req = Request(API_URL, data=json.dumps(payload).encode(), headers=headers)
+
+    t0 = time.time()
+    try:
+        with urlopen(req, timeout=120) as resp:
+            data = json.loads(resp.read().decode())
+    except HTTPError as e:
+        body = e.read().decode() if e.fp else ""
+        fatal(f"API error {e.code}: {body[:500]}")
+    except Exception as e:
+        fatal(f"Request failed: {e}")
+    elapsed = time.time() - t0
+
+    if args.verbose:
+        print(f"[verbose] response ({elapsed:.2f}s):", file=sys.stderr)
+        print(f"[verbose] {json.dumps(data, indent=2)[:2000]}", file=sys.stderr)
+
+    # Extract response
+    try:
+        content = data["choices"][0]["message"]["content"]
+    except (KeyError, IndexError):
+        fatal(f"Unexpected response: {json.dumps(data)[:500]}")
+
+    if not content:
+        fatal("Empty response — model may have exhausted token budget on internal reasoning. "
+              "Try increasing INTERN_MAX_TOKENS or use a non-reasoning model.")
+
+    # Write to target file or stdout
+    if args.target:
+        target_dir = os.path.dirname(args.target)
+        if target_dir:
+            os.makedirs(target_dir, exist_ok=True)
+        with open(args.target, "w") as f:
+            f.write(content)
+        print(f"Wrote {len(content)} bytes to {args.target}", file=sys.stderr)
+    else:
+        print(content)
+
+    # Log usage stats
+    usage = data.get("usage", {})
+    in_tok = usage.get("prompt_tokens", 0)
+    out_tok = usage.get("completion_tokens", 0)
+    log_usage(args.model, in_tok, out_tok, elapsed)
+    print(f"[intern: {args.model} | {in_tok}in/{out_tok}out | {elapsed:.1f}s]", file=sys.stderr)
+
+
+if __name__ == "__main__":
+    main()

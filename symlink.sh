@@ -5,20 +5,24 @@
 dir=`pwd`
 
 
+link_path() {
+    source="$1"
+    dest="$2"
+    if [ -e "$dest" ] && [ ! -L "$dest" ]; then
+        mv "$dest" "$dest".orig
+    fi
+    ln -sfvn "$source" "$dest"
+}
+
 for file in .* bin; do
-    # ~/.claude is a real dir managed by Claude Code (sessions, plugins,
-    # projects). Wholesale-symlinking it to dotfiles would either nuke that
-    # data or pollute the dotfiles repo with Claude's runtime state. So we
-    # skip it here and handle individual files in the .claude/ section below.
-    if [[ "$file" == ".git" || "$file" == "." || "$file" == ".." || "$file" == ".claude" ]]; then
+    # Agent state dirs are owned by their apps (sessions, plugins, projects,
+    # observations). Keep them real and mirror only shared config below.
+    if [[ "$file" == ".git" || "$file" == "." || "$file" == ".." || "$file" == ".claude" || "$file" == ".agents" || "$file" == ".codex" ]]; then
         continue
     fi
     source="$dir/$file"
     dest="$HOME/$file"
-    if [ -e "$dest" ]; then
-        mv "$dest" "$dest".orig
-    fi
-    ln -sfvn "$source" "$dest"
+    link_path "$source" "$dest"
 done
 
 # .claude/ - per-file symlinks into ~/.claude/. Claude Code owns ~/.claude
@@ -32,12 +36,22 @@ if [ -d "$dir/.claude" ]; then
         # Skip directories - we only want top-level config files here.
         [ -f "$f" ] || continue
         dest="$HOME/.claude/$(basename "$f")"
-        if [ -e "$dest" ] && [ ! -L "$dest" ]; then
-            mv "$dest" "$dest".orig
-        fi
-        ln -sfvn "$f" "$dest"
+        link_path "$f" "$dest"
     done
 fi
+
+# .agents/ - shared agent assets plus local runtime state. Observations and
+# backups stay in ~/.agents; only global instructions and skills are mirrored.
+if [ -d "$dir/.agents" ]; then
+    mkdir -p "$HOME/.agents"
+    link_path "$dir/.claude/AGENTS.md" "$HOME/.agents/AGENTS.md"
+    link_path "$dir/.agents/skills" "$HOME/.agents/skills"
+fi
+
+# .codex/ - Codex owns this directory. Mirror the shared global instructions
+# so Codex loads the same token-delegation and adaptive-docs contracts.
+mkdir -p "$HOME/.codex"
+link_path "$dir/.claude/AGENTS.md" "$HOME/.codex/AGENTS.md"
 
 # macOS LaunchAgents - symlink each plist individually since ~/Library
 # is a system dir we can't replace wholesale. After symlinking, (re)load
@@ -48,10 +62,7 @@ if [ -d "$dir/Library/LaunchAgents" ]; then
     for plist in "$dir"/Library/LaunchAgents/*.plist; do
         [ -e "$plist" ] || continue
         dest="$HOME/Library/LaunchAgents/$(basename "$plist")"
-        if [ -e "$dest" ] && [ ! -L "$dest" ]; then
-            mv "$dest" "$dest".orig
-        fi
-        ln -sfvn "$plist" "$dest"
+        link_path "$plist" "$dest"
         if command -v launchctl >/dev/null 2>&1; then
             launchctl unload "$dest" 2>/dev/null || true
             launchctl load "$dest"

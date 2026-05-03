@@ -2,6 +2,43 @@
 
 Universal rules for AI coding agents. `CLAUDE.md` symlinks here.
 
+## Token Delegation
+
+Use `ask-intern` to offload high-token/low-reasoning work to a cheap model (~$0.002/call). This preserves Pro limits for actual reasoning.
+
+### When to delegate
+
+- Reading files >400 lines, or when you'd read 3+ files for context
+- Boilerplate: tests, config, docstrings, repetitive patterns
+- Summarizing diffs, logs, or documentation
+- Generating fixtures, sample data, format conversions
+
+### When NOT to delegate
+
+- Tasks under ~2000 tokens total (overhead isn't worth it)
+- Architecture decisions, debugging, safety-critical code
+- Anything requiring conversation context or careful reasoning
+- When exact line numbers are needed for editing
+
+### Usage
+
+```bash
+# Bulk reading (returns summary — use instead of reading files yourself)
+ask-intern -f src/models.py -f src/api.py "how does auth work?"
+
+# Write-to-file mode (output goes directly to disk, never enters your context)
+ask-intern -t tests/test_user.py -f src/user.py "write pytest tests for all public methods"
+ask-intern -t src/types.ts -f schema.prisma "generate TypeScript interfaces for each model"
+
+# Piped input
+git diff HEAD~5 | ask-intern "summarize these changes"
+
+# Usage dashboard
+ask-intern --stats
+```
+
+Full reference for maintenance/troubleshooting only: `docs/ai/ask-intern.md`. Do not load it just to decide whether to delegate.
+
 ## Before Work
 
 - Read root `PROGRESS.md` at session start.
@@ -14,6 +51,7 @@ Universal rules for AI coding agents. `CLAUDE.md` symlinks here.
   |---|---|
   | Git operations, committing, rebasing, merging | git.md |
   | Editing AGENTS.md, .agents/skills/, docs/ai/ | writing-docs.md |
+  | Maintaining or troubleshooting ask-intern | ask-intern.md |
 - Re-read the hard rules before implementation.
 
 ## Session Tools

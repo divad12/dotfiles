@@ -1,11 +1,14 @@
 This directory is the repo-local entrypoint for agent-agnostic assets.
 
 Current setup:
-- `skills` is a symlink to `../.claude/skills`
+- `.agents/skills` is the shared skill directory.
+- `.claude/skills` symlinks to `.agents/skills`.
+- `~/.agents/AGENTS.md` and `~/.codex/AGENTS.md` symlink to `.claude/AGENTS.md`.
 
 Why this shape:
-- `.claude` remains the source of truth for existing skills.
-- `.agents` stays available for cross-agent files that should not be mixed with Claude-specific config such as `commands`, `settings.json`, or `CLAUDE.md`.
+- `.claude/AGENTS.md` remains the source of truth for always-loaded global instructions.
+- `.agents` holds cross-agent assets without mixing in Claude-specific config such as `commands`, `settings.json`, or `CLAUDE.md`.
+- `~/.agents` and `~/.codex` remain real runtime directories; `symlink.sh` mirrors only shared config files into them.
 
 Compatibility note:
 - Some skills under `skills/` may still reference Claude-specific concepts or tools.
