@@ -47,6 +47,10 @@ For each scenario:
 - Use browser_take_screenshot for visual issues
 - Report: PASS (works as expected), FAIL (broken), or CONCERN (works but feels wrong)
 
+Triage calibration:
+- Classify as FAIL: interaction timing issues — optimistic updates that don't reflect immediately, visible flicker, stale data after a mutation, revert-then-correct behaviour. These break user trust in saved work even when the final state is eventually correct.
+- Classify as CONCERN: UI orientation aids (legends, markers, affordances) that don't block task completion, unless they cause real user confusion.
+
 After testing, produce a structured report:
 
 ## QA Report
