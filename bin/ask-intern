@@ -134,17 +134,22 @@ def print_stats():
     saved = total_opus - total_cost
     pct = f"{saved/total_opus*100:.0f}%" if total_opus > 0 else "n/a"
 
+    def fmt_cost(v):
+        if v < 0.01:
+            return f"${v:.6f}"
+        return f"${v:.4f}"
+
     print(f"{'─' * 45}")
     print(f"  ask-intern usage stats")
     print(f"{'─' * 45}")
-    print(f"  All time:   {total_calls} calls | ${total_cost:.4f} spent | ${saved:.4f} saved ({pct})")
-    print(f"  This week:  {week_calls} calls | ${week_cost:.4f} spent | ${week_opus - week_cost:.4f} saved")
-    print(f"  Today:      {today_calls} calls | ${today_cost:.4f} spent | ${today_opus - today_cost:.4f} saved")
+    print(f"  All time:   {total_calls} calls | {fmt_cost(total_cost)} spent | {fmt_cost(saved)} saved ({pct})")
+    print(f"  This week:  {week_calls} calls | {fmt_cost(week_cost)} spent | {fmt_cost(week_opus - week_cost)} saved")
+    print(f"  Today:      {today_calls} calls | {fmt_cost(today_cost)} spent | {fmt_cost(today_opus - today_cost)} saved")
     print(f"{'─' * 45}")
     print(f"  Tokens:     {total_in:,} in / {total_out:,} out")
     if total_calls > 0 and total_secs > 0:
         print(f"  Avg latency:{total_secs/total_calls:.1f}s")
-    print(f"  Opus equiv: ${total_opus:.4f}")
+    print(f"  Opus equiv: {fmt_cost(total_opus)}")
     print(f"{'─' * 45}")
 
 
