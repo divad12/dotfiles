@@ -52,18 +52,24 @@ Path to plan file. Works on any markdown plan with task and phase sections, in a
 
 Each plan gets its own dedicated subfolder created next to the plan file. The plan moves into it, and all preflight + fly artifacts (checklist, per-session splits, reviews/, deferred.md) live there too.
 
-**Slug derivation:** subfolder name = plan basename minus `.md` and minus a trailing `-plan`, `-implementation-plan`, or `-design` suffix if present. Examples:
+**Slug derivation:** the folder outlives the plan and must describe the feature, not just say "implementation." Resolve in order:
 
-| Plan path | Feature folder |
+1. **Sibling design wins.** If a sibling `*.md` (any name, same prefix preferred) is more descriptive than the plan's stripped slug, use the sibling's basename. Example: `06-implementation-plan.md` next to `06-wizard-validation.md` → `06-wizard-validation/`.
+2. **Else strip the plan name.** Drop `.md` and a trailing `-plan` / `-implementation-plan` / `-design`.
+3. **Generic-slug check + auto-derive.** Split the slug by `-`. If every non-numeric, non-date part is on the stoplist (`implementation`, `impl`, `feature`, `feat`, `work`, `task`, `tasks`, `chunk`, `step`, `phase`, `plan`, `spec`, `design`, `notes`, `tmp`, `temp`, `wip`, `new`), auto-derive a descriptive slug from the plan's H1 title (or Goal line if H1 is also generic): lowercase, strip stopwords, join 2-3 most-specific kebab-case nouns. Preserve the numeric/date prefix. Tell the user one line: `Plan slug "<original>" was generic; derived "<new>" from plan H1.` Don't prompt.
+
+**Idempotency:** if the plan is already `plan.md` / `plan-N.md` in a folder, treat that folder as the feature folder; skip relocation and slug check.
+
+**Sibling design relocation:** when relocating the plan, also move a sibling design file into the new folder as `design.md` (default yes, ask if ambiguous), and rewrite any references to its old path inside `plan.md`.
+
+Examples:
+
+| Plan path | Result |
 |---|---|
-| `docs/specs/m3/05-implementation-plan.md` | `docs/specs/m3/05-implementation/` |
-| `docs/specs/m3/07-universal-clues-plan.md` | `docs/specs/m3/07-universal-clues/` |
-| `docs/specs/2026-04-18-whatsapp-connector.md` | `docs/specs/2026-04-18-whatsapp-connector/` (no suffix to strip) |
-| `docs/specs/m3/05-implementation/plan.md` | `docs/specs/m3/05-implementation/` (already a feature folder, no relocation) |
-
-**Idempotency check:** if the plan file is already named `plan.md` (or `plan-N.md`) and lives in a folder that contains it as the only `*.md` named that way, treat the parent dir as the feature folder and skip relocation. Otherwise, create the subfolder and move the plan into it as `plan.md`.
-
-**Sibling design file:** if a sibling `<same-stripped-prefix>-design.md` exists next to the plan (e.g., `05-implementation-design.md` next to `05-implementation-plan.md`), move it into the feature folder as `design.md`.
+| `06-implementation-plan.md` (sibling: `06-wizard-validation.md`) | `06-wizard-validation/` (sibling wins) |
+| `07-universal-clues-plan.md` | `07-universal-clues/` |
+| `05-implementation-plan.md` (no sibling, H1: "Venue Cache Warming") | `05-venue-cache-warming/` (auto-derived from H1) |
+| `05-implementation/plan.md` | `05-implementation/` (in-folder; idempotent) |
 
 Typical contents after preflight + fly:
 
