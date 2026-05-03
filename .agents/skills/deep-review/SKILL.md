@@ -30,15 +30,21 @@ After all reviews complete, findings are consolidated, deduplicated, and categor
 Figure out what to review based on the current state:
 
 ```bash
-# Check for uncommitted changes
+# Check for uncommitted changes (tracked) and untracked new files
 UNCOMMITTED=$(git status --porcelain | wc -l | tr -d ' ')
+UNTRACKED=$(git ls-files --others --exclude-standard)
 
-# Check how many commits ahead of local main
-AHEAD=$(git log main..HEAD --oneline 2>/dev/null | wc -l | tr -d ' ')
+# Detect base branch from project docs; fall back to main
+BASE_BRANCH=$(grep -hE '(target|base|integration) branch' PROGRESS.md AGENTS.md .claude/AGENTS.md 2>/dev/null \
+  | grep -oE '`[a-zA-Z0-9_/-]+`' | head -1 | tr -d '`')
+BASE_BRANCH=${BASE_BRANCH:-main}
+
+# Check how many commits ahead of base branch
+AHEAD=$(git log ${BASE_BRANCH}..HEAD --oneline 2>/dev/null | wc -l | tr -d ' ')
 ```
 
-- If there are uncommitted changes, review those (the common case during development).
-- If working tree is clean but the branch has commits ahead of local main, review the branch diff against main.
+- If there are uncommitted changes, review those (the common case during development). Include any untracked files from `$UNTRACKED` — new files that are not yet staged are part of the uncommitted change set and must be reviewed.
+- If working tree is clean but the branch has commits ahead of `$BASE_BRANCH`, review the branch diff against `$BASE_BRANCH`. State the detected base branch in the review summary; if it differs from `main`, make the choice visible.
 - If neither, tell the user there's nothing to review.
 
 Also check whether frontend files are in the diff (`.tsx`, `.jsx`, `.css`, `.scss`, component files, layout files). This determines whether the UI review runs.
@@ -71,7 +77,7 @@ Analyze the diff yourself. Focus on:
 - **Conventions** - naming, file structure, patterns established in CLAUDE.md
 - **Data integrity** - schema alignment, missing validations, cascade issues
 
-Use `git diff` (for uncommitted) or `git diff main...HEAD` (for branch) to read the actual changes.
+Use `git diff` (for uncommitted) or `git diff ${BASE_BRANCH}...HEAD` (for branch) to read the actual changes.
 
 #### Review 1.5: Rule compliance audit (run inline, CRITICAL)
 
@@ -83,15 +89,15 @@ Use `git diff` (for uncommitted) or `git diff main...HEAD` (for branch) to read 
 
 ```bash
 # Hardcoded values that should come from config or data
-git diff main...HEAD -- ':!*.test.*' | grep -n '= ""' | grep -v 'class\|placeholder\|useState'
-git diff main...HEAD -- ':!*.test.*' | grep -n 'fetch(' | grep -v 'test\|spec\|mock'
+git diff ${BASE_BRANCH}...HEAD -- ':!*.test.*' | grep -n '= ""' | grep -v 'class\|placeholder\|useState'
+git diff ${BASE_BRANCH}...HEAD -- ':!*.test.*' | grep -n 'fetch(' | grep -v 'test\|spec\|mock'
 
 # Duplication - new files that mirror existing ones
-git diff main...HEAD --name-only --diff-filter=A  # newly added files
+git diff ${BASE_BRANCH}...HEAD --name-only --diff-filter=A  # newly added files
 # For each new file: does an existing file already handle this?
 
 # Data fields added to types but not wired through the full chain
-git diff main...HEAD | grep -A2 'interface\|type.*='  # new fields in types
+git diff ${BASE_BRANCH}...HEAD | grep -A2 'interface\|type.*='  # new fields in types
 # For each new field: is it in the DB select? In all callers?
 ```
 
@@ -108,6 +114,8 @@ Rule violations found here are **Must Fix**, not suggestions. They represent the
 Invoke the `/simplify` skill via the Skill tool. It has its own tuned logic for finding code reuse, unnecessary complexity, dead code, efficiency issues, and API surface bloat. Do NOT replicate its logic inline - the skill is better at it.
 
 The skill operates on recently changed code by default, which matches the deep-review scope.
+
+If `/simplify` is unavailable, run a manual simplify pass inline instead: look for code reuse opportunities, unnecessary complexity, dead code, and efficiency issues. Note in the summary that the dedicated skill was unavailable and this pass was run manually.
 
 ### 2.5. Detect the invoking agent
 
@@ -132,7 +140,7 @@ Launch Codex in the background while you do reviews 1 and 2:
 codex review --uncommitted
 
 # For branch changes:
-codex review --base main
+codex review --base ${BASE_BRANCH}
 ```
 
 **Important: `--base` takes a BRANCH name, NOT a SHA.** If your scope is a SHA range (e.g. `<phase-base>^..<phase-head>` from /fly's phase-gate deep-review), create a temp branch at the base SHA first - DO NOT skip codex.
@@ -151,20 +159,29 @@ Run Claude Code in non-interactive print mode and feed it the exact review diff.
 # For uncommitted changes:
 git diff --cached > /tmp/deep-review-staged.patch
 git diff > /tmp/deep-review-unstaged.patch
+git ls-files --others --exclude-standard | while IFS= read -r f; do git diff --no-index -- /dev/null "$f" 2>/dev/null; done > /tmp/deep-review-untracked.patch
 {
   printf '%s\n' 'You are the independent reviewer for /deep-review.'
   printf '%s\n' 'Review only. Do not modify files. Report correctness, safety, tests, maintainability, and rule-compliance findings with file:line references.'
+  printf '%s\n' 'PROJECT DE-SCOPING RULES — do not raise findings for capabilities the project has explicitly excluded:'
+  grep -hE 'No .* yet|not needed|single.user|no mobile|no i18n|desktop.only|no RTL' AGENTS.md .claude/AGENTS.md 2>/dev/null | head -20 || true
   printf '%s\n' 'STAGED DIFF:'
   cat /tmp/deep-review-staged.patch
   printf '%s\n' 'UNSTAGED DIFF:'
   cat /tmp/deep-review-unstaged.patch
+  if [ -s /tmp/deep-review-untracked.patch ]; then
+    printf '%s\n' 'UNTRACKED FILES:'
+    cat /tmp/deep-review-untracked.patch
+  fi
 } | claude -p
 
 # For branch changes:
 {
   printf '%s\n' 'You are the independent reviewer for /deep-review.'
   printf '%s\n' 'Review only. Do not modify files. Report correctness, safety, tests, maintainability, and rule-compliance findings with file:line references.'
-  git diff main...HEAD
+  printf '%s\n' 'PROJECT DE-SCOPING RULES — do not raise findings for capabilities the project has explicitly excluded:'
+  grep -hE 'No .* yet|not needed|single.user|no mobile|no i18n|desktop.only|no RTL' AGENTS.md .claude/AGENTS.md 2>/dev/null | head -20 || true
+  git diff ${BASE_BRANCH}...HEAD
 } | claude -p
 ```
 
@@ -174,6 +191,8 @@ If your scope is a SHA range (e.g. `<phase-base>^..<phase-head>` from /fly's pha
 {
   printf '%s\n' 'You are the independent reviewer for /deep-review.'
   printf '%s\n' 'Review only. Do not modify files. Report correctness, safety, tests, maintainability, and rule-compliance findings with file:line references.'
+  printf '%s\n' 'PROJECT DE-SCOPING RULES — do not raise findings for capabilities the project has explicitly excluded:'
+  grep -hE 'No .* yet|not needed|single.user|no mobile|no i18n|desktop.only|no RTL' AGENTS.md .claude/AGENTS.md 2>/dev/null | head -20 || true
   git diff <phase-base>^..<phase-head>
 } | claude -p
 ```
@@ -209,7 +228,8 @@ Skip this review entirely if no frontend files are in the diff.
 Once all reviews are complete, merge the results:
 
 1. **Deduplicate** - if multiple reviews flag the same issue, mention it once and note that multiple reviewers caught it (higher confidence).
-2. **Categorize** every finding into one of three buckets:
+2. **Admissibility check** - before categorizing, re-read AGENTS.md (or CLAUDE.md) for explicit de-scoping statements: `No X yet`, `X is not needed`, `single-user`, `no mobile`, `no i18n`, `desktop-only`, `no RTL`, etc. Any finding that targets a capability the project has explicitly de-scoped is **inadmissible**: drop it and record it in the summary as "Filtered (de-scoped per project rules)." This is the inverse of the rule-compliance audit — exclusions in project rules trump default-convention findings.
+3. **Categorize** every finding into one of three buckets:
 
    **Must fix** (auto-fix these)
    - Correctness bugs (wrong logic, broken functionality)
@@ -239,13 +259,13 @@ Once all reviews are complete, merge the results:
    - "Big effort" means genuinely big (new tables, new API endpoints, multi-file architecture change) - not "more than 5 lines"
    - When in doubt, fix it. Err heavily toward fixing.
 
-3. **Present the consolidated review** in this format:
+4. **Present the consolidated review** in this format:
 
    ```
    ## Deep Review Summary
 
    Reviewed by: <orchestrator> (diff + simplify + collateral audit), <independent reviewer>[, UI review]
-   Scope: [uncommitted changes / branch diff against main]
+   Scope: [uncommitted changes / branch diff against $BASE_BRANCH]
    Files changed: [count] ([N] frontend)
 
    ### Collateral Changes (for your decision)
@@ -314,13 +334,20 @@ After applying all fixes from step 4, run one more review cycle to make sure the
    # If the independent reviewer is Claude Code:
    git diff --cached > /tmp/deep-review-staged.patch
    git diff > /tmp/deep-review-unstaged.patch
+   git ls-files --others --exclude-standard | while IFS= read -r f; do git diff --no-index -- /dev/null "$f" 2>/dev/null; done > /tmp/deep-review-untracked.patch
    {
      printf '%s\n' 'You are the independent reviewer for the /deep-review verification round.'
      printf '%s\n' 'Review only. Do not modify files. Report only new issues introduced by the fixes.'
+     printf '%s\n' 'PROJECT DE-SCOPING RULES — do not raise findings for capabilities the project has explicitly excluded:'
+     grep -hE 'No .* yet|not needed|single.user|no mobile|no i18n|desktop.only|no RTL' AGENTS.md .claude/AGENTS.md 2>/dev/null | head -20 || true
      printf '%s\n' 'STAGED DIFF:'
      cat /tmp/deep-review-staged.patch
      printf '%s\n' 'UNSTAGED DIFF:'
      cat /tmp/deep-review-unstaged.patch
+     if [ -s /tmp/deep-review-untracked.patch ]; then
+       printf '%s\n' 'UNTRACKED FILES:'
+       cat /tmp/deep-review-untracked.patch
+     fi
    } | claude -p
    ```
    Use `timeout: 300000` (5 minutes) as in step 2.
