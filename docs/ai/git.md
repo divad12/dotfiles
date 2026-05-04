@@ -68,6 +68,22 @@ If the list is riddled with agent workstream commits, squash before advancing
 the target branch. Good final history should answer "what changed?" rather than
 "how many review passes happened?"
 
+### Default squash mapping for /fly output
+
+`/fly` produces a feat → review → fix-review-findings → orch-inline pattern
+per task. When landing a `/fly` branch, every commit matching either of these
+patterns is a `fixup` candidate for the immediately preceding `feat:`,
+`refactor:`, or top-level `fix(scope):` commit:
+
+- `fix:.*review findings` — per-task review fixes
+- `fix:.*orch-inline` — orchestrator-applied review fixes
+- `fix(test):` immediately following a `feat:` for the same area
+- `docs(checklist):` paired with the task it describes
+
+Surface the proposed fixup mapping to the user before rebasing — never assume
+silently that "the log looks reasonable." The squash audit step below makes
+this mapping explicit.
+
 Use interactive rebase when keeping several meaningful commits:
 
 ```bash
@@ -89,13 +105,66 @@ surprise someone else, tell the user the ramification and ask first.
 When the user says "merge" or uses the `/merge` skill:
 
 1. Identify the target branch.
-2. Inspect `<target>..HEAD` and squash noisy workstream commits.
-3. Rebase the feature branch onto local `<target>`.
-4. If the rebase is practical, fast-forward the target with
+2. Inspect `<target>..HEAD` to count the commits that would land.
+3. **Print the squash audit and STOP for user signoff.** This is a
+   blocking checkpoint, not a soft norm. The merge cannot proceed without
+   it. See the section below.
+4. Squash per the user's chosen plan (interactive rebase or soft reset).
+5. Rebase the squashed feature branch onto local `<target>`.
+6. If the rebase is practical, fast-forward the target with
    `git merge --ff-only`.
-5. If the rebase becomes too error-prone even after squashing, abort it and
-   merge the feature branch into the target with `git merge --no-ff`.
-6. Verify the target contains the feature branch changes.
+7. If the rebase becomes too error-prone even after squashing, abort it
+   and merge the feature branch into the target with `git merge --no-ff`.
+8. Verify the target contains the feature branch changes.
+
+## The Squash Audit Checkpoint
+
+This is a structural blocker, modelled on `task-observer`'s mandatory
+session-start invocation: forward progress is not allowed without it.
+The audit produces three numbers and a proposed mapping; the user
+chooses the plan before any history rewrite happens.
+
+```bash
+TOTAL=$(git log --oneline <target>..HEAD | wc -l | tr -d ' ')
+REVIEW_FIX=$(git log --oneline <target>..HEAD \
+  | grep -cE 'fix:.*review|fix:.*orch-inline|fix\(test\):')
+MEANINGFUL=$(git log --oneline <target>..HEAD \
+  | grep -cE '^[a-f0-9]+ (feat|refactor|fix\([a-z]+\)):')
+```
+
+Then print, verbatim, to the user:
+
+> "Branch has TOTAL commits to land. REVIEW_FIX look like review-fix /
+> orch-inline / fixup commits that should fold into their feat parents.
+> Estimated final shape after default squash: ~MEANINGFUL meaningful
+> commits.
+>
+> Proposed plan:
+>
+> A) Interactive squash per the default mapping → ~MEANINGFUL commits
+> B) Single squash → 1 commit
+> C) Land as-is → TOTAL commits
+> D) Custom plan
+>
+> Which?"
+
+Wait for an explicit answer. Do not pick a plan based on the user's
+prior single-line directive (e.g. they said "merge into m3" — that does
+NOT authorise option C silently; it authorises proceeding TO this
+checkpoint). The signoff must be explicit per merge.
+
+The audit must run regardless of branch size. A 5-commit branch with 3
+review-fix commits still benefits from the explicit mapping; a 50-commit
+branch needs it more.
+
+### Why this is a blocker, not a recommendation
+
+When the merge workflow has momentum (tests green, user said "merge"),
+the cost of pausing to interactively rebase 17 commits feels high
+relative to "the log looks fine." Soft heuristics get rationalised away
+in that state. The audit step doesn't allow forward progress without
+producing the count + mapping + getting signoff — same pattern as the
+mandatory `task-observer` invocation at session start.
 
 ## Merge-Commit Exception
 
