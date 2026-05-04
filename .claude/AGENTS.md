@@ -8,6 +8,8 @@ Use `ask-intern` to offload high-token/low-reasoning work to a cheap model (~$0.
 
 You MUST use `ask-intern` before broadly reading 3+ distinct files for context, or before reading any single file over 400 lines. Build the file list from actual paths (`rg --files` is fine), then use the summary instead of reading those files yourself. If `ask-intern` reports `Cannot read`, correct the paths and retry. Re-reading narrow snippets from files already identified by `ask-intern` is allowed for exact line numbers, verification, and edits. Claude Code has a PreToolUse hook that blocks broad direct reads at these thresholds and routes you to `ask-intern`.
 
+When dispatching code-reading or code-editing subagents, copy the relevant Token Delegation instructions into each subagent prompt **verbatim**: the MUST threshold sentence, the `ask-intern -t` draft-write examples when tests/fixtures/docs/repetitive code may be generated, and the narrow-snippet-after-summary rule. Do not paraphrase. Subagents often rebuild context from scratch, and paraphrases lose the thresholds after long context.
+
 ### When to delegate
 
 - Reading 3+ files for context, or any file >400 lines
@@ -49,6 +51,10 @@ Full reference for maintenance/troubleshooting only: `docs/ai/ask-intern.md`. Do
 If `graphify-out/graph.json` exists and the task is codebase orientation, architecture, or cross-module tracing, use Graphify before broad raw search. Start broad with `graphify-out/wiki/index.md` and `graphify-out/GRAPH_REPORT.md`. Use `graphify explain "<exact node>"` for known symbols/files, e.g. `graphify explain "cascadeLegTimes()"`, `graphify explain "useOptimisticMutation()"`, or `graphify explain "message-compiler.ts"`. Use `graphify query "<terms>"` only for concrete symbols/files/domain terms, e.g. `graphify query "cascadeLegTimes timing recalculation"` or `graphify query "message-compiler.ts resolveStopMessages"`, not open-ended prose questions.
 
 Then use `ask-intern` for bulk summaries or low-reasoning drafts from selected files, and read narrow snippets yourself only for exact edits: `ask-intern -f src/a.ts -f src/b.ts "summarize the contract and risky callers"` or `ask-intern -t /tmp/tests-draft.md -f src/foo.ts "draft tests for the public behavior"`.
+
+Before dispatching code-reading or code-editing subagents in a repo with `graphify-out/`, use Graphify at the orchestrator level to identify likely owners, source-of-truth files, and shared functions. Put those concrete files/functions in the subagent prompt so workers preserve DRY instead of rediscovering context. Only copy this Graph Navigation section into a subagent prompt when that subagent's task is itself orientation, ownership tracing, or cross-module analysis.
+
+Usage dashboard: `graphify-stats`.
 
 When the user types `/graphify`, invoke the `graphify` skill before doing anything else.
 

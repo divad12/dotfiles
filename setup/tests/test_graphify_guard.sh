@@ -4,6 +4,7 @@ set -eu
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 script="$repo_root/bin/graphify-guard"
+stats="$repo_root/bin/graphify-stats"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 
@@ -24,7 +25,7 @@ printf '{}\n' >"$work/graphify-out/graph.json"
 printf '# Graph Report\n' >"$work/graphify-out/GRAPH_REPORT.md"
 
 run_hook() {
-  HOME="$home" "$script" <<EOF
+  HOME="$home" GRAPHIFY_USAGE_DIR="$tmpdir/graphify-usage" "$script" <<EOF
 $1
 EOF
 }
@@ -48,10 +49,32 @@ if ! grep -q "graphify query" /tmp/graphify-guard.out; then
   echo "graphify guard did not suggest graphify query" >&2
   exit 1
 fi
+if ! grep -q "graphify explain" /tmp/graphify-guard.out; then
+  echo "graphify guard did not suggest graphify explain" >&2
+  exit 1
+fi
 
 run_hook "$(bash_json "graphify query auth")" >/tmp/graphify-guard.out
 if [ -s /tmp/graphify-guard.out ]; then
   echo "graphify guard should not nudge graphify commands" >&2
+  exit 1
+fi
+if ! grep -q '"action": "command"' "$tmpdir/graphify-usage/events.jsonl"; then
+  echo "graphify guard did not log graphify commands" >&2
+  exit 1
+fi
+if ! grep -q '"action": "nudge"' "$tmpdir/graphify-usage/events.jsonl"; then
+  echo "graphify guard did not log search nudges" >&2
+  exit 1
+fi
+
+GRAPHIFY_USAGE_DIR="$tmpdir/graphify-usage" "$stats" >/tmp/graphify-stats.out
+if ! grep -q "commands:   1" /tmp/graphify-stats.out; then
+  echo "graphify-stats did not count commands" >&2
+  exit 1
+fi
+if ! grep -q "nudges:     1" /tmp/graphify-stats.out; then
+  echo "graphify-stats did not count nudges" >&2
   exit 1
 fi
 

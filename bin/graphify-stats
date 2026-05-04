@@ -1,0 +1,96 @@
+#!/usr/bin/env python3
+"""Summarize local Graphify hook usage."""
+
+import argparse
+import collections
+import json
+import os
+import shlex
+import time
+from pathlib import Path
+
+
+def events_path():
+    root = Path(os.environ.get("GRAPHIFY_USAGE_DIR", "~/.config/graphify")).expanduser()
+    return root / "events.jsonl"
+
+
+def read_events(path):
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return []
+
+    events = []
+    for line in lines:
+        try:
+            events.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return events
+
+
+def subcommand(command):
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        tokens = command.split()
+    for index, token in enumerate(tokens):
+        if os.path.basename(token) == "graphify":
+            return tokens[index + 1] if index + 1 < len(tokens) else "(none)"
+    return "(unknown)"
+
+
+def short_path(path):
+    if not path:
+        return "(unknown)"
+    home = str(Path.home())
+    return path.replace(home, "~", 1)
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Summarize Graphify command and guard usage.")
+    parser.add_argument("--since-days", type=float, default=None, help="Only include events from the last N days.")
+    parser.add_argument("--limit", type=int, default=8, help="Number of recent commands to show.")
+    args = parser.parse_args()
+
+    path = events_path()
+    events = read_events(path)
+    if args.since_days is not None:
+        cutoff = time.time() - args.since_days * 86400
+        events = [event for event in events if event.get("ts", 0) >= cutoff]
+
+    commands = [event for event in events if event.get("action") == "command"]
+    nudges = [event for event in events if event.get("action") == "nudge"]
+
+    print("graphify usage")
+    print("--------------")
+    print(f"events log: {path}")
+    print(f"commands:   {len(commands)}")
+    print(f"nudges:     {len(nudges)}")
+
+    if commands:
+        print("\ncommands by source")
+        for name, count in collections.Counter(event.get("source", "unknown") for event in commands).most_common():
+            print(f"{count:5}  {name or 'unknown'}")
+
+    if commands:
+        print("\ncommands by subcommand")
+        for name, count in collections.Counter(subcommand(event.get("command", "")) for event in commands).most_common():
+            print(f"{count:5}  {name}")
+
+    if nudges:
+        print("\nnudges by repo")
+        for name, count in collections.Counter(short_path(event.get("root", "")) for event in nudges).most_common(10):
+            print(f"{count:5}  {name}")
+
+    if commands:
+        print("\nrecent commands")
+        for event in commands[-args.limit:]:
+            stamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(event.get("ts", 0)))
+            command = event.get("command", "").replace("\n", " ")
+            print(f"{stamp}  {short_path(event.get('cwd', ''))}  {command}")
+
+
+if __name__ == "__main__":
+    main()
