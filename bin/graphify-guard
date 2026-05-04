@@ -1,0 +1,79 @@
+#!/usr/bin/env python3
+"""
+Claude Code PreToolUse helper for Graphify.
+
+When a project already has graphify-out/graph.json, nudge broad search commands
+toward the graph/report before raw grep-style exploration. This complements
+ask-intern-guard: Graphify finds the map, ask-intern summarizes selected files.
+"""
+
+import json
+import os
+import re
+import shlex
+import sys
+from pathlib import Path
+
+
+SEARCH_RE = re.compile(r"(^|[;&|]\s*|\b)(rg|grep|find|fd|ack|ag|ripgrep)\b")
+
+
+def read_input():
+    try:
+        return json.load(sys.stdin)
+    except json.JSONDecodeError:
+        return {}
+
+
+def is_graphify_command(command):
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        tokens = command.split()
+    return any(os.path.basename(token) == "graphify" for token in tokens)
+
+
+def graph_root(cwd):
+    start = Path(cwd or os.getcwd()).expanduser().resolve()
+    for path in [start, *start.parents]:
+        if (path / "graphify-out" / "graph.json").is_file():
+            return path
+    return None
+
+
+def main():
+    record = read_input()
+    if record.get("tool_name") != "Bash":
+        return
+
+    tool_input = record.get("tool_input") or {}
+    if not isinstance(tool_input, dict):
+        return
+
+    command = tool_input.get("command", "")
+    if not isinstance(command, str) or not SEARCH_RE.search(command):
+        return
+    if is_graphify_command(command):
+        return
+
+    root = graph_root(record.get("cwd", ""))
+    if root is None:
+        return
+
+    report = root / "graphify-out" / "GRAPH_REPORT.md"
+    message = (
+        "graphify: knowledge graph exists. Before broad raw search, use "
+        "`graphify query \"<question>\"`, `graphify explain \"<concept>\"`, or read "
+        f"`{report}` for god nodes and community structure. Then use ask-intern "
+        "on the selected files if you still need bulk source summaries."
+    )
+    print(json.dumps({
+        "hookSpecificOutput": {
+            "hookEventName": "PreToolUse",
+            "additionalContext": message,
+        }
+    }))
+
+
+if __name__ == "__main__":
+    main()

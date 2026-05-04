@@ -77,6 +77,15 @@
             "command": "~/.claude/read-once/hook.sh"
           }
         ]
+      },
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/bin/graphify-guard"
+          }
+        ]
       }
     ],
     "PostCompact": [
