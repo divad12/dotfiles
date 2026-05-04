@@ -17,7 +17,7 @@ The system borrows ideas rather than adopting a full external stack.
 - Journology's historical `PROGRESS.md` proved that close-to-the-work problem-solution notes are valuable, but it mixed durable lessons with status bookkeeping.
 - Journology's M3 shakedown loop proved a stronger shape: symptom -> root cause -> pattern -> enforcement. Its limitation is that it is scoped to one bug-bash program.
 - `task-observer` already captures durable user/agent workflow patterns, but its centralized log can grow into another backlog unless project learnings route into the repo and get promoted or archived.
-- `capture-learning` has the right abstraction ladder, but needs stricter evidence, destination, and enforcement gates.
+- `capture-learning` has the right abstraction ladder, but often stays too close to the specific incident. It needs stricter evidence, destination, enforcement, and "climb higher" gates.
 - Superpowers Optimized, Reflexion, Voyager, ClawMem, and memory-backed agent systems all validate parts of the idea: raw memory, reflection, reusable skills, decay, and retrieval. The first version should stay file-first and git-native because the hard problem here is routing and judgment, not storage.
 
 ## Scope
@@ -31,7 +31,8 @@ In scope:
 - promotion and archive flow;
 - dashboard markdown and generated HTML;
 - calibration records from user feedback;
-- commit/merge/review/QA checkpoints;
+- review/QA closeout and commit/merge checkpoints;
+- an explicit `/learn` workflow, implemented by strengthening or renaming `capture-learning`;
 - conservative auto-promotion for low-risk, high-confidence actions;
 - TDD and review requirements for any code-producing decision.
 
@@ -96,20 +97,20 @@ The system has six parts.
 
 1. **Learning Store**: project-local markdown files are canonical. They hold raw evidence, candidates, calibration, dashboard summaries, auto-action logs, and archives.
 2. **Capture Adapters**: existing workflows append entries from QA, deep review, bugfixes, failed commands, task-observer, merge checks, git checks, and user notes.
-3. **Promotion Engine**: reads inbox and calibration, dedupes related entries, classifies the learning, chooses a destination, and either drafts or applies a low-risk change.
+3. **Promotion Engine**: reads inbox and calibration, dedupes related entries, classifies the learning, chooses a destination, and emits a proposed action or low-risk auto-action request. It does not directly mutate code or durable guidance.
 4. **Dashboard Generator**: produces `dashboard.md` and `dashboard.html` from canonical files. The HTML is a scan/review/calibration surface, not canonical storage.
-5. **Decision Executor**: reads dashboard decisions and notes, then archives, revises, promotes, defers, asks a question, or creates a TDD/review task.
+5. **Decision Executor**: executes both dashboard decisions and approved/eligible promotion-engine requests, then archives, revises, promotes, defers, asks a question, updates docs/skills, or creates a TDD/review task.
 6. **Calibration Memory**: stores user feedback about abstraction level, artifact placement, autonomy, rejected promotions, and preferred wording.
 
-Capture can be noisy. Promotion must be careful.
+Capture can be noisy. Promotion must be careful. Execution must be disciplined: the same executor rules apply whether an action came from the promotion engine, the dashboard, a cron, or a manual `/learn` session.
 
 ## Data Flow
 
 1. A learning-worthy event happens: QA finding, review comment, bugfix, failed command, agent discovery, user correction, or repeated confusion.
 2. A capture adapter writes a structured inbox entry with plain-English summary, evidence, ramification, recommended fix, technical refs, candidate artifact, confidence, and status.
 3. The promotion engine clusters and classifies inbox entries as one-off, repeated bug class, architecture gap, tooling gotcha, agent-system improvement, or global candidate.
-4. The promotion engine chooses an action: archive, ask for review, update candidates, draft a test, update a small doc line, edit a skill, add a nested guardrail, add a lint/grep check, or propose architecture work.
-5. The autonomy gate decides whether to auto-apply or route to review.
+4. The promotion engine chooses an action: archive, ask for review, update candidates, add or update a skill, draft a test, update a small doc line, add a nested guardrail, add a lint/grep check, or propose architecture work.
+5. The autonomy gate decides whether to hand the action to the decision executor automatically or route it to review.
 6. The dashboard surfaces decisions in plain English.
 7. The user approves, revises, changes artifact target, asks a question, archives, defers, changes confidence, or adds calibration.
 8. The decision executor acts on the dashboard decision.
@@ -149,7 +150,7 @@ The dashboard should show:
 - blocked decisions;
 - ask-agent prompts.
 
-Each visible item leads with what the user sees, loses, feels, or risks. Technical refs are expandable. The HTML can record local decisions such as approve, revise, archive, defer, change confidence, add note, or ask agent. The decision executor applies those decisions to the canonical learning files.
+Each visible item leads with what the user sees, loses, feels, or risks. Technical refs, raw notes, logs, screenshots, previous decisions, and other captured details are expandable even when they are not shown in the summary row. The HTML can record local decisions such as approve, revise, archive, defer, change confidence, add note, or ask agent. The decision executor applies those decisions to the canonical learning files.
 
 ## Invocation
 
@@ -167,6 +168,26 @@ Preferred invocation points:
 
 Before commit and merge, the learning check should ask whether any new bug/review finding needs a prevention artifact before landing. The user-facing ramification is that bugs do not quietly land with only a chat memory of why they happened.
 
+### Checkpoint Enforcement
+
+Version 0 enforces checkpoints through skills and docs before adding hard shell hooks.
+
+- Review, deep-review, QA, and bugfix skills add a closeout step that writes or confirms learning entries for durable findings.
+- Merge and git guidance add a before-landing learning check. The check should surface unresolved high-confidence learnings and ask whether a prevention artifact is required before landing.
+- The optional `/learn` workflow can be run manually when the user says "capture this", "learn this", "open the learning dashboard", or "what did we learn?"
+- Weekly automation updates the dashboard and auto-action log. It summarizes and proposes; it does not block work.
+- Optional repo hooks can come later for teams or projects that want hard blocking. Hooks should call a small script and print plain-English ramifications, not dump raw markdown.
+
+The first implementation should include review closeout and before-merge checks. Before-commit checks are desirable, but should not block version 0 if review/merge capture is already working.
+
+### `/learn` And Task Observer Boundary
+
+The existing `capture-learning` skill should be strengthened and exposed as `/learn`, either by renaming it or by adding `/learn` as an alias while preserving compatibility. `/learn` is the explicit project-learning workflow: it captures raw evidence, climbs the abstraction ladder, proposes a candidate artifact, opens the dashboard, and can run the promotion/execution loop.
+
+`task-observer` remains the ambient session observer. It should capture durable agent/user workflow observations and route them to the same learning store when they are project-specific, or to dotfiles when they improve the agent system. It should not become the only learning interface, and `/learn` should not replace the observer's quiet background role.
+
+Adding or modifying a skill is a valid candidate artifact. It is appropriate when the prevention needs activation behavior or repeated workflow guidance rather than a project doc line, test, lint rule, or code helper.
+
 ## Decision Executor
 
 The decision executor turns dashboard decisions into action. It can:
@@ -181,11 +202,17 @@ The decision executor turns dashboard decisions into action. It can:
 - draft a patch;
 - create a code-change plan.
 
-For version 0, it may automatically edit learning files and low-risk docs. Code changes must go through the code path below.
+For version 0, it may automatically edit learning files and low-risk docs. It can be invoked three ways:
+
+- **Current session:** the user or a skill says to execute selected dashboard decisions.
+- **Automation:** a weekly or scheduled job handles allowed low-risk actions and writes a dashboard/audit log.
+- **Delegated worker/subagent:** for approved code or broader docs work, the current agent can dispatch a bounded task with the normal TDD/review contract.
+
+Code changes, shared skill changes, and architecture changes must go through the code path below even when the promotion engine labels them high confidence.
 
 ## Code Path
 
-Any decision that creates or changes code must follow TDD and review.
+Any decision that creates or changes code must follow TDD and review. Shared skill changes and enforcement scripts should follow the same discipline where applicable: write or update the structural check first, make the smallest change, then verify.
 
 1. Reproduce or specify the failure. For a bug or QA finding, write the failing test from the user-visible behavior first. For a guardrail, write the contract test, lint check, or grep check first.
 2. Implement the smallest architectural fix. Prefer shared helpers, types, lint rules, tests, and contract checks over prose.
@@ -235,7 +262,7 @@ The learning system itself should have tests or checks.
 ## Open Design Choices For Implementation Planning
 
 - Exact file format: markdown-only, markdown with embedded YAML, or JSONL plus generated markdown.
-- Whether `dashboard.html` is a static generated file, a tiny local app, or both.
+- `dashboard.html` should support both modes: a static generated view for simple review, and a tiny local app mode when interactive notes or decisions need to be recorded.
 - How dashboard decisions are recorded for the executor: JSONL events, markdown notes, or form submissions to a local helper.
-- Whether the first repo implementation starts in Journology, dotfiles, or both.
-- Which checkpoint to implement first: review closeout, before commit, before merge, or weekly dashboard.
+- The first implementation should cover both dotfiles and Journology: dotfiles owns the global skill/checkpoint machinery, and Journology exercises the project-local learning store.
+- Checkpoint order: implement review closeout and before-merge first, then before-commit and weekly dashboard once the core loop works.
