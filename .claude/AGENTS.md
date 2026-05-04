@@ -46,7 +46,7 @@ Full reference for maintenance/troubleshooting only: `docs/ai/ask-intern.md`. Do
 
 ## Graph Navigation
 
-If `graphify-out/graph.json` exists and the task is codebase orientation, architecture, or cross-module tracing, use Graphify before broad raw search. Start with `graphify-out/wiki/index.md`, `graphify-out/GRAPH_REPORT.md`, or queries like `graphify query "where is event timing recalculated?"`, `graphify query "what owns optimistic mutation behavior?"`, and `graphify query "which modules touch message compilation?"`.
+If `graphify-out/graph.json` exists and the task is codebase orientation, architecture, or cross-module tracing, use Graphify before broad raw search. Start broad with `graphify-out/wiki/index.md` and `graphify-out/GRAPH_REPORT.md`. Use `graphify explain "<exact node>"` for known symbols/files, e.g. `graphify explain "cascadeLegTimes()"`, `graphify explain "useOptimisticMutation()"`, or `graphify explain "message-compiler.ts"`. Use `graphify query "<terms>"` only for concrete symbols/files/domain terms, e.g. `graphify query "cascadeLegTimes timing recalculation"` or `graphify query "message-compiler.ts resolveStopMessages"`, not open-ended prose questions.
 
 Then use `ask-intern` for bulk summaries or low-reasoning drafts from selected files, and read narrow snippets yourself only for exact edits: `ask-intern -f src/a.ts -f src/b.ts "summarize the contract and risky callers"` or `ask-intern -t /tmp/tests-draft.md -f src/foo.ts "draft tests for the public behavior"`.
 
