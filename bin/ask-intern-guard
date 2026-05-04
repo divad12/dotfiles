@@ -24,12 +24,14 @@ DEFAULT_MIN_DISTINCT = 3
 DEFAULT_MAX_LINES = 400
 READ_COMMANDS = {"cat", "head", "tail", "nl"}
 INSTRUCTION_BASENAMES = {"AGENTS.md", "CLAUDE.md", "PROGRESS.md", "SKILL.md"}
+REDIRECT_TARGET_TOKENS = {">", ">>", "1>", "1>>", "2>", "2>>", "&>", "<<", "<<<"}
 DIRECT_READ_RE = re.compile(
     r"(^|[;&|]\s*|\b)(cat|head|tail)\s+|"
     r"\bsed\s+-n\b|"
     r"\bnl\s+-ba\b|"
     r"\bpython3?\b.*\b(read_text|open\()",
 )
+SHELL_SEGMENT_RE = re.compile(r"\s*(?:&&|\|\||[;|]|\n)\s*")
 
 
 def config_int(name, default):
@@ -179,30 +181,67 @@ def existing_file(path):
         return False
 
 
-def extract_bash_read_paths(command, cwd):
-    if not DIRECT_READ_RE.search(command):
-        return []
+def split_shell_segments(command):
+    return [segment.strip() for segment in SHELL_SEGMENT_RE.split(command) if segment.strip()]
+
+
+def extract_segment_read_paths(segment, cwd):
     try:
-        tokens = shlex.split(command)
+        tokens = shlex.split(segment)
     except ValueError:
-        tokens = command.split()
+        tokens = segment.split()
+    if not tokens:
+        return []
 
     paths = []
-    saw_read_command = False
-    saw_sed_n = False
+    read_index = None
+    sed_index = None
     for index, token in enumerate(tokens):
         base = os.path.basename(token)
         if base in READ_COMMANDS:
-            saw_read_command = True
-            continue
+            read_index = index
+            break
         if base == "sed" and "-n" in tokens[index + 1:index + 4]:
-            saw_sed_n = True
+            sed_index = index
+            break
+
+    if read_index is None and sed_index is None:
+        return []
+
+    start = read_index if read_index is not None else sed_index
+    skip_next = False
+    for index, token in enumerate(tokens[start + 1:], start + 1):
+        if skip_next:
+            skip_next = False
             continue
-        if token.startswith("-") or token in {"|", "&&", "||", ";"}:
+        if token in REDIRECT_TARGET_TOKENS:
+            skip_next = True
+            continue
+        if re.match(r"^(?:\d?>?>|&>|<<).+", token):
+            continue
+        if token.startswith("-"):
+            continue
+        if token in {"|", "&&", "||", ";"}:
+            break
+        if sed_index is not None and index <= sed_index + 2:
+            continue
+        if re.match(r"^\d*>\S*", token):
             continue
         normalized = normalize_path(token, cwd)
-        if (saw_read_command or saw_sed_n) and existing_file(normalized):
+        if existing_file(normalized):
             paths.append(normalized)
+
+    return paths
+
+
+def extract_bash_read_paths(command, cwd):
+    if not DIRECT_READ_RE.search(command):
+        return []
+
+    paths = []
+    for segment in split_shell_segments(command):
+        if DIRECT_READ_RE.search(segment):
+            paths.extend(extract_segment_read_paths(segment, cwd))
 
     return sorted(set(paths))
 

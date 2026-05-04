@@ -20,9 +20,15 @@ small_a="$work/a.py"
 small_b="$work/b.py"
 small_c="$work/c.py"
 large="$work/large.py"
+full="$work/full.txt"
+codex_out="$work/codex-out.txt"
+commit_msg="$work/cm2.txt"
 printf 'print("a")\n' >"$small_a"
 printf 'print("b")\n' >"$small_b"
 printf 'print("c")\n' >"$small_c"
+printf 'Test Files  1 passed\nTests  1 passed\n' >"$full"
+printf 'codex review output\n' >"$codex_out"
+printf '' >"$commit_msg"
 i=0
 while [ "$i" -lt 401 ]; do
   printf 'line %s\n' "$i" >>"$large"
@@ -37,7 +43,8 @@ EOF
 
 read_json() {
   file="$1"
-  printf '{"session_id":"s1","cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Read","tool_input":{"file_path":"%s"}}' "$work" "$file"
+  session="${2:-s1}"
+  printf '{"session_id":"%s","cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Read","tool_input":{"file_path":"%s"}}' "$session" "$work" "$file"
 }
 
 partial_read_json() {
@@ -81,5 +88,13 @@ if run_hook "$(bash_json "cat '$small_a' '$small_b' '$small_c'" s3)" >/tmp/guard
   echo "bash read of three distinct files was not blocked" >&2
   exit 1
 fi
+
+run_hook "$(read_json "$small_a" s4)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$small_b" s4)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(bash_json "awk '/Test Files|Tests / {print}' '$full' | tail -3; echo --- codex stats ---; wc -l '$codex_out'" s4)" >/tmp/guard.out 2>/tmp/guard.err
+
+run_hook "$(read_json "$small_a" s5)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$small_b" s5)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(bash_json "cat > '$commit_msg' << 'CMSGEOF'; commit body; CMSGEOF; git commit -F '$commit_msg' 2>&1 | tail -5" s5)" >/tmp/guard.out 2>/tmp/guard.err
 
 echo "ok"
