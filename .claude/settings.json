@@ -61,6 +61,15 @@
   "hooks": {
     "PreToolUse": [
       {
+        "matcher": "Read|Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "~/bin/ask-intern-guard"
+          }
+        ]
+      },
+      {
         "matcher": "Read",
         "hooks": [
           {

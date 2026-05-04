@@ -9,6 +9,9 @@ trap 'rm -rf "$tmpdir"' EXIT
 home="$tmpdir/home"
 mkdir -p "$home/.agents/observations" "$home/.codex" "$tmpdir/bin"
 printf 'keep me\n' >"$home/.agents/observations/log.md"
+mkdir -p "$home/.claude"
+printf '{"local":"drift"}\n' >"$home/.claude/settings.json"
+printf 'previous backup\n' >"$home/.claude/settings.json.orig"
 
 cat >"$tmpdir/bin/launchctl" <<'EOF'
 #!/bin/sh
@@ -43,6 +46,21 @@ fi
 
 if [ "$(readlink "$home/.codex/AGENTS.md")" != "$repo_root/.claude/AGENTS.md" ]; then
   echo "~/.codex/AGENTS.md does not point at the shared instructions" >&2
+  exit 1
+fi
+
+if [ "$(readlink "$home/.claude/settings.json")" != "$repo_root/.claude/settings.json" ]; then
+  echo "~/.claude/settings.json drift was not restored to the dotfiles symlink" >&2
+  exit 1
+fi
+
+if [ "$(cat "$home/.claude/settings.json.orig")" != "previous backup" ]; then
+  echo "existing ~/.claude/settings.json.orig backup was overwritten" >&2
+  exit 1
+fi
+
+if ! find "$home/.claude" -name 'settings.json.orig.*' -type f -exec grep -q '"local":"drift"' {} \; -print | grep -q .; then
+  echo "drifted ~/.claude/settings.json was not preserved in a unique backup" >&2
   exit 1
 fi
 

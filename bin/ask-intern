@@ -24,6 +24,7 @@ import argparse
 import time
 import re
 import shlex
+from collections import Counter
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
 
@@ -64,6 +65,20 @@ DEFAULT_MODEL = os.environ.get("INTERN_MODEL", "deepseek/deepseek-v4-flash")
 MAX_TOKENS_READ = int(os.environ.get("INTERN_MAX_TOKENS", "8192"))
 MAX_TOKENS_WRITE = int(os.environ.get("INTERN_MAX_TOKENS_WRITE", "16384"))
 STATS_FILE = os.path.expanduser("~/.config/ask-intern/stats.tsv")
+EVENTS_FILE = os.path.expanduser("~/.config/ask-intern/events.tsv")
+EVENT_FIELDS = [
+    "timestamp",
+    "source",
+    "status",
+    "reason",
+    "model",
+    "file_count",
+    "target",
+    "latency_s",
+    "cwd",
+    "files",
+    "invocation",
+]
 
 # Pricing per million tokens (input, output)
 MODEL_PRICING = {
@@ -76,7 +91,201 @@ MODEL_PRICING = {
 OPUS_PRICING = (15.0, 75.0)
 
 
-def fatal(msg):
+def clean_field(value):
+    return str(value or "").replace("\t", " ").replace("\n", " ")
+
+
+def is_optional_missing_file(path):
+    normalized = os.path.realpath(os.path.expanduser(path))
+    temp_roots = [os.path.realpath("/tmp"), os.path.realpath("/private/tmp")]
+    if any(normalized == root or normalized.startswith(root + os.sep) for root in temp_roots):
+        return True
+    return normalized.endswith((".log", ".out"))
+
+
+def is_test_event(row):
+    fields = [
+        row.get("reason", ""),
+        row.get("cwd", ""),
+        row.get("files", ""),
+        row.get("invocation", ""),
+    ]
+    text = " ".join(fields)
+    return "intern-smoke" in text
+
+
+def has_optional_missing_file(row):
+    if row.get("reason", "") != "missing_file":
+        return False
+    files = [part.strip() for part in row.get("files", "").split(",") if part.strip()]
+    return any(is_optional_missing_file(path) for path in files)
+
+
+def infer_source_from_text(*values):
+    text = " ".join(str(value or "") for value in values).lower()
+    if ".codex" in text or "/codex/" in text or "codex.app" in text:
+        return "codex"
+    if ".claude" in text or "/claude/" in text or "claude" in text:
+        return "claude"
+    return "unknown"
+
+
+def detect_source():
+    explicit = os.environ.get("ASK_INTERN_SOURCE", "").strip().lower()
+    if explicit:
+        return explicit
+
+    env_text = "\n".join(f"{key}={value}" for key, value in os.environ.items())
+    source = infer_source_from_text(env_text, os.getcwd())
+    if source != "unknown":
+        return source
+    if "CODEX_" in env_text:
+        return "codex"
+    if "ANTHROPIC" in env_text:
+        return "claude"
+
+    pid = os.getppid()
+    seen = set()
+    while pid > 1 and pid not in seen:
+        seen.add(pid)
+        try:
+            import subprocess
+
+            proc = subprocess.run(
+                ["ps", "-o", "comm=", "-o", "ppid=", "-p", str(pid)],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.DEVNULL,
+            )
+        except OSError:
+            break
+        line = proc.stdout.strip()
+        if not line:
+            break
+        parts = line.rsplit(None, 1)
+        command = parts[0].lower()
+        if "codex" in command:
+            return "codex"
+        if "claude" in command:
+            return "claude"
+        try:
+            pid = int(parts[1]) if len(parts) > 1 else 0
+        except ValueError:
+            break
+
+    return "unknown"
+
+
+def backfill_event_sources(lines, fields):
+    source_index = fields.index("source")
+    cwd_index = fields.index("cwd") if "cwd" in fields else None
+    changed = False
+    migrated = [lines[0]]
+
+    for line in lines[1:]:
+        if not line:
+            migrated.append(line)
+            continue
+        parts = line.split("\t")
+        if source_index >= len(parts) or parts[source_index] not in ("", "unknown"):
+            migrated.append(line)
+            continue
+        source = infer_source_from_text(parts[cwd_index] if cwd_index is not None and cwd_index < len(parts) else "")
+        if source == "unknown":
+            migrated.append(line)
+            continue
+        parts[source_index] = source
+        migrated.append("\t".join(parts))
+        changed = True
+
+    return migrated, changed
+
+
+def ensure_events_header():
+    events_dir = os.path.dirname(EVENTS_FILE)
+    if events_dir:
+        os.makedirs(events_dir, exist_ok=True)
+
+    header = "\t".join(EVENT_FIELDS)
+    if not os.path.exists(EVENTS_FILE) or os.path.getsize(EVENTS_FILE) == 0:
+        with open(EVENTS_FILE, "w") as f:
+            f.write(header + "\n")
+        return
+
+    try:
+        with open(EVENTS_FILE) as f:
+            lines = f.read().splitlines()
+    except OSError:
+        return
+
+    if not lines:
+        with open(EVENTS_FILE, "w") as f:
+            f.write(header + "\n")
+        return
+
+    existing_fields = lines[0].split("\t")
+    if existing_fields == EVENT_FIELDS:
+        migrated, changed = backfill_event_sources(lines, existing_fields)
+        if changed:
+            tmp_path = f"{EVENTS_FILE}.tmp"
+            with open(tmp_path, "w") as f:
+                f.write("\n".join(migrated) + "\n")
+            os.replace(tmp_path, EVENTS_FILE)
+        return
+    if "source" in existing_fields:
+        return
+
+    timestamp_index = existing_fields.index("timestamp") if "timestamp" in existing_fields else 0
+    field_indexes = {name: index for index, name in enumerate(existing_fields)}
+    migrated = [header]
+    for line in lines[1:]:
+        if not line:
+            migrated.append(line)
+            continue
+        parts = line.split("\t")
+        source = infer_source_from_text(
+            parts[field_indexes["cwd"]] if "cwd" in field_indexes and field_indexes["cwd"] < len(parts) else ""
+        )
+        parts.insert(timestamp_index + 1, source)
+        migrated.append("\t".join(parts))
+
+    tmp_path = f"{EVENTS_FILE}.tmp"
+    with open(tmp_path, "w") as f:
+        f.write("\n".join(migrated) + "\n")
+    os.replace(tmp_path, EVENTS_FILE)
+
+
+def log_event(status, reason, model="", files=None, target=None, elapsed=0.0, invocation=None):
+    from datetime import datetime, timezone
+
+    files = files or []
+    source = detect_source()
+    row = "\t".join([
+        datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+        clean_field(source),
+        clean_field(status),
+        clean_field(reason),
+        clean_field(model),
+        str(len(files)),
+        clean_field(target),
+        f"{elapsed:.2f}",
+        clean_field(os.getcwd()),
+        clean_field(",".join(files)),
+        clean_field(invocation or " ".join(shlex.quote(arg) for arg in sys.argv)),
+    ])
+
+    try:
+        ensure_events_header()
+        with open(EVENTS_FILE, "a") as f:
+            f.write(row + "\n")
+    except OSError:
+        pass
+
+
+def fatal(msg, reason=None, model="", files=None, target=None, elapsed=0.0):
+    if reason:
+        log_event("failure", reason, model=model, files=files, target=target, elapsed=elapsed)
     print(f"ask-intern: {msg}", file=sys.stderr)
     sys.exit(1)
 
@@ -106,6 +315,8 @@ def print_stats():
     today_calls = 0
     today_cost = 0.0
     today_opus = 0.0
+    recent_failures = Counter()
+    source_counts = Counter()
 
     with open(STATS_FILE) as f:
         next(f)  # skip header
@@ -131,6 +342,37 @@ def print_stats():
                 today_cost += float(parts[4])
                 today_opus += float(parts[5])
 
+    if os.path.exists(EVENTS_FILE):
+        ensure_events_header()
+        with open(EVENTS_FILE) as f:
+            header = next(f, "").rstrip("\n").split("\t")
+            field_indexes = {name: index for index, name in enumerate(header)}
+
+            def get_field(parts, name, default=""):
+                index = field_indexes.get(name)
+                if index is None or index >= len(parts):
+                    return default
+                return parts[index]
+
+            for line in f:
+                parts = line.rstrip("\n").split("\t")
+                if not parts:
+                    continue
+                row = {
+                    name: parts[index] if index < len(parts) else ""
+                    for name, index in field_indexes.items()
+                }
+                if is_test_event(row):
+                    continue
+                source_counts[get_field(parts, "source", "unknown") or "unknown"] += 1
+                ts_date = get_field(parts, "timestamp")[:10]
+                status = get_field(parts, "status")
+                reason = get_field(parts, "reason")
+                if has_optional_missing_file(row):
+                    continue
+                if status == "failure" and ts_date >= week_ago:
+                    recent_failures[reason] += 1
+
     saved = total_opus - total_cost
     pct = f"{saved/total_opus*100:.0f}%" if total_opus > 0 else "n/a"
 
@@ -150,6 +392,14 @@ def print_stats():
     if total_calls > 0 and total_secs > 0:
         print(f"  Avg latency:{total_secs/total_calls:.1f}s")
     print(f"  Opus equiv: {fmt_cost(total_opus)}")
+    if source_counts:
+        sources = ", ".join(f"{source} {count}" for source, count in source_counts.most_common())
+        print(f"  Sources:     {sources}")
+    if recent_failures:
+        print(f"{'─' * 45}")
+        print(f"  Recent failures: {sum(recent_failures.values())}")
+        for reason, count in recent_failures.most_common():
+            print(f"  - {reason}: {count}")
     print(f"{'─' * 45}")
 
 
@@ -204,7 +454,13 @@ def main():
     load_env_file(CONFIG_FILE)
     api_key = os.environ.get("OPENROUTER_API_KEY")
     if not api_key:
-        fatal("OPENROUTER_API_KEY not set. Get one at https://openrouter.ai/keys")
+        fatal(
+            "OPENROUTER_API_KEY not set. Get one at https://openrouter.ai/keys",
+            reason="missing_api_key",
+            model=args.model,
+            files=args.file,
+            target=args.target,
+        )
 
     # Build context from files
     context_parts = []
@@ -213,8 +469,14 @@ def main():
             with open(fpath) as f:
                 content = f.read()
             context_parts.append(f"<file path=\"{fpath}\">\n{content}\n</file>")
+        except FileNotFoundError as e:
+            if is_optional_missing_file(fpath):
+                print(f"ask-intern: Skipping missing optional file {fpath}: {e}", file=sys.stderr)
+                context_parts.append(f"<missing optional file path=\"{fpath}\">File was missing when ask-intern ran.</missing optional file>")
+                continue
+            fatal(f"Cannot read {fpath}: {e}", reason="missing_file", model=args.model, files=args.file, target=args.target)
         except (IOError, OSError) as e:
-            fatal(f"Cannot read {fpath}: {e}")
+            fatal(f"Cannot read {fpath}: {e}", reason="file_read_error", model=args.model, files=args.file, target=args.target)
 
     # Read stdin if piped
     if not sys.stdin.isatty():
@@ -225,7 +487,7 @@ def main():
     prompt = " ".join(args.prompt) if args.prompt else ""
 
     if not prompt and not context_parts:
-        fatal("Nothing to do. Provide a prompt, files (-f), or pipe input.")
+        fatal("Nothing to do. Provide a prompt, files (-f), or pipe input.", reason="no_input", model=args.model, files=args.file, target=args.target)
 
     if not prompt:
         prompt = "Analyze and summarize the provided content."
@@ -285,10 +547,12 @@ def main():
         with urlopen(req, timeout=120) as resp:
             data = json.loads(resp.read().decode())
     except HTTPError as e:
+        elapsed = time.time() - t0
         body = e.read().decode() if e.fp else ""
-        fatal(f"API error {e.code}: {body[:500]}")
+        fatal(f"API error {e.code}: {body[:500]}", reason="api_error", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
     except Exception as e:
-        fatal(f"Request failed: {e}")
+        elapsed = time.time() - t0
+        fatal(f"Request failed: {e}", reason="request_failed", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
     elapsed = time.time() - t0
 
     if args.verbose:
@@ -299,11 +563,12 @@ def main():
     try:
         content = data["choices"][0]["message"]["content"]
     except (KeyError, IndexError):
-        fatal(f"Unexpected response: {json.dumps(data)[:500]}")
+        fatal(f"Unexpected response: {json.dumps(data)[:500]}", reason="unexpected_response", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
 
     if not content:
         fatal("Empty response — model may have exhausted token budget on internal reasoning. "
-              "Try increasing INTERN_MAX_TOKENS or use a non-reasoning model.")
+              "Try increasing INTERN_MAX_TOKENS or use a non-reasoning model.",
+              reason="empty_response", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
 
     # Write to target file or stdout
     if args.target:
@@ -321,6 +586,7 @@ def main():
     in_tok = usage.get("prompt_tokens", 0)
     out_tok = usage.get("completion_tokens", 0)
     log_usage(args.model, in_tok, out_tok, elapsed)
+    log_event("success", "ok", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
     print(f"[intern: {args.model} | {in_tok}in/{out_tok}out | {elapsed:.1f}s]", file=sys.stderr)
 
 

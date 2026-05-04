@@ -1,0 +1,192 @@
+#!/usr/bin/env python3
+"""
+Audit ask-intern adoption from local telemetry and agent/session logs.
+
+The goal is not perfect attribution. It surfaces likely misses: sessions with
+several direct file reads and no ask-intern invocation.
+"""
+
+import argparse
+import csv
+import json
+import os
+import re
+import sys
+import time
+from collections import Counter, defaultdict
+from pathlib import Path
+
+
+DEFAULT_EVENTS = Path("~/.config/ask-intern/events.tsv").expanduser()
+DEFAULT_LOG_ROOTS = [
+    Path("~/.codex/sessions").expanduser(),
+    Path("~/.codex/archived_sessions").expanduser(),
+    Path("~/.claude/projects").expanduser(),
+]
+
+DIRECT_READ_RE = re.compile(
+    r"(^|[;&|]\s*|\b)(cat|head|tail)\s+|"
+    r"\bsed\s+-n\b|"
+    r"\bnl\s+-ba\b|"
+    r"\bpython3?\b.*\b(read_text|open\()",
+)
+ASK_INTERN_RE = re.compile(r"(^|[\s/])ask-intern(\s|$)")
+PATHISH_RE = re.compile(r"(?:[./~]?[\w@%+=:,.-]+/)*[\w@%+=:,.-]+\.[A-Za-z0-9_-]+")
+
+
+def iter_json_values(value):
+    yield value
+    if isinstance(value, dict):
+        for child in value.values():
+            yield from iter_json_values(child)
+    elif isinstance(value, list):
+        for child in value:
+            yield from iter_json_values(child)
+
+
+def command_values(record):
+    for value in iter_json_values(record):
+        if isinstance(value, dict):
+            command = value.get("command")
+            if isinstance(command, str):
+                yield command
+            if value.get("name") == "Read":
+                tool_input = value.get("input") or value.get("parameters") or {}
+                if isinstance(tool_input, dict):
+                    path = tool_input.get("file_path") or tool_input.get("path")
+                    if isinstance(path, str):
+                        yield f"Read {path}"
+
+
+def load_events(path):
+    summary = {
+        "total": 0,
+        "success": 0,
+        "failure": 0,
+        "failures": Counter(),
+        "sources": Counter(),
+    }
+    if not path.exists():
+        return summary
+
+    with path.open(newline="") as f:
+        reader = csv.DictReader(f, delimiter="\t")
+        for row in reader:
+            status = row.get("status", "")
+            reason = row.get("reason", "")
+            source = row.get("source") or "unknown"
+            summary["total"] += 1
+            summary["sources"][source] += 1
+            if status == "success":
+                summary["success"] += 1
+            elif status == "failure":
+                summary["failure"] += 1
+                summary["failures"][reason or "unknown"] += 1
+    return summary
+
+
+def discover_logs(paths, roots, since_days=None):
+    discovered = [Path(p).expanduser() for p in paths]
+    for root in roots:
+        root = Path(root).expanduser()
+        if not root.exists():
+            continue
+        discovered.extend(root.rglob("*.jsonl"))
+    logs = sorted({p for p in discovered if p.exists() and p.is_file()})
+    if since_days is None:
+        return logs
+
+    cutoff = time.time() - (since_days * 24 * 60 * 60)
+    return [p for p in logs if p.stat().st_mtime >= cutoff]
+
+
+def direct_read_path(command):
+    if command.startswith("Read "):
+        return command[5:].strip()
+    matches = PATHISH_RE.findall(command)
+    return matches[-1] if matches else "(unknown)"
+
+
+def scan_log(path):
+    result = {
+        "ask_intern": 0,
+        "direct_reads": [],
+    }
+    try:
+        lines = path.read_text(errors="ignore").splitlines()
+    except OSError:
+        return result
+
+    for line in lines:
+        try:
+            record = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        for command in command_values(record):
+            if ASK_INTERN_RE.search(command):
+                result["ask_intern"] += 1
+            if DIRECT_READ_RE.search(command) and not ASK_INTERN_RE.search(command):
+                result["direct_reads"].append((command, direct_read_path(command)))
+    return result
+
+
+def main():
+    parser = argparse.ArgumentParser(description="Audit ask-intern usage and likely missed delegations.")
+    parser.add_argument("--events", default=str(DEFAULT_EVENTS), help="Path to ask-intern events.tsv")
+    parser.add_argument("--log", action="append", default=[], help="Session JSONL log to scan (repeatable)")
+    parser.add_argument("--log-root", action="append", default=[], help="Directory of JSONL logs to scan recursively")
+    parser.add_argument("--since-days", type=float, default=None, help="Only scan session logs modified in the last N days")
+    parser.add_argument("--min-direct-reads", type=int, default=3, help="Direct-read count that flags a session")
+    parser.add_argument("--top", type=int, default=10, help="Number of top paths/sessions to print")
+    args = parser.parse_args()
+
+    events = load_events(Path(args.events).expanduser())
+    if args.log_root:
+        log_roots = [Path(p).expanduser() for p in args.log_root]
+    elif args.log:
+        log_roots = []
+    else:
+        log_roots = DEFAULT_LOG_ROOTS
+    logs = discover_logs(args.log, log_roots, since_days=args.since_days)
+
+    total_direct_reads = 0
+    top_paths = Counter()
+    missed_sessions = []
+
+    for log_path in logs:
+        scan = scan_log(log_path)
+        direct_reads = scan["direct_reads"]
+        total_direct_reads += len(direct_reads)
+        for _command, path in direct_reads:
+            top_paths[path] += 1
+        if len(direct_reads) >= args.min_direct_reads and scan["ask_intern"] == 0:
+            missed_sessions.append((log_path, len(direct_reads), [path for _cmd, path in direct_reads[:5]]))
+
+    print("ask-intern audit")
+    print(f"events file: {Path(args.events).expanduser()}")
+    print(f"ask-intern calls: {events['total']} (success {events['success']}, failure {events['failure']})")
+    if events["sources"]:
+        print("sources:")
+        for source, count in events["sources"].most_common():
+            print(f"- {source}: {count}")
+    if events["failures"]:
+        print("failure reasons:")
+        for reason, count in events["failures"].most_common():
+            print(f"- {reason}: {count}")
+    if args.since_days is not None:
+        print(f"session log window: last {args.since_days:g} days")
+    print(f"session logs scanned: {len(logs)}")
+    print(f"suspicious direct reads: {total_direct_reads}")
+    if top_paths:
+        print("top direct-read paths:")
+        for path, count in top_paths.most_common(args.top):
+            print(f"- {path}: {count}")
+    print(f"likely missed delegations: {len(missed_sessions)}")
+    for path, count, sample_paths in missed_sessions[: args.top]:
+        print(f"- {path}: {count} direct reads, no ask-intern")
+        if sample_paths:
+            print(f"  sample paths: {', '.join(sample_paths)}")
+
+
+if __name__ == "__main__":
+    main()

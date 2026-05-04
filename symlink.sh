@@ -9,7 +9,16 @@ link_path() {
     source="$1"
     dest="$2"
     if [ -e "$dest" ] && [ ! -L "$dest" ]; then
-        mv "$dest" "$dest".orig
+        backup="$dest.orig"
+        if [ -e "$backup" ]; then
+            i=1
+            while [ -e "$backup.$i" ]; do
+                i=$((i + 1))
+            done
+            backup="$backup.$i"
+        fi
+        echo "Backing up real $dest to $backup before restoring dotfiles symlink" >&2
+        mv "$dest" "$backup"
     fi
     ln -sfvn "$source" "$dest"
 }

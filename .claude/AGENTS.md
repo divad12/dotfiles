@@ -6,19 +6,24 @@ Universal rules for AI coding agents. `CLAUDE.md` symlinks here.
 
 Use `ask-intern` to offload high-token/low-reasoning work to a cheap model (~$0.002/call). This preserves Pro limits for actual reasoning.
 
+You MUST use `ask-intern` before broadly reading 3+ distinct files for context, or before reading any single file over 400 lines. Build the file list from actual paths (`rg --files` is fine), then use the summary instead of reading those files yourself. If `ask-intern` reports `Cannot read`, correct the paths and retry. Re-reading narrow snippets from files already identified by `ask-intern` is allowed for exact line numbers, verification, and edits. Claude Code has a PreToolUse hook that blocks broad direct reads at these thresholds and routes you to `ask-intern`.
+
 ### When to delegate
 
-- Reading files >400 lines, or when you'd read 3+ files for context
+- Reading 3+ files for context, or any file >400 lines
 - Boilerplate: tests, config, docstrings, repetitive patterns
 - Summarizing diffs, logs, or documentation
 - Generating fixtures, sample data, format conversions
+
+Stop signals — if you think any of these, delegate instead:
+"let me read these files", "let me check", "I'll look at a few", "let me explore".
 
 ### When NOT to delegate
 
 - Tasks under ~2000 tokens total (overhead isn't worth it)
 - Architecture decisions, debugging, safety-critical code
 - Anything requiring conversation context or careful reasoning
-- When exact line numbers are needed for editing
+- When exact line numbers are needed for editing (read a narrow snippet after delegating for the overview)
 
 ### Usage
 

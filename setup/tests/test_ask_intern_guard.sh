@@ -1,0 +1,85 @@
+#!/bin/sh
+
+set -eu
+
+repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
+script="$repo_root/bin/ask-intern-guard"
+tmpdir="$(mktemp -d)"
+trap 'rm -rf "$tmpdir"' EXIT
+
+if ! grep -q "ask-intern-guard" "$repo_root/.claude/settings.json"; then
+  echo ".claude/settings.json does not install ask-intern-guard" >&2
+  exit 1
+fi
+
+home="$tmpdir/home"
+work="$tmpdir/work"
+mkdir -p "$home" "$work"
+
+small_a="$work/a.py"
+small_b="$work/b.py"
+small_c="$work/c.py"
+large="$work/large.py"
+printf 'print("a")\n' >"$small_a"
+printf 'print("b")\n' >"$small_b"
+printf 'print("c")\n' >"$small_c"
+i=0
+while [ "$i" -lt 401 ]; do
+  printf 'line %s\n' "$i" >>"$large"
+  i=$((i + 1))
+done
+
+run_hook() {
+  HOME="$home" "$script" <<EOF
+$1
+EOF
+}
+
+read_json() {
+  file="$1"
+  printf '{"session_id":"s1","cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Read","tool_input":{"file_path":"%s"}}' "$work" "$file"
+}
+
+partial_read_json() {
+  file="$1"
+  printf '{"session_id":"s2","cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Read","tool_input":{"file_path":"%s","offset":1,"limit":80}}' "$work" "$file"
+}
+
+bash_json() {
+  command="$1"
+  session="${2:-s1}"
+  printf '{"session_id":"%s","cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"%s"}}' "$session" "$work" "$command"
+}
+
+run_hook "$(read_json "$small_a")" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$small_b")" >/tmp/guard.out 2>/tmp/guard.err
+
+if run_hook "$(read_json "$small_c")" >/tmp/guard.out 2>/tmp/guard.err; then
+  echo "third distinct context read was not blocked" >&2
+  exit 1
+fi
+if ! grep -q "ask-intern" /tmp/guard.err; then
+  echo "third-read block did not route Claude to ask-intern" >&2
+  exit 1
+fi
+
+if run_hook "$(read_json "$large")" >/tmp/guard.out 2>/tmp/guard.err; then
+  echo "large whole-file read was not blocked" >&2
+  exit 1
+fi
+if ! grep -q "401 lines" /tmp/guard.err; then
+  echo "large-file block did not explain the line-count trigger" >&2
+  exit 1
+fi
+
+run_hook "$(partial_read_json "$large")" >/tmp/guard.out 2>/tmp/guard.err
+
+run_hook "$(bash_json "ask-intern -f '$small_a' -f '$small_b' summarize")" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$small_c")" >/tmp/guard.out 2>/tmp/guard.err
+
+if run_hook "$(bash_json "cat '$small_a' '$small_b' '$small_c'" s3)" >/tmp/guard.out 2>/tmp/guard.err; then
+  echo "bash read of three distinct files was not blocked" >&2
+  exit 1
+fi
+
+echo "ok"

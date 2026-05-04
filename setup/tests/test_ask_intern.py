@@ -97,6 +97,161 @@ class AskInternConfigTest(unittest.TestCase):
         self.assertEqual(captured["title"], "ask-intern")
         self.assertEqual(captured["payload"]["model"], "deepseek/deepseek-v4-flash")
 
+    def test_missing_temp_log_is_skipped_but_project_files_are_sent(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            work = home / "repo"
+            work.mkdir()
+            source_file = work / "source.py"
+            source_file.write_text("def ok():\n    return True\n", encoding="utf-8")
+            missing_log = Path(tmp) / "missing-dev.log"
+            config_dir = home / ".config" / "ask-intern"
+            config_dir.mkdir(parents=True)
+            (config_dir / "env").write_text(
+                "export OPENROUTER_API_KEY=file-key\n",
+                encoding="utf-8",
+            )
+            module = load_ask_intern(home)
+            module.STATS_FILE = str(config_dir / "stats.tsv")
+            module.EVENTS_FILE = str(config_dir / "events.tsv")
+            captured = {}
+
+            class FakeResponse:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, exc_type, exc, tb):
+                    return False
+
+                def read(self):
+                    return json.dumps(
+                        {
+                            "choices": [{"message": {"content": "ok"}}],
+                            "usage": {"prompt_tokens": 10, "completion_tokens": 1},
+                        }
+                    ).encode("utf-8")
+
+            def fake_urlopen(req, timeout):
+                captured["payload"] = json.loads(req.data.decode("utf-8"))
+                return FakeResponse()
+
+            stderr = io.StringIO()
+            with (
+                patch.dict(os.environ, {"HOME": str(home)}, clear=True),
+                patch.object(module, "urlopen", fake_urlopen),
+                patch.object(sys, "argv", ["ask-intern", "-f", str(missing_log), "-f", str(source_file), "summarize"]),
+                patch.object(sys, "stdin", io.StringIO("")),
+                patch.object(sys, "stdout", io.StringIO()),
+                patch.object(sys, "stderr", stderr),
+            ):
+                module.main()
+
+            context = captured["payload"]["messages"][1]["content"]
+            events = (config_dir / "events.tsv").read_text(encoding="utf-8")
+
+        self.assertIn(str(source_file), context)
+        self.assertIn("def ok", context)
+        self.assertIn(str(missing_log), context)
+        self.assertIn("missing optional file", context)
+        self.assertIn("Skipping missing optional file", stderr.getvalue())
+        self.assertIn("\tsuccess\tok\t", events)
+
+    def test_missing_file_logs_exact_invocation_for_debugging(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            config_dir = home / ".config" / "ask-intern"
+            config_dir.mkdir(parents=True)
+            (config_dir / "env").write_text(
+                "export OPENROUTER_API_KEY=file-key\n",
+                encoding="utf-8",
+            )
+            module = load_ask_intern(home)
+            module.EVENTS_FILE = str(config_dir / "events.tsv")
+
+            with (
+                patch.dict(os.environ, {"HOME": str(home), "CODEX_SHELL": "1"}, clear=True),
+                patch.object(sys, "argv", ["ask-intern", "-f", "missing.md", "secret prompt"]),
+                patch.object(sys, "stdin", io.StringIO("")),
+                patch.object(sys, "stdout", io.StringIO()),
+                patch.object(sys, "stderr", io.StringIO()),
+                self.assertRaises(SystemExit),
+            ):
+                module.main()
+
+            events = (config_dir / "events.tsv").read_text(encoding="utf-8")
+
+        self.assertIn("timestamp\tsource\tstatus\treason\tmodel", events)
+        self.assertIn("\tcodex\tfailure\tmissing_file\t", events)
+        self.assertIn("missing.md", events)
+        self.assertIn("ask-intern -f missing.md 'secret prompt'", events)
+
+    def test_existing_event_log_is_migrated_and_backfilled_to_include_source_column(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            module = load_ask_intern(home)
+            config_dir = home / ".config" / "ask-intern"
+            config_dir.mkdir(parents=True)
+            module.EVENTS_FILE = str(config_dir / "events.tsv")
+            (config_dir / "events.tsv").write_text(
+                "\n".join(
+                    [
+                        "timestamp\tstatus\treason\tmodel\tfile_count\ttarget\tlatency_s\tcwd\tfiles\tinvocation",
+                        "2026-05-03 19:00:00\tsuccess\tok\tdeepseek/deepseek-v4-flash\t1\t\t1.00\t/repo/.codex/worktrees/task\ta.md\task-intern -f a.md prompt",
+                        "2026-05-03 19:00:01\tsuccess\tok\tdeepseek/deepseek-v4-flash\t1\t\t1.00\t/repo/.claude/worktrees/task\tb.md\task-intern -f b.md prompt",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            with patch.dict(os.environ, {"HOME": str(home), "ASK_INTERN_SOURCE": "claude"}, clear=True):
+                module.log_event("failure", "missing_file", model="test/model", files=["b.md"])
+
+            events = (config_dir / "events.tsv").read_text(encoding="utf-8").splitlines()
+
+        self.assertEqual(
+            events[0],
+            "timestamp\tsource\tstatus\treason\tmodel\tfile_count\ttarget\tlatency_s\tcwd\tfiles\tinvocation",
+        )
+        self.assertIn("2026-05-03 19:00:00\tcodex\tsuccess\tok\t", events[1])
+        self.assertIn("2026-05-03 19:00:01\tclaude\tsuccess\tok\t", events[2])
+        self.assertIn("\tclaude\tfailure\tmissing_file\ttest/model\t", events[3])
+
+    def test_stats_reports_recent_failures(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            module = load_ask_intern(home)
+            config_dir = home / ".config" / "ask-intern"
+            config_dir.mkdir(parents=True)
+            module.STATS_FILE = str(config_dir / "stats.tsv")
+            module.EVENTS_FILE = str(config_dir / "events.tsv")
+            (config_dir / "stats.tsv").write_text(
+                "timestamp\tmodel\tin_tokens\tout_tokens\tcost_usd\topus_equivalent_usd\tlatency_s\n",
+                encoding="utf-8",
+            )
+            (config_dir / "events.tsv").write_text(
+                "\n".join(
+                    [
+                        "timestamp\tsource\tstatus\treason\tmodel\tfile_count\ttarget\tlatency_s\tcwd\tfiles\tinvocation",
+                        "2026-05-03 19:00:00\tclaude\tfailure\tmissing_file\tdeepseek/deepseek-v4-flash\t1\t\t0.00\t/tmp\tmissing.md\task-intern -f missing.md prompt",
+                        "2026-05-03 19:01:00\tcodex\tfailure\tapi_error\tdeepseek/deepseek-v4-flash\t2\t\t0.10\t/tmp\ta.md,b.md\task-intern -f a.md -f b.md prompt",
+                        "2026-05-03 19:02:00\tunknown\tfailure\tmissing_file\tdeepseek/deepseek-v4-flash\t1\t\t0.00\t/tmp\tdefinitely-missing-intern-smoke.md\task-intern -f definitely-missing-intern-smoke.md",
+                        "2026-05-03 19:03:00\tclaude\tfailure\tmissing_file\tdeepseek/deepseek-v4-flash\t2\t\t0.00\t/repo\t/private/tmp/stale.log,src/source.py\task-intern -f /private/tmp/stale.log -f src/source.py prompt",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            output = io.StringIO()
+            with patch.object(sys, "stdout", output):
+                module.print_stats()
+
+        self.assertIn("Recent failures: 2", output.getvalue())
+        self.assertIn("missing_file: 1", output.getvalue())
+        self.assertIn("api_error: 1", output.getvalue())
+        self.assertIn("Sources:     claude 2, codex 1", output.getvalue())
+
 
 if __name__ == "__main__":
     unittest.main()

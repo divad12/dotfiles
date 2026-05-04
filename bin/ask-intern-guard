@@ -1,0 +1,335 @@
+#!/usr/bin/env python3
+"""
+Claude Code PreToolUse hook that routes broad file reading to ask-intern.
+
+Blocks whole-file reads when they cross either threshold:
+- any non-exempt file over ASK_INTERN_GUARD_MAX_LINES lines (default 400)
+- ASK_INTERN_GUARD_MIN_DISTINCT distinct non-exempt context files in a session
+
+Narrow Read chunks with offset/limit are allowed for exact inspection.
+Running ask-intern from Bash resets the session counter.
+"""
+
+import hashlib
+import json
+import os
+import re
+import shlex
+import sys
+import time
+from pathlib import Path
+
+
+DEFAULT_MIN_DISTINCT = 3
+DEFAULT_MAX_LINES = 400
+READ_COMMANDS = {"cat", "head", "tail", "nl"}
+INSTRUCTION_BASENAMES = {"AGENTS.md", "CLAUDE.md", "PROGRESS.md", "SKILL.md"}
+DIRECT_READ_RE = re.compile(
+    r"(^|[;&|]\s*|\b)(cat|head|tail)\s+|"
+    r"\bsed\s+-n\b|"
+    r"\bnl\s+-ba\b|"
+    r"\bpython3?\b.*\b(read_text|open\()",
+)
+
+
+def config_int(name, default):
+    try:
+        return int(os.environ.get(name, str(default)))
+    except ValueError:
+        return default
+
+
+def config_bool(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
+def state_dir():
+    root = os.environ.get("ASK_INTERN_GUARD_DIR", "~/.config/ask-intern/read-guard")
+    path = Path(root).expanduser()
+    path.mkdir(parents=True, exist_ok=True)
+    return path
+
+
+def session_hash(session_id):
+    return hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:16]
+
+
+def state_path(session_id):
+    return state_dir() / f"session-{session_hash(session_id)}.json"
+
+
+def events_path():
+    return state_dir() / "events.jsonl"
+
+
+def load_state(session_id):
+    path = state_path(session_id)
+    try:
+        return json.loads(path.read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {"paths": []}
+
+
+def save_state(session_id, state):
+    path = state_path(session_id)
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(state, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def log_event(session_id, action, reason="", paths=None, cwd="", tool_name="", command=""):
+    event = {
+        "ts": int(time.time()),
+        "session": session_hash(session_id) if session_id else "",
+        "action": action,
+        "reason": reason,
+        "paths": paths or [],
+        "cwd": cwd,
+        "tool": tool_name,
+        "command": command,
+    }
+    try:
+        with events_path().open("a", encoding="utf-8") as f:
+            f.write(json.dumps(event, sort_keys=True) + "\n")
+    except OSError:
+        pass
+
+
+def read_input():
+    try:
+        return json.load(sys.stdin)
+    except json.JSONDecodeError:
+        return {}
+
+
+def normalize_path(path, cwd):
+    if not path:
+        return ""
+    expanded = os.path.expanduser(path)
+    if not os.path.isabs(expanded):
+        expanded = os.path.join(cwd or os.getcwd(), expanded)
+    return os.path.realpath(expanded)
+
+
+def is_exempt_path(path):
+    parts = Path(path).parts
+    basename = os.path.basename(path)
+    if basename in INSTRUCTION_BASENAMES:
+        return True
+    joined = "/".join(parts)
+    if "/docs/ai/" in joined:
+        return True
+    if "/.agents/observations/" in joined:
+        return True
+    return False
+
+
+def line_count(path):
+    try:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            return sum(1 for _ in f)
+    except OSError:
+        return None
+
+
+def basename_list(paths):
+    return ", ".join(os.path.basename(path) for path in paths)
+
+
+def ask_intern_command(paths):
+    flags = " ".join(f"-f {shlex.quote(path)}" for path in paths[:8])
+    if len(paths) > 8:
+        flags += " ..."
+    return f'ask-intern {flags} "summarize the parts I need for this task"'
+
+
+def deny(reason):
+    print(reason, file=sys.stderr)
+    sys.exit(2)
+
+
+def warn_or_deny(reason):
+    if os.environ.get("ASK_INTERN_GUARD_MODE", "deny") == "warn":
+        print(json.dumps({
+            "hookSpecificOutput": {
+                "hookEventName": "PreToolUse",
+                "permissionDecision": "allow",
+                "permissionDecisionReason": reason,
+            }
+        }))
+        return
+    deny(reason)
+
+
+def is_ask_intern_command(command):
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        tokens = command.split()
+    return any(os.path.basename(token) == "ask-intern" for token in tokens)
+
+
+def existing_file(path):
+    try:
+        return Path(path).is_file()
+    except OSError:
+        return False
+
+
+def extract_bash_read_paths(command, cwd):
+    if not DIRECT_READ_RE.search(command):
+        return []
+    try:
+        tokens = shlex.split(command)
+    except ValueError:
+        tokens = command.split()
+
+    paths = []
+    saw_read_command = False
+    saw_sed_n = False
+    for index, token in enumerate(tokens):
+        base = os.path.basename(token)
+        if base in READ_COMMANDS:
+            saw_read_command = True
+            continue
+        if base == "sed" and "-n" in tokens[index + 1:index + 4]:
+            saw_sed_n = True
+            continue
+        if token.startswith("-") or token in {"|", "&&", "||", ";"}:
+            continue
+        normalized = normalize_path(token, cwd)
+        if (saw_read_command or saw_sed_n) and existing_file(normalized):
+            paths.append(normalized)
+
+    return sorted(set(paths))
+
+
+def reset_after_delegation(record, session_id, state):
+    tool_name = record.get("tool_name", "")
+    tool_input = record.get("tool_input") or {}
+    command = tool_input.get("command", "") if isinstance(tool_input, dict) else ""
+    if tool_name == "Bash" and isinstance(command, str) and is_ask_intern_command(command):
+        state["paths"] = []
+        state["delegated_at"] = int(time.time())
+        save_state(session_id, state)
+        log_event(session_id, "delegated", paths=[], cwd=record.get("cwd", ""), tool_name=tool_name, command=command)
+        return True
+    return False
+
+
+def candidate_paths(record):
+    tool_name = record.get("tool_name", "")
+    tool_input = record.get("tool_input") or {}
+    cwd = record.get("cwd") or os.getcwd()
+    if not isinstance(tool_input, dict):
+        return [], False
+
+    if tool_name == "Read":
+        path = normalize_path(tool_input.get("file_path", ""), cwd)
+        if not path:
+            return [], False
+        is_partial = "offset" in tool_input or "limit" in tool_input
+        return [path], is_partial
+
+    if tool_name == "Bash":
+        command = tool_input.get("command", "")
+        if not isinstance(command, str):
+            return [], False
+        return extract_bash_read_paths(command, cwd), False
+
+    return [], False
+
+
+def check_large_file(paths, session_id, record):
+    max_lines = config_int("ASK_INTERN_GUARD_MAX_LINES", DEFAULT_MAX_LINES)
+    for path in paths:
+        if is_exempt_path(path):
+            continue
+        lines = line_count(path)
+        if lines is None or lines <= max_lines:
+            continue
+        reason = (
+            f"ask-intern guard: {path} is {lines} lines (>{max_lines}). "
+            f"Use `ask-intern -f {shlex.quote(path)} \"summarize what I need\"` before reading it, "
+            "then read only narrow snippets needed for exact line numbers, verification, or edits."
+        )
+        log_event(
+            session_id,
+            "blocked",
+            reason="large_file",
+            paths=[path],
+            cwd=record.get("cwd", ""),
+            tool_name=record.get("tool_name", ""),
+            command=(record.get("tool_input") or {}).get("command", ""),
+        )
+        warn_or_deny(reason)
+
+
+def check_distinct_files(paths, session_id, state, record):
+    min_distinct = config_int("ASK_INTERN_GUARD_MIN_DISTINCT", DEFAULT_MIN_DISTINCT)
+    relevant_paths = [path for path in paths if not is_exempt_path(path)]
+    if not relevant_paths:
+        return
+
+    existing = list(state.get("paths") or [])
+    combined = []
+    for path in existing + relevant_paths:
+        if path not in combined:
+            combined.append(path)
+
+    if len(combined) >= min_distinct:
+        reason = (
+            f"ask-intern guard: this would broadly read {len(combined)} distinct context files "
+            f"({basename_list(combined[:min_distinct])}). Use `{ask_intern_command(combined)}` first. "
+            "After the intern summary, read only narrow snippets needed for exact line numbers, verification, or edits."
+        )
+        log_event(
+            session_id,
+            "blocked",
+            reason="distinct_files",
+            paths=relevant_paths,
+            cwd=record.get("cwd", ""),
+            tool_name=record.get("tool_name", ""),
+            command=(record.get("tool_input") or {}).get("command", ""),
+        )
+        warn_or_deny(reason)
+        return
+
+    state["paths"] = combined
+    save_state(session_id, state)
+    log_event(
+        session_id,
+        "tracked",
+        paths=relevant_paths,
+        cwd=record.get("cwd", ""),
+        tool_name=record.get("tool_name", ""),
+        command=(record.get("tool_input") or {}).get("command", ""),
+    )
+
+
+def main():
+    if config_bool("ASK_INTERN_GUARD_DISABLED"):
+        return
+
+    record = read_input()
+    session_id = record.get("session_id", "")
+    if not session_id:
+        return
+
+    state = load_state(session_id)
+    if reset_after_delegation(record, session_id, state):
+        return
+
+    paths, is_partial = candidate_paths(record)
+    if not paths or is_partial:
+        return
+
+    check_large_file(paths, session_id, record)
+    check_distinct_files(paths, session_id, state, record)
+
+
+if __name__ == "__main__":
+    main()

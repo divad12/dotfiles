@@ -65,6 +65,28 @@ After `--target`, review the output and edit only what needs fixing.
 | `-v` | Verbose: dump full request/response to stderr |
 | `--stats` | Print usage dashboard and exit |
 
+## Debugging
+
+- Success stats: `~/.config/ask-intern/stats.tsv`
+- Outcome log: `~/.config/ask-intern/events.tsv`
+- Claude Code read-guard log: `~/.config/ask-intern/read-guard/events.jsonl`
+- `ask-intern --stats` includes recent failure counts by reason, such as `missing_file`, `missing_api_key`, `api_error`, or `empty_response`.
+- The event log records source (`claude`, `codex`, or `unknown`), status, reason, model, cwd, file paths, target path, latency, and the exact `ask-intern` invocation for early debugging.
+- Source is inferred from `ASK_INTERN_SOURCE`, agent-specific environment variables, working directory, and process ancestry; old rows are backfilled from `cwd` when obvious and otherwise remain `unknown`.
+- The invocation field may include prompt text. Keep this while tuning adoption, then remove or redact it once common failure modes are understood.
+- Missing temp/log files are treated as stale optional context and skipped with a warning; missing project/source files still fail so the agent corrects guessed paths.
+- Adoption audit: `ask-intern-audit` scans the event log plus Claude/Codex JSONL logs and reports suspicious direct reads and likely missed delegations. Use `ask-intern-audit --since-days 1` for recent sessions, or `ask-intern-audit --log path/to/session.jsonl` to inspect a specific session.
+
+## Claude Code Read Guard
+
+`~/bin/ask-intern-guard` is installed as a `PreToolUse` hook for `Read|Bash` in `~/.claude/settings.json`. It blocks broad direct reads before Claude Code spends context:
+
+- whole-file reads of any non-instruction file over 400 lines
+- the 3rd distinct non-instruction context file in a session
+- Bash commands that directly read 3+ files, such as `cat a b c`
+
+The hook allows narrow `Read` chunks with `offset`/`limit`, ignores required instruction files (`AGENTS.md`, `CLAUDE.md`, `PROGRESS.md`, `SKILL.md`, `docs/ai/`), and resets the session counter when Claude runs `ask-intern`. Set `ASK_INTERN_GUARD_DISABLED=1` to bypass it, or `ASK_INTERN_GUARD_MODE=warn` to allow reads with an advisory while tuning.
+
 ## Configuration
 
 - API key: `~/.config/ask-intern/env` (`export OPENROUTER_API_KEY=...`)

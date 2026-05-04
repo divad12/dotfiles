@@ -11,9 +11,9 @@ None.
 
 ## Up Next
 - [ ] Resolve the existing `.claude/skills` to `.agents/skills` symlink migration.
-- [ ] Watch for atomic-rename clobber: if Claude Code writes settings.json via temp+rename, the dotfiles symlink gets replaced by a real file. Detectable via `ls -la ~/.claude/settings.json` showing it as non-symlink.
 
 ## Recently Done
+- [x] [worktree: master] Added `ask-intern-guard` as the active Claude Code PreToolUse routing hook; restored `~/.claude/settings.json` to the dotfiles symlink with unique drift backups.
 - [x] [worktree: elated-buck-046da7] task-observer skips subagents — added SUBAGENT-STOP block + frontmatter exception + AGENTS.md note. Subagents previously burned ~50 tokens per invocation despite having no user-feedback signal to capture.
 - [x] [worktree: elated-buck-046da7] Bootstrapped global `~/dotfiles/docs/ai/` with `writing-docs.md` (universal portion lifted from journology); added routing table to AGENTS.md; updated cloud routine prompt to support docs/ai/ as PR target.
 - [x] [worktree: elated-buck-046da7] Hardened task-observer auto-invocation: MANDATORY language in AGENTS.md + SKILL.md description, SessionStart hook in settings.json injects mandatory pre-flight reminder.
