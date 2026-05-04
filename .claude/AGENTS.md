@@ -61,7 +61,7 @@ Full reference for maintenance/troubleshooting only: `docs/ai/ask-intern.md`. Do
 
 ## Session Tools
 
-- **MANDATORY: invoke `task-observer` BEFORE your first tool call** in any task-oriented session where tools produce deliverables. Non-negotiable. No rationalizing ("quick task", "I'll invoke later", "doesn't count"). Skipping it loses observations across dozens of future sessions; the cost is ~50 tokens. The SessionStart hook reinforces this. **Subagents skip** — Task-dispatched sessions have no user-feedback signal; the parent agent owns observation logging for delegated work.
+- **MANDATORY for interactive parent sessions: invoke `task-observer` BEFORE your first tool call** when tools will produce deliverables. Delegated/non-interactive subagents, review-only workers, verify-only workers, and Codex/Claude print-mode reviewers skip it; the parent agent owns observation logging.
 - Store task-observer files centrally:
 
 | Default | Use instead |

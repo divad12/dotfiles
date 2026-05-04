@@ -129,17 +129,17 @@ Launch Codex in the background while you do reviews 1 and 2:
 
 ```bash
 # For uncommitted changes:
-codex review --uncommitted
+codex review --uncommitted "You are the independent reviewer for /deep-review. Review only. Do not modify files. Report correctness, safety, tests, maintainability, and rule-compliance findings with file:line references. Do not invoke or read task-observer; this is a delegated/non-interactive review and the parent session logs observations."
 
 # For branch changes:
-codex review --base main
+codex review --base main "You are the independent reviewer for /deep-review. Review only. Do not modify files. Report correctness, safety, tests, maintainability, and rule-compliance findings with file:line references. Do not invoke or read task-observer; this is a delegated/non-interactive review and the parent session logs observations."
 ```
 
 **Important: `--base` takes a BRANCH name, NOT a SHA.** If your scope is a SHA range (e.g. `<phase-base>^..<phase-head>` from /fly's phase-gate deep-review), create a temp branch at the base SHA first - DO NOT skip codex.
 
 ```bash
 git branch -f /tmp/codex-base <phase-base>^
-codex review --base /tmp/codex-base
+codex review --base /tmp/codex-base "You are the independent reviewer for /deep-review. Review only. Do not modify files. Report correctness, safety, tests, maintainability, and rule-compliance findings with file:line references. Do not invoke or read task-observer; this is a delegated/non-interactive review and the parent session logs observations."
 git branch -D /tmp/codex-base   # cleanup after dispatch
 ```
 
@@ -153,6 +153,7 @@ git diff --cached > /tmp/deep-review-staged.patch
 git diff > /tmp/deep-review-unstaged.patch
 {
   printf '%s\n' 'You are the independent reviewer for /deep-review.'
+  printf '%s\n' 'Do not invoke or read task-observer; this is a delegated/non-interactive review and the parent session logs observations.'
   printf '%s\n' 'Review only. Do not modify files. Report correctness, safety, tests, maintainability, and rule-compliance findings with file:line references.'
   printf '%s\n' 'STAGED DIFF:'
   cat /tmp/deep-review-staged.patch
@@ -163,6 +164,7 @@ git diff > /tmp/deep-review-unstaged.patch
 # For branch changes:
 {
   printf '%s\n' 'You are the independent reviewer for /deep-review.'
+  printf '%s\n' 'Do not invoke or read task-observer; this is a delegated/non-interactive review and the parent session logs observations.'
   printf '%s\n' 'Review only. Do not modify files. Report correctness, safety, tests, maintainability, and rule-compliance findings with file:line references.'
   git diff main...HEAD
 } | claude -p
@@ -173,6 +175,7 @@ If your scope is a SHA range (e.g. `<phase-base>^..<phase-head>` from /fly's pha
 ```bash
 {
   printf '%s\n' 'You are the independent reviewer for /deep-review.'
+  printf '%s\n' 'Do not invoke or read task-observer; this is a delegated/non-interactive review and the parent session logs observations.'
   printf '%s\n' 'Review only. Do not modify files. Report correctness, safety, tests, maintainability, and rule-compliance findings with file:line references.'
   git diff <phase-base>^..<phase-head>
 } | claude -p
@@ -309,13 +312,14 @@ After applying all fixes from step 4, run one more review cycle to make sure the
 1. **Re-run the same independent reviewer** on the current uncommitted state:
    ```bash
    # If the independent reviewer is Codex:
-   codex review --uncommitted
+   codex review --uncommitted "You are the independent reviewer for the /deep-review verification round. Review only. Do not modify files. Report only new issues introduced by the fixes. Do not invoke or read task-observer; this is a delegated/non-interactive review and the parent session logs observations."
 
    # If the independent reviewer is Claude Code:
    git diff --cached > /tmp/deep-review-staged.patch
    git diff > /tmp/deep-review-unstaged.patch
    {
      printf '%s\n' 'You are the independent reviewer for the /deep-review verification round.'
+     printf '%s\n' 'Do not invoke or read task-observer; this is a delegated/non-interactive review and the parent session logs observations.'
      printf '%s\n' 'Review only. Do not modify files. Report only new issues introduced by the fixes.'
      printf '%s\n' 'STAGED DIFF:'
      cat /tmp/deep-review-staged.patch

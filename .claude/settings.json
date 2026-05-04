@@ -95,7 +95,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"MANDATORY pre-flight: Invoke the task-observer skill via the Skill tool BEFORE your first tool call. NEVER produce deliverables without it. Skipping it loses observations and breaks the meta-skill loop. (One Skill to Rule Them All)\"}}'"
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"MANDATORY pre-flight for interactive parent sessions: invoke task-observer via the Skill tool before your first tool call. Delegated/non-interactive subagents, review-only workers, verify-only workers, and Codex/Claude print-mode reviewers skip task-observer; the parent session logs observations.\"}}'"
           }
         ]
       }
