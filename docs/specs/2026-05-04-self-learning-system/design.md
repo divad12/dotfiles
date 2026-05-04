@@ -76,7 +76,8 @@ Every dashboard-facing entry must help the user make a decision while context-sw
 
 ```md
 ### 2026-05-04-short-title
-- Source: QA | review | bugfix | agent-discovery | user-feedback | failed-command
+- Sources: QA | review | bugfix | agent-discovery | user-feedback | failed-command | before-merge | task-observer | learn
+- Source events: Session, PR, commit, command, screenshot, review pass, or dashboard decision identifiers when available.
 - Scope: project | dotfiles | global-candidate
 - User-facing summary: Plain-English one-liner for scanning.
 - Evidence: Plain-English description of what happened.
@@ -107,17 +108,34 @@ Capture can be noisy. Promotion must be careful. Execution must be disciplined: 
 ## Data Flow
 
 1. A learning-worthy event happens: QA finding, review comment, bugfix, failed command, agent discovery, user correction, or repeated confusion.
-2. A capture adapter writes a structured inbox entry with plain-English summary, evidence, ramification, recommended fix, technical refs, candidate artifact, confidence, and status.
-3. The promotion engine clusters and classifies inbox entries as one-off, repeated bug class, architecture gap, tooling gotcha, agent-system improvement, or global candidate.
-4. The promotion engine chooses an action: archive, ask for review, update candidates, add or update a skill, draft a test, update a small doc line, add a nested guardrail, add a lint/grep check, or propose architecture work.
-5. The autonomy gate decides whether to hand the action to the decision executor automatically or route it to review.
-6. The dashboard surfaces decisions in plain English.
-7. The user approves, revises, changes artifact target, asks a question, archives, defers, changes confidence, or adds calibration.
-8. The decision executor acts on the dashboard decision.
-9. The auto-action log records exactly what changed and why.
-10. The learning entry points to its prevention artifact or archive reason.
+2. A capture adapter proposes a structured inbox entry with plain-English summary, evidence, ramification, recommended fix, technical refs, candidate artifact, confidence, and status.
+3. The capture layer checks for an existing matching entry before writing. If task-observer, `/learn`, review closeout, and merge checks all notice the same issue, they should update one entry's `Sources` and evidence trail instead of creating parallel entries.
+4. The promotion engine clusters and classifies inbox entries as one-off, repeated bug class, architecture gap, tooling gotcha, agent-system improvement, or global candidate.
+5. The promotion engine chooses an action: archive, ask for review, update candidates, add or update a skill, draft a test, update a small doc line, add a nested guardrail, add a lint/grep check, or propose architecture work.
+6. The autonomy gate decides whether to hand the action to the decision executor automatically or route it to review.
+7. The dashboard surfaces decisions in plain English.
+8. The user approves, revises, changes artifact target, asks a question, archives, defers, changes confidence, or adds calibration.
+9. The decision executor acts on saved dashboard decisions or eligible auto-action requests.
+10. The auto-action log records exactly what changed and why.
+11. The learning entry points to its prevention artifact or archive reason.
 
 An entry can promote to multiple artifacts, but one artifact should be marked primary so the system does not keep reopening the same issue.
+
+### Idempotency And Dedupe
+
+Overlapping capture is expected. A single session may include task-observer notes, an explicit `/learn` capture, review closeout, failed-command capture, and a before-merge check. Those sources should not create five user-facing dashboard rows for the same problem.
+
+Each proposed learning gets a stable fingerprint from its plain-English summary, suspected pattern, technical refs, and source event when available. Before appending, the capture layer searches active inbox, candidates, promoted entries, and recent archives for the same fingerprint or a close match.
+
+If it finds a match, it updates the existing entry:
+
+- add the new source to `Sources`;
+- append new evidence or technical refs;
+- raise confidence only when the new evidence is stronger;
+- preserve the original user-facing summary unless the new entry is clearer;
+- record a short audit note such as "also seen during before-merge check."
+
+If the match is plausible but not certain, the system links the entries as possible duplicates and surfaces one dashboard row with expandable related evidence. It should not silently delete evidence.
 
 ## Trust And Autonomy
 
@@ -150,7 +168,18 @@ The dashboard should show:
 - blocked decisions;
 - ask-agent prompts.
 
-Each visible item leads with what the user sees, loses, feels, or risks. Technical refs, raw notes, logs, screenshots, previous decisions, and other captured details are expandable even when they are not shown in the summary row. The HTML can record local decisions such as approve, revise, archive, defer, change confidence, add note, or ask agent. The decision executor applies those decisions to the canonical learning files.
+Each visible item leads with what the user sees, loses, feels, or risks. Technical refs, raw notes, logs, screenshots, previous decisions, and other captured details are expandable even when they are not shown in the summary row. The primary human review surface is interactive: the dashboard should let the user record notes and decisions in the same place they review the item. The decision executor applies saved decisions to the canonical learning files.
+
+Static generated views are still useful as read-only snapshots for git diffs, automation artifacts, and environments where no local server is running. They are not sufficient for normal dashboard review because the user needs a way to capture notes, calibration, and decisions while scanning.
+
+### Dashboard Invocation And Execution
+
+The dashboard can reach the user through two main paths:
+
+- **Manual session:** the user starts a session and says `/learn dashboard`, `/dashboard`, or "open the learning dashboard." The agent generates or opens the interactive dashboard, waits for decisions, then runs the decision executor in the same session unless the user says to only review.
+- **Weekly automation:** a scheduled run updates the dashboard, performs allowed low-risk auto-actions, writes `auto-actions.md`, and posts or surfaces a scan-friendly summary with a link/path to the interactive dashboard. If the user records decisions from that dashboard, the next `/learn execute` session or the automation's safe executor pass applies them.
+
+Review closeout and before-merge checks can also invoke a focused dashboard view filtered to the current branch/session. After the user records decisions, the default behavior is to run the executor immediately for learning-file updates and low-risk docs, then create TDD/review tasks for code, skill, enforcement, or architecture changes.
 
 ## Invocation
 
@@ -240,6 +269,7 @@ The learning system itself should have tests or checks.
 
 - Schema/format checks require plain-English summary, evidence, ramification, recommended fix, candidate artifact, confidence, and status.
 - Routing checks verify that sample QA bugs go project-local, agent behavior goes to dotfiles, and universal principles become global candidates.
+- Dedupe checks verify that task-observer, `/learn`, review closeout, and merge capture for the same event update one entry instead of creating duplicate dashboard rows.
 - Promotion checks verify that noisy evidence can become a candidate, but cannot become hot context without a destination and confidence.
 - Dashboard checks verify that markdown and HTML include needs-review, auto-done, calibration, and expanded technical refs.
 - Decision executor checks verify approve, archive, revise, defer, confidence change, and calibration notes update canonical files correctly.
@@ -256,13 +286,14 @@ The learning system itself should have tests or checks.
 - A low-risk learning can auto-promote and be logged.
 - A risky learning appears in the dashboard for review.
 - A dashboard decision can be executed against canonical learning files.
+- Duplicate capture sources for one issue merge into a single dashboard item with multiple sources and expandable evidence.
 - A code-related decision creates a TDD/review task rather than silently editing code.
 - The always-loaded docs stay tiny.
 
 ## Open Design Choices For Implementation Planning
 
 - Exact file format: markdown-only, markdown with embedded YAML, or JSONL plus generated markdown.
-- `dashboard.html` should support both modes: a static generated view for simple review, and a tiny local app mode when interactive notes or decisions need to be recorded.
+- The dashboard should be interactive by default. Static markdown/HTML remains a read-only snapshot for diffs, automation artifacts, and no-server environments.
 - How dashboard decisions are recorded for the executor: JSONL events, markdown notes, or form submissions to a local helper.
 - The first implementation should cover both dotfiles and Journology: dotfiles owns the global skill/checkpoint machinery, and Journology exercises the project-local learning store.
 - Checkpoint order: implement review closeout and before-merge first, then before-commit and weekly dashboard once the core loop works.
