@@ -78,6 +78,22 @@ across a rebase.
 Before using the exception, tell the user the ramification: the target branch
 will include a merge commit, but conflict resolution happens once.
 
+## Worktrees
+
+When work lands in the wrong checkout (for example, the main worktree instead
+of a feature worktree), check existing worktrees before creating a new one:
+
+```bash
+git worktree list
+```
+
+If a worktree already exists that is clean (no branch-only commits) and can be
+fast-forwarded to the target branch, reuse it instead of creating another.
+Workspace sprawl makes it harder to track the active work surface and is harder
+to clean up later.
+
+Create a new worktree only when no suitable clean worktree exists.
+
 ## Guardrails
 
 ### Never `git reset --hard` on the target branch
