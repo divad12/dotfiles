@@ -41,9 +41,10 @@ fast-forward the target to include the new commits. The target may be `main`,
    ```
    These checks must use the local target branch, not `origin/$TARGET_BRANCH`.
    If the branch contains noisy workstream, checkpoint, review-fix, or fixup
-   commits, squash them before advancing the target. User-facing ramification:
-   the target branch history stays readable, so future debugging shows the
-   feature that landed instead of every intermediate agent pass.
+   commits, squash them before advancing the target. Make this judgment
+   yourself; do not stop for user approval on routine cleanup. User-facing
+   ramification: the target branch history stays readable, so future debugging
+   shows the feature that landed instead of every intermediate agent pass.
    - Use `git rebase -i "$TARGET_BRANCH"` when keeping multiple meaningful
      commits.
    - Use `git reset --soft "$TARGET_BRANCH" && git commit` when the branch

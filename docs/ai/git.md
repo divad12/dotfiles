@@ -80,9 +80,9 @@ patterns is a `fixup` candidate for the immediately preceding `feat:`,
 - `fix(test):` immediately following a `feat:` for the same area
 - `docs(checklist):` paired with the task it describes
 
-Surface the proposed fixup mapping to the user before rebasing — never assume
-silently that "the log looks reasonable." The squash audit step below makes
-this mapping explicit.
+Run a squash audit before rebasing and make the cleanup decision yourself.
+Do not stop for approval on routine history cleanup. Surface the mapping only
+when it is ambiguous, risky, or would surprise someone else.
 
 Use interactive rebase when keeping several meaningful commits:
 
@@ -106,10 +106,10 @@ When the user says "merge" or uses the `/merge` skill:
 
 1. Identify the target branch.
 2. Inspect `<target>..HEAD` to count the commits that would land.
-3. **Print the squash audit and STOP for user signoff.** This is a
-   blocking checkpoint, not a soft norm. The merge cannot proceed without
-   it. See the section below.
-4. Squash per the user's chosen plan (interactive rebase or soft reset).
+3. Run the squash audit and choose the history cleanup plan yourself. Report
+   the result in the final summary; pause only for ambiguous/risky history
+   rewrites.
+4. Squash per your chosen plan (interactive rebase or soft reset).
 5. Rebase the squashed feature branch onto local `<target>`.
 6. If the rebase is practical, fast-forward the target with
    `git merge --ff-only`.
@@ -117,12 +117,12 @@ When the user says "merge" or uses the `/merge` skill:
    and merge the feature branch into the target with `git merge --no-ff`.
 8. Verify the target contains the feature branch changes.
 
-## The Squash Audit Checkpoint
+## The Squash Audit
 
-This is a structural blocker, modelled on `task-observer`'s mandatory
-session-start invocation: forward progress is not allowed without it.
-The audit produces three numbers and a proposed mapping; the user
-chooses the plan before any history rewrite happens.
+Run this before history cleanup so the target branch stays readable. The audit
+produces three numbers and a proposed mapping; use them to decide whether to
+land as-is, squash to one commit, or interactively squash noisy fixups into
+their feature parents.
 
 ```bash
 TOTAL=$(git log --oneline <target>..HEAD | wc -l | tr -d ' ')
@@ -132,39 +132,20 @@ MEANINGFUL=$(git log --oneline <target>..HEAD \
   | grep -cE '^[a-f0-9]+ (feat|refactor|fix\([a-z]+\)):')
 ```
 
-Then print, verbatim, to the user:
+Default decision rules:
 
-> "Branch has TOTAL commits to land. REVIEW_FIX look like review-fix /
-> orch-inline / fixup commits that should fold into their feat parents.
-> Estimated final shape after default squash: ~MEANINGFUL meaningful
-> commits.
->
-> Proposed plan:
->
-> A) Interactive squash per the default mapping → ~MEANINGFUL commits
-> B) Single squash → 1 commit
-> C) Land as-is → TOTAL commits
-> D) Custom plan
->
-> Which?"
+- If there is one meaningful commit and no fixup noise, land it as-is.
+- If the branch is one coherent feature with multiple workstream/fixup commits,
+  squash to one commit.
+- If the branch contains several meaningful features, keep a small set of
+  meaningful commits and fold review/fixup commits into their parents.
+- If the rewrite could surprise someone else because the branch is published,
+  shared, long-lived, or semantically unclear, tell the user the ramification
+  and ask before rewriting.
 
-Wait for an explicit answer. Do not pick a plan based on the user's
-prior single-line directive (e.g. they said "merge into m3" — that does
-NOT authorise option C silently; it authorises proceeding TO this
-checkpoint). The signoff must be explicit per merge.
-
-The audit must run regardless of branch size. A 5-commit branch with 3
-review-fix commits still benefits from the explicit mapping; a 50-commit
-branch needs it more.
-
-### Why this is a blocker, not a recommendation
-
-When the merge workflow has momentum (tests green, user said "merge"),
-the cost of pausing to interactively rebase 17 commits feels high
-relative to "the log looks fine." Soft heuristics get rationalised away
-in that state. The audit step doesn't allow forward progress without
-producing the count + mapping + getting signoff — same pattern as the
-mandatory `task-observer` invocation at session start.
+The audit must run regardless of branch size, but it is not a user approval
+checkpoint. Include the chosen cleanup in the final report, e.g. "squashed 4
+fixup commits into 2 feature commits" or "landed 1 clean commit as-is."
 
 ## Merge-Commit Exception
 
