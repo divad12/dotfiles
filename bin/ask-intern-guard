@@ -155,14 +155,12 @@ def has_direct_read_marker(path):
     return False
 
 
+def is_docs_path(path):
+    return "docs" in Path(path).parts
+
+
 def is_durable_control_doc(path):
-    path_obj = Path(path)
-    if path_obj.suffix.lower() not in {".md", ".markdown", ".mdx"}:
-        return False
-    joined = "/".join(path_obj.parts)
-    if "/docs/specs/" in joined:
-        return True
-    return False
+    return is_docs_path(path)
 
 
 def is_exempt_path(path):

@@ -21,17 +21,17 @@ small_b="$work/b.py"
 small_c="$work/c.py"
 large="$work/large.py"
 marked_control="$work/arbitrary-queue.md"
-spec_control="$work/docs/specs/m3/shakedown/anything-at-all.md"
+docs_control="$work/docs/implementation-plan.txt"
 manual_control="$work/manual-verbatim.md"
 full="$work/full.txt"
 codex_out="$work/codex-out.txt"
 commit_msg="$work/cm2.txt"
-mkdir -p "$(dirname "$spec_control")"
+mkdir -p "$(dirname "$docs_control")"
 printf 'print("a")\n' >"$small_a"
 printf 'print("b")\n' >"$small_b"
 printf 'print("c")\n' >"$small_c"
 printf '<!-- agent-control: direct-read -->\n' >"$marked_control"
-printf '# Durable queue\n\n- [ ] Read this verbatim\n' >"$spec_control"
+printf 'Durable implementation plan\n\n- [ ] Read this verbatim\n' >"$docs_control"
 printf '# Manual queue\n\n- [ ] Read this verbatim\n' >"$manual_control"
 printf 'Test Files  1 passed\nTests  1 passed\n' >"$full"
 printf 'codex review output\n' >"$codex_out"
@@ -93,7 +93,7 @@ run_hook "$(read_json "$marked_control" s6)" >/tmp/guard.out 2>/tmp/guard.err
 
 run_hook "$(read_json "$small_a" s7)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(read_json "$small_b" s7)" >/tmp/guard.out 2>/tmp/guard.err
-run_hook "$(read_json "$spec_control" s7)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$docs_control" s7)" >/tmp/guard.out 2>/tmp/guard.err
 
 HOME="$home" "$script" --allow-next "$manual_control" "verbatim user request" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(read_json "$small_a" s8)" >/tmp/guard.out 2>/tmp/guard.err

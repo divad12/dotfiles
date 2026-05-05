@@ -85,12 +85,12 @@ After `--target`, review the output and edit only what needs fixing.
 - the 3rd distinct non-instruction context file in a session
 - Bash commands that directly read 3+ files, such as `cat a b c`
 
-The hook allows narrow `Read` chunks with `offset`/`limit`, ignores required instruction files (`AGENTS.md`, `CLAUDE.md`, `PROGRESS.md`, `SKILL.md`, `docs/ai/`), and resets the session counter when Claude runs `ask-intern`. Set `ASK_INTERN_GUARD_DISABLED=1` to bypass it, or `ASK_INTERN_GUARD_MODE=warn` to allow reads with an advisory while tuning.
+The hook allows narrow `Read` chunks with `offset`/`limit`, ignores required instruction/project documentation files (`AGENTS.md`, `CLAUDE.md`, `PROGRESS.md`, `SKILL.md`, any path segment named `docs`), and resets the session counter when Claude runs `ask-intern`. Set `ASK_INTERN_GUARD_DISABLED=1` to bypass it, or `ASK_INTERN_GUARD_MODE=warn` to allow reads with an advisory while tuning.
 
 Direct-read control docs are exempt because summarizing them can lose execution order or exact instructions:
 
-- Standard instruction docs: `AGENTS.md`, `CLAUDE.md`, `PROGRESS.md`, `SKILL.md`, `docs/ai/*`
-- Markdown plans/checklists/queues under `docs/specs/**`
+- Standard instruction docs: `AGENTS.md`, `CLAUDE.md`, `PROGRESS.md`, `SKILL.md`
+- Any file under a `docs/` directory, including specs, implementation plans, checklists, and reference docs
 - Any file whose first 40 lines include `<!-- agent-control: direct-read -->`
 
 For arbitrary existing files that should be read verbatim once, run:
