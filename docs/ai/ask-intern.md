@@ -87,6 +87,20 @@ After `--target`, review the output and edit only what needs fixing.
 
 The hook allows narrow `Read` chunks with `offset`/`limit`, ignores required instruction files (`AGENTS.md`, `CLAUDE.md`, `PROGRESS.md`, `SKILL.md`, `docs/ai/`), and resets the session counter when Claude runs `ask-intern`. Set `ASK_INTERN_GUARD_DISABLED=1` to bypass it, or `ASK_INTERN_GUARD_MODE=warn` to allow reads with an advisory while tuning.
 
+Direct-read control docs are exempt because summarizing them can lose execution order or exact instructions:
+
+- Standard instruction docs: `AGENTS.md`, `CLAUDE.md`, `PROGRESS.md`, `SKILL.md`, `docs/ai/*`
+- Markdown plans/checklists/queues under `docs/specs/**`
+- Any file whose first 40 lines include `<!-- agent-control: direct-read -->`
+
+For arbitrary existing files that should be read verbatim once, run:
+
+```bash
+ask-intern-guard --allow-next path/to/file.md "verbatim user request"
+```
+
+The allowance is one-shot and expires after one hour. Use it when the user explicitly asks for a direct read and the file is not already marked.
+
 ## Configuration
 
 - API key: `~/.config/ask-intern/env` (`export OPENROUTER_API_KEY=...`)

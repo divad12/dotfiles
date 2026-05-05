@@ -20,18 +20,26 @@ small_a="$work/a.py"
 small_b="$work/b.py"
 small_c="$work/c.py"
 large="$work/large.py"
+marked_control="$work/arbitrary-queue.md"
+spec_control="$work/docs/specs/m3/shakedown/anything-at-all.md"
+manual_control="$work/manual-verbatim.md"
 full="$work/full.txt"
 codex_out="$work/codex-out.txt"
 commit_msg="$work/cm2.txt"
+mkdir -p "$(dirname "$spec_control")"
 printf 'print("a")\n' >"$small_a"
 printf 'print("b")\n' >"$small_b"
 printf 'print("c")\n' >"$small_c"
+printf '<!-- agent-control: direct-read -->\n' >"$marked_control"
+printf '# Durable queue\n\n- [ ] Read this verbatim\n' >"$spec_control"
+printf '# Manual queue\n\n- [ ] Read this verbatim\n' >"$manual_control"
 printf 'Test Files  1 passed\nTests  1 passed\n' >"$full"
 printf 'codex review output\n' >"$codex_out"
 printf '' >"$commit_msg"
 i=0
 while [ "$i" -lt 401 ]; do
   printf 'line %s\n' "$i" >>"$large"
+  printf 'item %s\n' "$i" >>"$marked_control"
   i=$((i + 1))
 done
 
@@ -80,6 +88,21 @@ if ! grep -q "401 lines" /tmp/guard.err; then
 fi
 
 run_hook "$(partial_read_json "$large")" >/tmp/guard.out 2>/tmp/guard.err
+
+run_hook "$(read_json "$marked_control" s6)" >/tmp/guard.out 2>/tmp/guard.err
+
+run_hook "$(read_json "$small_a" s7)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$small_b" s7)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$spec_control" s7)" >/tmp/guard.out 2>/tmp/guard.err
+
+HOME="$home" "$script" --allow-next "$manual_control" "verbatim user request" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$small_a" s8)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$small_b" s8)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$manual_control" s8)" >/tmp/guard.out 2>/tmp/guard.err
+if run_hook "$(read_json "$manual_control" s8)" >/tmp/guard.out 2>/tmp/guard.err; then
+  echo "manual one-shot direct-read allowance was not consumed" >&2
+  exit 1
+fi
 
 run_hook "$(bash_json "ask-intern -f '$small_a' -f '$small_b' summarize")" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(read_json "$small_c")" >/tmp/guard.out 2>/tmp/guard.err

@@ -8,6 +8,8 @@ Blocks whole-file reads when they cross either threshold:
 
 Narrow Read chunks with offset/limit are allowed for exact inspection.
 Running ask-intern from Bash resets the session counter.
+Durable control docs can opt into direct reads with:
+<!-- agent-control: direct-read -->
 """
 
 import hashlib
@@ -22,6 +24,9 @@ from pathlib import Path
 
 DEFAULT_MIN_DISTINCT = 3
 DEFAULT_MAX_LINES = 400
+DEFAULT_ALLOW_TTL_SECONDS = 3600
+CONTROL_MARKER = "agent-control: direct-read"
+CONTROL_MARKER_SCAN_LINES = 40
 READ_COMMANDS = {"cat", "head", "tail", "nl"}
 INSTRUCTION_BASENAMES = {"AGENTS.md", "CLAUDE.md", "PROGRESS.md", "SKILL.md"}
 REDIRECT_TARGET_TOKENS = {">", ">>", "1>", "1>>", "2>", "2>>", "&>", "<<", "<<<"}
@@ -67,6 +72,10 @@ def events_path():
     return state_dir() / "events.jsonl"
 
 
+def allowances_path():
+    return state_dir() / "allow-next.json"
+
+
 def load_state(session_id):
     path = state_path(session_id)
     try:
@@ -79,6 +88,23 @@ def save_state(session_id, state):
     path = state_path(session_id)
     tmp = path.with_suffix(".tmp")
     tmp.write_text(json.dumps(state, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
+
+
+def load_allowances():
+    try:
+        data = json.loads(allowances_path().read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return []
+    if not isinstance(data, list):
+        return []
+    return [entry for entry in data if isinstance(entry, dict)]
+
+
+def save_allowances(entries):
+    path = allowances_path()
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(entries, sort_keys=True) + "\n", encoding="utf-8")
     os.replace(tmp, path)
 
 
@@ -116,6 +142,29 @@ def normalize_path(path, cwd):
     return os.path.realpath(expanded)
 
 
+def has_direct_read_marker(path):
+    try:
+        with open(path, "r", encoding="utf-8", errors="ignore") as f:
+            for index, line in enumerate(f):
+                if index >= CONTROL_MARKER_SCAN_LINES:
+                    break
+                if CONTROL_MARKER in line.lower():
+                    return True
+    except OSError:
+        return False
+    return False
+
+
+def is_durable_control_doc(path):
+    path_obj = Path(path)
+    if path_obj.suffix.lower() not in {".md", ".markdown", ".mdx"}:
+        return False
+    joined = "/".join(path_obj.parts)
+    if "/docs/specs/" in joined:
+        return True
+    return False
+
+
 def is_exempt_path(path):
     parts = Path(path).parts
     basename = os.path.basename(path)
@@ -126,7 +175,45 @@ def is_exempt_path(path):
         return True
     if "/.agents/observations/" in joined:
         return True
+    if is_durable_control_doc(path):
+        return True
+    if has_direct_read_marker(path):
+        return True
     return False
+
+
+def add_allowance(path, reason):
+    now = int(time.time())
+    ttl = config_int("ASK_INTERN_GUARD_ALLOW_TTL", DEFAULT_ALLOW_TTL_SECONDS)
+    entries = [
+        entry for entry in load_allowances()
+        if int(entry.get("expires_at", 0) or 0) > now and entry.get("path") != path
+    ]
+    entries.append({
+        "created_at": now,
+        "expires_at": now + ttl,
+        "path": path,
+        "reason": reason,
+    })
+    save_allowances(entries)
+
+
+def consume_allowance(path):
+    now = int(time.time())
+    entries = load_allowances()
+    kept = []
+    consumed = False
+    for entry in entries:
+        expires_at = int(entry.get("expires_at", 0) or 0)
+        if expires_at <= now:
+            continue
+        if not consumed and entry.get("path") == path:
+            consumed = True
+            continue
+        kept.append(entry)
+    if consumed or len(kept) != len(entries):
+        save_allowances(kept)
+    return consumed
 
 
 def line_count(path):
@@ -259,6 +346,27 @@ def reset_after_delegation(record, session_id, state):
     return False
 
 
+def consume_allowed_paths(paths, session_id, record):
+    remaining = []
+    for path in paths:
+        if is_exempt_path(path):
+            remaining.append(path)
+            continue
+        if consume_allowance(path):
+            log_event(
+                session_id,
+                "allowed",
+                reason="allow_next",
+                paths=[path],
+                cwd=record.get("cwd", ""),
+                tool_name=record.get("tool_name", ""),
+                command=(record.get("tool_input") or {}).get("command", ""),
+            )
+            continue
+        remaining.append(path)
+    return remaining
+
+
 def candidate_paths(record):
     tool_name = record.get("tool_name", "")
     tool_input = record.get("tool_input") or {}
@@ -350,6 +458,25 @@ def check_distinct_files(paths, session_id, state, record):
 
 
 def main():
+    if len(sys.argv) > 1:
+        if sys.argv[1] in {"-h", "--help"}:
+            print("Usage: ask-intern-guard [--allow-next PATH [reason...]]")
+            return
+        if sys.argv[1] == "--allow-next":
+            if len(sys.argv) < 3:
+                print("ask-intern guard: --allow-next requires a path", file=sys.stderr)
+                sys.exit(1)
+            path = normalize_path(sys.argv[2], os.getcwd())
+            if not existing_file(path):
+                print(f"ask-intern guard: cannot allow missing file: {path}", file=sys.stderr)
+                sys.exit(1)
+            reason = " ".join(sys.argv[3:]) or "manual direct-read override"
+            add_allowance(path, reason)
+            print(f"ask-intern guard: next direct read allowed for {path}")
+            return
+        print(f"ask-intern guard: unknown argument: {sys.argv[1]}", file=sys.stderr)
+        sys.exit(1)
+
     if config_bool("ASK_INTERN_GUARD_DISABLED"):
         return
 
@@ -366,6 +493,7 @@ def main():
     if not paths or is_partial:
         return
 
+    paths = consume_allowed_paths(paths, session_id, record)
     check_large_file(paths, session_id, record)
     check_distinct_files(paths, session_id, state, record)
 
