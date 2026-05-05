@@ -6,7 +6,7 @@ Universal rules for AI coding agents. `CLAUDE.md` symlinks here.
 
 Use `ask-intern` to offload high-token/low-reasoning work to a cheap model (~$0.002/call). This preserves Pro limits for actual reasoning.
 
-You MUST use `ask-intern` before broadly reading 3+ distinct files for context, or before reading any single file over 400 lines. Build the file list from actual paths (`rg --files` is fine), then use the summary instead of reading those files yourself. If `ask-intern` reports `Cannot read`, correct the paths and retry. Re-reading narrow snippets from files already identified by `ask-intern` is allowed for exact line numbers, verification, and edits. Claude Code has a PreToolUse hook that blocks broad direct reads at these thresholds and routes you to `ask-intern`.
+You MUST use `ask-intern` before reading any single file over 400 lines, or before broadly reading a cumulative set of medium/large context files. Build the file list from actual paths (`rg --files` is fine), then use the summary instead of reading those files yourself. If `ask-intern` reports `Cannot read`, correct the paths and retry. Re-reading small files and narrow snippets is allowed for exact line numbers, verification, and edits. Claude Code has a PreToolUse hook that routes broad direct reads to `ask-intern` when they cross the line budget.
 
 Read durable control and project documentation files directly when exact instructions, ordering, or checkboxes matter: `PROGRESS.md`, `AGENTS.md`, `CLAUDE.md`, `SKILL.md`, and anything under a `docs/` directory. For arbitrary queue/plan files outside `docs/`, put `<!-- agent-control: direct-read -->` near the top. If the user explicitly asks to read a file verbatim and the guard blocks it, run `ask-intern-guard --allow-next <path> "verbatim user request"` and then read it directly.
 
@@ -14,7 +14,7 @@ When dispatching code-reading or code-editing subagents, copy the relevant Token
 
 ### When to delegate
 
-- Reading 3+ files for context, or any file >400 lines
+- Reading medium/large file sets for context, or any file >400 lines
 - Boilerplate: tests, config, docstrings, repetitive patterns
 - Summarizing diffs, logs, or documentation
 - Generating fixtures, sample data, format conversions

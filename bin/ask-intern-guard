@@ -4,7 +4,8 @@ Claude Code PreToolUse hook that routes broad file reading to ask-intern.
 
 Blocks whole-file reads when they cross either threshold:
 - any non-exempt file over ASK_INTERN_GUARD_MAX_LINES lines (default 400)
-- ASK_INTERN_GUARD_MIN_DISTINCT distinct non-exempt context files in a session
+- cumulative broad reads over ASK_INTERN_GUARD_MAX_CUMULATIVE_LINES lines
+  across ASK_INTERN_GUARD_MIN_DISTINCT distinct non-exempt context files
 
 Narrow Read chunks with offset/limit are allowed for exact inspection.
 Running ask-intern from Bash resets the session counter.
@@ -24,6 +25,9 @@ from pathlib import Path
 
 DEFAULT_MIN_DISTINCT = 3
 DEFAULT_MAX_LINES = 400
+DEFAULT_MAX_CUMULATIVE_LINES = 800
+DEFAULT_MIN_CUMULATIVE_FILE_LINES = 120
+DEFAULT_PROBE_MAX_LINES = 40
 DEFAULT_ALLOW_TTL_SECONDS = 3600
 CONTROL_MARKER = "agent-control: direct-read"
 CONTROL_MARKER_SCAN_LINES = 40
@@ -81,7 +85,7 @@ def load_state(session_id):
     try:
         return json.loads(path.read_text(encoding="utf-8"))
     except (FileNotFoundError, json.JSONDecodeError, OSError):
-        return {"paths": []}
+        return {"paths": [], "reads": []}
 
 
 def save_state(session_id, state):
@@ -222,6 +226,42 @@ def line_count(path):
         return None
 
 
+def read_candidate(path, lines=None):
+    if lines is None:
+        lines = line_count(path)
+    return {"path": path, "lines": lines}
+
+
+def candidate_path(candidate):
+    return candidate.get("path", "")
+
+
+def candidate_lines(candidate):
+    lines = candidate.get("lines")
+    if lines is not None:
+        return lines
+    return line_count(candidate_path(candidate))
+
+
+def estimate_range_lines(path, offset, limit):
+    total = line_count(path)
+    if total is None:
+        return limit
+    start = 1
+    if offset is not None:
+        try:
+            start = max(1, int(offset))
+        except (TypeError, ValueError):
+            start = 1
+    remaining = max(0, total - start + 1)
+    if limit is None:
+        return remaining
+    try:
+        return min(max(0, int(limit)), remaining)
+    except (TypeError, ValueError):
+        return remaining
+
+
 def basename_list(paths):
     return ", ".join(os.path.basename(path) for path in paths)
 
@@ -270,7 +310,60 @@ def split_shell_segments(command):
     return [segment.strip() for segment in SHELL_SEGMENT_RE.split(command) if segment.strip()]
 
 
-def extract_segment_read_paths(segment, cwd):
+def parse_positive_int(value):
+    try:
+        parsed = int(str(value).strip())
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed >= 0 else None
+
+
+def parse_head_tail_limit(tokens, command_index):
+    limit = 10
+    index = command_index + 1
+    while index < len(tokens):
+        token = tokens[index]
+        if token in REDIRECT_TARGET_TOKENS:
+            index += 2
+            continue
+        if token in {"-n", "--lines"} and index + 1 < len(tokens):
+            parsed = parse_positive_int(tokens[index + 1])
+            if parsed is not None:
+                limit = parsed
+            index += 2
+            continue
+        if token.startswith("--lines="):
+            parsed = parse_positive_int(token.split("=", 1)[1])
+            if parsed is not None:
+                limit = parsed
+            index += 1
+            continue
+        if re.match(r"^-\d+$", token):
+            parsed = parse_positive_int(token[1:])
+            if parsed is not None:
+                limit = parsed
+            index += 1
+            continue
+        if token.startswith("-"):
+            index += 1
+            continue
+        break
+    return limit
+
+
+def parse_sed_limit(script):
+    script = script.strip()
+    match = re.match(r"^(\d+),(\d+)p$", script)
+    if match:
+        start = int(match.group(1))
+        end = int(match.group(2))
+        return max(0, end - start + 1)
+    if re.match(r"^\d+p$", script):
+        return 1
+    return None
+
+
+def extract_segment_read_candidates(segment, cwd):
     try:
         tokens = shlex.split(segment)
     except ValueError:
@@ -278,7 +371,7 @@ def extract_segment_read_paths(segment, cwd):
     if not tokens:
         return []
 
-    paths = []
+    candidates = []
     read_index = None
     sed_index = None
     for index, token in enumerate(tokens):
@@ -294,6 +387,22 @@ def extract_segment_read_paths(segment, cwd):
         return []
 
     start = read_index if read_index is not None else sed_index
+    command = os.path.basename(tokens[start])
+    line_limit = None
+    if command in {"head", "tail"}:
+        line_limit = parse_head_tail_limit(tokens, start)
+        if line_limit <= config_int("ASK_INTERN_GUARD_PROBE_MAX_LINES", DEFAULT_PROBE_MAX_LINES):
+            return []
+
+    sed_script = None
+    if sed_index is not None:
+        for token in tokens[start + 1:]:
+            if token == "-n" or token.startswith("-"):
+                continue
+            sed_script = token
+            line_limit = parse_sed_limit(token)
+            break
+
     skip_next = False
     for index, token in enumerate(tokens[start + 1:], start + 1):
         if skip_next:
@@ -308,27 +417,41 @@ def extract_segment_read_paths(segment, cwd):
             continue
         if token in {"|", "&&", "||", ";"}:
             break
-        if sed_index is not None and index <= sed_index + 2:
+        if sed_index is not None and (index <= sed_index + 1 or token == sed_script):
             continue
         if re.match(r"^\d*>\S*", token):
             continue
         normalized = normalize_path(token, cwd)
         if existing_file(normalized):
-            paths.append(normalized)
+            if command in {"head", "tail"} and line_limit is not None:
+                total = line_count(normalized)
+                lines = line_limit if total is None else min(line_limit, total)
+            elif sed_index is not None and line_limit is not None:
+                total = line_count(normalized)
+                lines = line_limit if total is None else min(line_limit, total)
+            else:
+                lines = line_count(normalized)
+            candidates.append(read_candidate(normalized, lines))
 
-    return paths
+    return candidates
 
 
-def extract_bash_read_paths(command, cwd):
+def extract_bash_read_candidates(command, cwd):
     if not DIRECT_READ_RE.search(command):
         return []
 
-    paths = []
+    candidates = []
     for segment in split_shell_segments(command):
         if DIRECT_READ_RE.search(segment):
-            paths.extend(extract_segment_read_paths(segment, cwd))
+            candidates.extend(extract_segment_read_candidates(segment, cwd))
 
-    return sorted(set(paths))
+    by_path = {}
+    for candidate in candidates:
+        path = candidate_path(candidate)
+        lines = candidate_lines(candidate)
+        if path not in by_path or (lines or 0) > (by_path[path].get("lines") or 0):
+            by_path[path] = read_candidate(path, lines)
+    return [by_path[path] for path in sorted(by_path)]
 
 
 def reset_after_delegation(record, session_id, state):
@@ -337,6 +460,7 @@ def reset_after_delegation(record, session_id, state):
     command = tool_input.get("command", "") if isinstance(tool_input, dict) else ""
     if tool_name == "Bash" and isinstance(command, str) and is_ask_intern_command(command):
         state["paths"] = []
+        state["reads"] = []
         state["delegated_at"] = int(time.time())
         save_state(session_id, state)
         log_event(session_id, "delegated", paths=[], cwd=record.get("cwd", ""), tool_name=tool_name, command=command)
@@ -344,11 +468,12 @@ def reset_after_delegation(record, session_id, state):
     return False
 
 
-def consume_allowed_paths(paths, session_id, record):
+def consume_allowed_candidates(candidates, session_id, record):
     remaining = []
-    for path in paths:
+    for candidate in candidates:
+        path = candidate_path(candidate)
         if is_exempt_path(path):
-            remaining.append(path)
+            remaining.append(candidate)
             continue
         if consume_allowance(path):
             log_event(
@@ -361,43 +486,46 @@ def consume_allowed_paths(paths, session_id, record):
                 command=(record.get("tool_input") or {}).get("command", ""),
             )
             continue
-        remaining.append(path)
+        remaining.append(candidate)
     return remaining
 
 
-def candidate_paths(record):
+def candidate_reads(record):
     tool_name = record.get("tool_name", "")
     tool_input = record.get("tool_input") or {}
     cwd = record.get("cwd") or os.getcwd()
     if not isinstance(tool_input, dict):
-        return [], False
+        return []
 
     if tool_name == "Read":
         path = normalize_path(tool_input.get("file_path", ""), cwd)
         if not path:
-            return [], False
-        is_partial = "offset" in tool_input or "limit" in tool_input
-        return [path], is_partial
+            return []
+        if "offset" in tool_input or "limit" in tool_input:
+            lines = estimate_range_lines(path, tool_input.get("offset"), tool_input.get("limit"))
+            return [read_candidate(path, lines)]
+        return [read_candidate(path)]
 
     if tool_name == "Bash":
         command = tool_input.get("command", "")
         if not isinstance(command, str):
-            return [], False
-        return extract_bash_read_paths(command, cwd), False
+            return []
+        return extract_bash_read_candidates(command, cwd)
 
-    return [], False
+    return []
 
 
-def check_large_file(paths, session_id, record):
+def check_large_file(candidates, session_id, record):
     max_lines = config_int("ASK_INTERN_GUARD_MAX_LINES", DEFAULT_MAX_LINES)
-    for path in paths:
+    for candidate in candidates:
+        path = candidate_path(candidate)
         if is_exempt_path(path):
             continue
-        lines = line_count(path)
+        lines = candidate_lines(candidate)
         if lines is None or lines <= max_lines:
             continue
         reason = (
-            f"ask-intern guard: {path} is {lines} lines (>{max_lines}). "
+            f"ask-intern guard: this would read {lines} lines from {path} (>{max_lines}). "
             f"Use `ask-intern -f {shlex.quote(path)} \"summarize what I need\"` before reading it, "
             "then read only narrow snippets needed for exact line numbers, verification, or edits."
         )
@@ -413,29 +541,78 @@ def check_large_file(paths, session_id, record):
         warn_or_deny(reason)
 
 
-def check_distinct_files(paths, session_id, state, record):
+def state_read_entries(state):
+    entries = []
+    raw_reads = state.get("reads")
+    if isinstance(raw_reads, list):
+        for entry in raw_reads:
+            if not isinstance(entry, dict):
+                continue
+            path = entry.get("path", "")
+            if not path:
+                continue
+            entries.append(read_candidate(path, entry.get("lines")))
+    if entries:
+        return entries
+
+    for path in state.get("paths") or []:
+        if path:
+            entries.append(read_candidate(path))
+    return entries
+
+
+def merge_read_entries(existing_entries, new_candidates):
+    merged = {}
+    order = []
+    for candidate in existing_entries + new_candidates:
+        path = candidate_path(candidate)
+        if not path:
+            continue
+        lines = candidate_lines(candidate)
+        if path not in merged:
+            order.append(path)
+            merged[path] = read_candidate(path, lines)
+            continue
+        if (lines or 0) > (merged[path].get("lines") or 0):
+            merged[path] = read_candidate(path, lines)
+    return [merged[path] for path in order]
+
+
+def cumulative_candidates(candidates):
+    min_lines = config_int("ASK_INTERN_GUARD_MIN_CUMULATIVE_FILE_LINES", DEFAULT_MIN_CUMULATIVE_FILE_LINES)
+    relevant = []
+    for candidate in candidates:
+        if is_exempt_path(candidate_path(candidate)):
+            continue
+        lines = candidate_lines(candidate)
+        if lines is None or lines >= min_lines:
+            relevant.append(candidate)
+    return relevant
+
+
+def check_cumulative_reads(candidates, session_id, state, record):
     min_distinct = config_int("ASK_INTERN_GUARD_MIN_DISTINCT", DEFAULT_MIN_DISTINCT)
-    relevant_paths = [path for path in paths if not is_exempt_path(path)]
-    if not relevant_paths:
+    max_cumulative = config_int("ASK_INTERN_GUARD_MAX_CUMULATIVE_LINES", DEFAULT_MAX_CUMULATIVE_LINES)
+    relevant = cumulative_candidates(candidates)
+    if not relevant:
         return
 
-    existing = list(state.get("paths") or [])
-    combined = []
-    for path in existing + relevant_paths:
-        if path not in combined:
-            combined.append(path)
+    combined = merge_read_entries(cumulative_candidates(state_read_entries(state)), relevant)
+    combined_paths = [candidate_path(candidate) for candidate in combined]
+    total_lines = sum(candidate_lines(candidate) or 0 for candidate in combined)
 
-    if len(combined) >= min_distinct:
+    if len(combined) >= min_distinct and total_lines >= max_cumulative:
         reason = (
-            f"ask-intern guard: this would broadly read {len(combined)} distinct context files "
-            f"({basename_list(combined[:min_distinct])}). Use `{ask_intern_command(combined)}` first. "
+            f"ask-intern guard: this would broadly read about {total_lines} lines across "
+            f"{len(combined)} distinct context files ({basename_list(combined_paths[:min_distinct])}). "
+            f"Use `{ask_intern_command(combined_paths)}` first. "
             "After the intern summary, read only narrow snippets needed for exact line numbers, verification, or edits."
         )
         log_event(
             session_id,
             "blocked",
-            reason="distinct_files",
-            paths=relevant_paths,
+            reason="cumulative_lines",
+            paths=[candidate_path(candidate) for candidate in relevant],
             cwd=record.get("cwd", ""),
             tool_name=record.get("tool_name", ""),
             command=(record.get("tool_input") or {}).get("command", ""),
@@ -443,12 +620,13 @@ def check_distinct_files(paths, session_id, state, record):
         warn_or_deny(reason)
         return
 
-    state["paths"] = combined
+    state["reads"] = combined
+    state["paths"] = combined_paths
     save_state(session_id, state)
     log_event(
         session_id,
         "tracked",
-        paths=relevant_paths,
+        paths=[candidate_path(candidate) for candidate in relevant],
         cwd=record.get("cwd", ""),
         tool_name=record.get("tool_name", ""),
         command=(record.get("tool_input") or {}).get("command", ""),
@@ -487,13 +665,13 @@ def main():
     if reset_after_delegation(record, session_id, state):
         return
 
-    paths, is_partial = candidate_paths(record)
-    if not paths or is_partial:
+    candidates = candidate_reads(record)
+    if not candidates:
         return
 
-    paths = consume_allowed_paths(paths, session_id, record)
-    check_large_file(paths, session_id, record)
-    check_distinct_files(paths, session_id, state, record)
+    candidates = consume_allowed_candidates(candidates, session_id, record)
+    check_large_file(candidates, session_id, record)
+    check_cumulative_reads(candidates, session_id, state, record)
 
 
 if __name__ == "__main__":

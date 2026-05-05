@@ -6,7 +6,7 @@ Route token-heavy grunt work to `ask-intern` (DeepSeek v4 Flash via OpenRouter, 
 
 ## When to Delegate
 
-- Reading files >400 lines, or when you'd otherwise read 3+ files for context
+- Reading files >400 lines, or cumulative medium/large file sets for context
 - Boilerplate: tests, config files, docstrings, repetitive patterns
 - Summarizing diffs, logs, or large documentation
 - Generating fixtures, sample data, format conversions
@@ -82,10 +82,10 @@ After `--target`, review the output and edit only what needs fixing.
 `~/bin/ask-intern-guard` is installed as a `PreToolUse` hook for `Read|Bash` in `~/.claude/settings.json`. It blocks broad direct reads before Claude Code spends context:
 
 - whole-file reads of any non-instruction file over 400 lines
-- the 3rd distinct non-instruction context file in a session
-- Bash commands that directly read 3+ files, such as `cat a b c`
+- cumulative broad reads over 800 lines across 3+ distinct non-instruction context files, counting only files/ranges of roughly 120+ lines
+- Bash commands that directly read enough file content to cross that cumulative budget
 
-The hook allows narrow `Read` chunks with `offset`/`limit`, ignores required instruction/project documentation files (`AGENTS.md`, `CLAUDE.md`, `PROGRESS.md`, `SKILL.md`, any path segment named `docs`), and resets the session counter when Claude runs `ask-intern`. Set `ASK_INTERN_GUARD_DISABLED=1` to bypass it, or `ASK_INTERN_GUARD_MODE=warn` to allow reads with an advisory while tuning.
+The hook allows small files, narrow `Read` chunks with `offset`/`limit`, and shape probes such as `wc -l` or small `head`/`tail` reads. It ignores required instruction/project documentation files (`AGENTS.md`, `CLAUDE.md`, `PROGRESS.md`, `SKILL.md`, any path segment named `docs`) and resets the session counter when Claude runs `ask-intern`. Tune the cumulative budget with `ASK_INTERN_GUARD_MAX_CUMULATIVE_LINES` and the small-file floor with `ASK_INTERN_GUARD_MIN_CUMULATIVE_FILE_LINES`. Set `ASK_INTERN_GUARD_DISABLED=1` to bypass it, or `ASK_INTERN_GUARD_MODE=warn` to allow reads with an advisory while tuning.
 
 Direct-read control docs are exempt because summarizing them can lose execution order or exact instructions:
 

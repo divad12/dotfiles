@@ -19,6 +19,12 @@ mkdir -p "$home" "$work"
 small_a="$work/a.py"
 small_b="$work/b.py"
 small_c="$work/c.py"
+small_page="$work/page.tsx"
+medium_a="$work/medium-a.ts"
+medium_b="$work/medium-b.ts"
+medium_c="$work/medium-c.ts"
+edge_a="$work/edge-a.ts"
+edge_b="$work/edge-b.ts"
 large="$work/large.py"
 marked_control="$work/arbitrary-queue.md"
 docs_control="$work/docs/implementation-plan.txt"
@@ -30,6 +36,12 @@ mkdir -p "$(dirname "$docs_control")"
 printf 'print("a")\n' >"$small_a"
 printf 'print("b")\n' >"$small_b"
 printf 'print("c")\n' >"$small_c"
+printf '' >"$small_page"
+printf '' >"$medium_a"
+printf '' >"$medium_b"
+printf '' >"$medium_c"
+printf '' >"$edge_a"
+printf '' >"$edge_b"
 printf '<!-- agent-control: direct-read -->\n' >"$marked_control"
 printf 'Durable implementation plan\n\n- [ ] Read this verbatim\n' >"$docs_control"
 printf '# Manual queue\n\n- [ ] Read this verbatim\n' >"$manual_control"
@@ -40,6 +52,19 @@ i=0
 while [ "$i" -lt 401 ]; do
   printf 'line %s\n' "$i" >>"$large"
   printf 'item %s\n' "$i" >>"$marked_control"
+  printf 'manual item %s\n' "$i" >>"$manual_control"
+  if [ "$i" -lt 300 ]; then
+    printf 'medium a %s\n' "$i" >>"$medium_a"
+    printf 'medium b %s\n' "$i" >>"$medium_b"
+    printf 'medium c %s\n' "$i" >>"$medium_c"
+  fi
+  if [ "$i" -lt 400 ]; then
+    printf 'edge a %s\n' "$i" >>"$edge_a"
+    printf 'edge b %s\n' "$i" >>"$edge_b"
+  fi
+  if [ "$i" -lt 88 ]; then
+    printf 'page line %s\n' "$i" >>"$small_page"
+  fi
   i=$((i + 1))
 done
 
@@ -57,7 +82,9 @@ read_json() {
 
 partial_read_json() {
   file="$1"
-  printf '{"session_id":"s2","cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Read","tool_input":{"file_path":"%s","offset":1,"limit":80}}' "$work" "$file"
+  session="${2:-s2}"
+  limit="${3:-80}"
+  printf '{"session_id":"%s","cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Read","tool_input":{"file_path":"%s","offset":1,"limit":%s}}' "$session" "$work" "$file" "$limit"
 }
 
 bash_json() {
@@ -68,13 +95,16 @@ bash_json() {
 
 run_hook "$(read_json "$small_a")" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(read_json "$small_b")" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$small_c")" >/tmp/guard.out 2>/tmp/guard.err
 
-if run_hook "$(read_json "$small_c")" >/tmp/guard.out 2>/tmp/guard.err; then
-  echo "third distinct context read was not blocked" >&2
+run_hook "$(read_json "$medium_a" s9)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$medium_b" s9)" >/tmp/guard.out 2>/tmp/guard.err
+if run_hook "$(read_json "$medium_c" s9)" >/tmp/guard.out 2>/tmp/guard.err; then
+  echo "cumulative medium context reads were not blocked" >&2
   exit 1
 fi
-if ! grep -q "ask-intern" /tmp/guard.err; then
-  echo "third-read block did not route Claude to ask-intern" >&2
+if ! grep -q "900 lines" /tmp/guard.err || ! grep -q "ask-intern" /tmp/guard.err; then
+  echo "cumulative-read block did not explain the line budget and route Claude to ask-intern" >&2
   exit 1
 fi
 
@@ -88,6 +118,22 @@ if ! grep -q "401 lines" /tmp/guard.err; then
 fi
 
 run_hook "$(partial_read_json "$large")" >/tmp/guard.out 2>/tmp/guard.err
+if run_hook "$(partial_read_json "$large" s20 500)" >/tmp/guard.out 2>/tmp/guard.err; then
+  echo "large partial read was not blocked" >&2
+  exit 1
+fi
+
+run_hook "$(read_json "$medium_a" s10)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$medium_b" s10)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$small_page" s10)" >/tmp/guard.out 2>/tmp/guard.err
+
+run_hook "$(read_json "$edge_a" s13)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$edge_b" s13)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$small_page" s13)" >/tmp/guard.out 2>/tmp/guard.err
+
+run_hook "$(read_json "$medium_a" s11)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$medium_b" s11)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(bash_json "wc -l '$small_page'; head -5 '$small_page'; tail -5 '$small_page'" s11)" >/tmp/guard.out 2>/tmp/guard.err
 
 run_hook "$(read_json "$marked_control" s6)" >/tmp/guard.out 2>/tmp/guard.err
 
@@ -107,8 +153,10 @@ fi
 run_hook "$(bash_json "ask-intern -f '$small_a' -f '$small_b' summarize")" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(read_json "$small_c")" >/tmp/guard.out 2>/tmp/guard.err
 
-if run_hook "$(bash_json "cat '$small_a' '$small_b' '$small_c'" s3)" >/tmp/guard.out 2>/tmp/guard.err; then
-  echo "bash read of three distinct files was not blocked" >&2
+run_hook "$(bash_json "cat '$small_a' '$small_b' '$small_c'" s3)" >/tmp/guard.out 2>/tmp/guard.err
+
+if run_hook "$(bash_json "cat '$medium_a' '$medium_b' '$medium_c'" s12)" >/tmp/guard.out 2>/tmp/guard.err; then
+  echo "bash read of three medium files was not blocked" >&2
   exit 1
 fi
 
