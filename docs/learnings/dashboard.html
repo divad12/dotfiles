@@ -1,0 +1,232 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Learning Dashboard</title>
+  <style>
+    body { margin: 0; font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f6f7f8; color: #202124; }
+    header.app { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 16px 20px; background: #fff; border-bottom: 1px solid #d7dce0; }
+    h1 { margin: 0; font-size: 22px; }
+    main { max-width: 1180px; margin: 0 auto; padding: 16px; }
+    .entry { background: #fff; border: 1px solid #d7dce0; border-radius: 6px; padding: 14px; margin-bottom: 12px; }
+    .entry header { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; }
+    h2 { margin: 2px 0 8px; font-size: 17px; }
+    .meta { margin: 0; color: #59636e; font-size: 12px; }
+    .controls { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
+    button { border: 1px solid #9aa4ad; background: #fff; border-radius: 5px; padding: 5px 8px; cursor: pointer; }
+    button:hover { background: #eef3f7; }
+    details { margin-top: 8px; }
+    dt { font-weight: 650; margin-top: 8px; }
+    dd { margin: 2px 0 0; }
+    textarea { width: 100%; box-sizing: border-box; margin-top: 6px; }
+    .calibration { background: #fff; border: 1px solid #d7dce0; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
+    @media (max-width: 760px) { .entry header { grid-template-columns: 1fr; } .controls { justify-content: flex-start; } }
+  </style>
+</head>
+<body>
+  <header class="app">
+    <h1>Learning Dashboard</h1>
+    <button type="button" id="finish">Finish &amp; Execute</button>
+    <button type="button" id="export">Export JSONL</button>
+  </header>
+  <main>
+    <section class="triage" aria-label="Dashboard Triage Signals">
+      <h2>Dashboard Triage Signals</h2>
+      <ul><li><strong>Needs Review</strong>: 5</li>
+<li><strong>Open Items</strong>: 5</li>
+<li><strong>Auto Done</strong>: 0</li>
+<li><strong>Raw Inbox</strong>: 5</li>
+<li><strong>Candidates</strong>: 0</li>
+<li><strong>Aging/Stale</strong>: 0</li>
+<li><strong>Likely Duplicates</strong>: 1</li>
+<li><strong>Calibration Learned</strong>: None</li>
+<li><strong>Blocked Decisions</strong>: None</li>
+<li><strong>Ask Agent Prompts</strong>: Ask agent: choose archive, candidate, defer, or follow-up for each needs-review item. Ask agent: turn code-related decisions into TDD/review tasks before marking done.</li></ul>
+    </section>
+    <section class="calibration" aria-label="Calibration">
+      <h2>Calibration</h2>
+      <label>Calibration note <textarea id="calibration-note" rows="2"></textarea></label>
+      <button type="button" id="record-calibration" data-action="calibration">Record Calibration</button>
+    </section>
+    
+      <article class="entry" data-fingerprint="83b06990aeb2">
+        <header>
+          <div>
+            <p class="meta">inbox.md | inbox | high | skill</p>
+            <h2>Keep one canonical learning front door</h2>
+          </div>
+          <div class="controls"><button type="button" data-action="candidate" data-fingerprint="83b06990aeb2">Candidate</button>
+<button type="button" data-action="promote" data-fingerprint="83b06990aeb2">Promote</button>
+<button type="button" data-action="archive" data-fingerprint="83b06990aeb2">Archive</button>
+<button type="button" data-action="defer" data-fingerprint="83b06990aeb2">Defer</button></div>
+        </header>
+        <p>Users have to reason about multiple learning surfaces and lose trust when the setup feels like a command-line toolkit instead of a product.</p>
+        <details>
+          <summary>Evidence and Technical refs</summary>
+          <dl>
+            <dt>Evidence</dt><dd>User questioned why an old capture wrapper and repo-local README duplicated /learn behavior and warned that duplicate docs drift.</dd>
+            
+            <dt>Technical refs</dt><dd>.agents/skills/learn/SKILL.md, docs/ai/learning-system.md, docs/learnings/README.md</dd>
+            <dt>Recommended fix</dt><dd>Move useful capture reasoning into /learn and the canonical learning-system guide; keep repo-local READMEs pointer-only.</dd>
+            
+          </dl>
+        </details>
+        <label>Note <textarea rows="2" data-note-for="83b06990aeb2"></textarea></label>
+      </article>
+
+
+      <article class="entry" data-fingerprint="65a9dbb0b3b5">
+        <header>
+          <div>
+            <p class="meta">inbox.md | inbox | high | automation</p>
+            <h2>Verify that required behavior is actually wired</h2>
+          </div>
+          <div class="controls"><button type="button" data-action="candidate" data-fingerprint="65a9dbb0b3b5">Candidate</button>
+<button type="button" data-action="promote" data-fingerprint="65a9dbb0b3b5">Promote</button>
+<button type="button" data-action="archive" data-fingerprint="65a9dbb0b3b5">Archive</button>
+<button type="button" data-action="defer" data-fingerprint="65a9dbb0b3b5">Defer</button></div>
+        </header>
+        <p>Users cannot trust a system when agents say it should behave a certain way but no prompt, hook, test, automation, or structural check makes that behavior happen.</p>
+        <details>
+          <summary>Evidence and Technical refs</summary>
+          <dl>
+            <dt>Evidence</dt><dd>User asked whether triage and executor actually read the learning-system doc and explicitly apply the abstraction ladder, revealing that &quot;should do X&quot; language is not enough unless the system is checked for actual wiring.</dd>
+            
+            <dt>Technical refs</dt><dd>/Users/david/.codex/automations/daily-learning-triage/automation.toml, /Users/david/.codex/automations/daily-learning-executor/automation.toml, .agents/skills/learn/tests/structural-check.sh</dd>
+            <dt>Recommended fix</dt><dd>When a workflow depends on a behavior, verify the actual trigger, prompt, hook, test, or structural check that enforces it; add one if it is missing.</dd>
+            
+          </dl>
+        </details>
+        <label>Note <textarea rows="2" data-note-for="65a9dbb0b3b5"></textarea></label>
+      </article>
+
+
+      <article class="entry" data-fingerprint="755a268f4869">
+        <header>
+          <div>
+            <p class="meta">inbox.md | inbox | high | docs</p>
+            <h2>Do not present deterministic IDs as semantic judgment</h2>
+          </div>
+          <div class="controls"><button type="button" data-action="candidate" data-fingerprint="755a268f4869">Candidate</button>
+<button type="button" data-action="promote" data-fingerprint="755a268f4869">Promote</button>
+<button type="button" data-action="archive" data-fingerprint="755a268f4869">Archive</button>
+<button type="button" data-action="defer" data-fingerprint="755a268f4869">Defer</button></div>
+        </header>
+        <p>Users may trust dead plumbing and miss that the real system behavior depends on agentic triage.</p>
+        <details>
+          <summary>Evidence and Technical refs</summary>
+          <dl>
+            <dt>Evidence</dt><dd>User pointed out that exact fingerprint matching will almost never dedupe probabilistic agent wording; meaningful duplicate detection and clustering require agent judgment.</dd>
+            
+            <dt>Technical refs</dt><dd>.agents/skills/learn/SKILL.md, docs/ai/learning-system.md, bin/learn</dd>
+            <dt>Recommended fix</dt><dd>Use fingerprints only as row IDs and exact replay guards; make docs, tests, and automation prompts state that semantic dedupe/clustering is agent-owned.</dd>
+            
+          </dl>
+        </details>
+        <label>Note <textarea rows="2" data-note-for="755a268f4869"></textarea></label>
+      </article>
+
+
+      <article class="entry" data-fingerprint="8fa091b8f04e">
+        <header>
+          <div>
+            <p class="meta">inbox.md | inbox | high | skill</p>
+            <h2>Observers should route learnings, not become memory stores</h2>
+          </div>
+          <div class="controls"><button type="button" data-action="candidate" data-fingerprint="8fa091b8f04e">Candidate</button>
+<button type="button" data-action="promote" data-fingerprint="8fa091b8f04e">Promote</button>
+<button type="button" data-action="archive" data-fingerprint="8fa091b8f04e">Archive</button>
+<button type="button" data-action="defer" data-fingerprint="8fa091b8f04e">Defer</button></div>
+        </header>
+        <p>Durable feedback can be missed or split across two backlogs when the ambient observer keeps its own memory instead of routing to the learning store.</p>
+        <details>
+          <summary>Evidence and Technical refs</summary>
+          <dl>
+            <dt>Evidence</dt><dd>User asked whether a different Journology session would remember to capture learnings if only the /learn skill header mentioned capture triggers.</dd>
+            <dt>Additional evidence</dt><dd><ul><li>User questioned whether task-observer&#x27;s old observation log is still useful now that durable learnings should route through the learning system.</li></ul></dd>
+            <dt>Technical refs</dt><dd>.agents/skills/task-observer/SKILL.md, .agents/skills/learn/SKILL.md, .claude/AGENTS.md</dd>
+            <dt>Recommended fix</dt><dd>Keep task-observer as the trigger/sensor, route durable learnings through /learn, and use observation files only as fallback or session audit notes.</dd>
+            
+          </dl>
+        </details>
+        <label>Note <textarea rows="2" data-note-for="8fa091b8f04e"></textarea></label>
+      </article>
+
+
+      <article class="entry" data-fingerprint="23031c089efa">
+        <header>
+          <div>
+            <p class="meta">inbox.md | inbox | high | automation</p>
+            <h2>Multi-cwd automations must be repo-scoped per run</h2>
+          </div>
+          <div class="controls"><button type="button" data-action="candidate" data-fingerprint="23031c089efa">Candidate</button>
+<button type="button" data-action="promote" data-fingerprint="23031c089efa">Promote</button>
+<button type="button" data-action="archive" data-fingerprint="23031c089efa">Archive</button>
+<button type="button" data-action="defer" data-fingerprint="23031c089efa">Defer</button></div>
+        </header>
+        <p>A repo-scoped automation becomes noisy and may hit sandbox/write failures if each run loops across sibling configured repos.</p>
+        <details>
+          <summary>Evidence and Technical refs</summary>
+          <dl>
+            <dt>Evidence</dt><dd>User noted that Codex spawns one executor per cwd, so the Journology executor should not inspect or report on dotfiles.</dd>
+            
+            <dt>Technical refs</dt><dd>/Users/david/.codex/automations/daily-learning-executor/automation.toml, /Users/david/.codex/automations/daily-learning-triage/automation.toml, docs/ai/learning-system.md</dd>
+            <dt>Recommended fix</dt><dd>Automation prompts and contracts should state that each cron invocation operates only on its current working directory and must not touch sibling configured repos.</dd>
+            
+          </dl>
+        </details>
+        <label>Note <textarea rows="2" data-note-for="23031c089efa"></textarea></label>
+      </article>
+
+  </main>
+  <script>
+    const decisions = [];
+    const pendingSaves = [];
+    function jsonl(decision) { return JSON.stringify(decision) + "\n"; }
+    async function recordDecision(decision) {
+      decisions.push(decision);
+      const save = fetch("/decisions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(decision)
+        }).catch((error) => {
+        console.warn("Save decisions.jsonl fallback needed", error);
+      });
+      pendingSaves.push(save);
+      await save;
+    }
+    document.addEventListener("click", async (event) => {
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+      const fingerprint = button.dataset.fingerprint;
+      const noteBox = document.querySelector(`[data-note-for="${fingerprint}"]`);
+      await recordDecision({ fingerprint, action: button.dataset.action, note: noteBox ? noteBox.value : "" });
+    });
+    document.getElementById("export").addEventListener("click", () => {
+      const text = decisions.map(jsonl).join("");
+      const blob = new Blob([text], { type: "application/jsonl" });
+      const anchor = document.createElement("a");
+      anchor.href = URL.createObjectURL(blob);
+      anchor.download = "decisions.jsonl";
+      anchor.click();
+      URL.revokeObjectURL(anchor.href);
+    });
+    async function finishReview() {
+      await Promise.allSettled(pendingSaves);
+      await fetch("/finish", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "finish" })
+      });
+    }
+    document.getElementById("finish").addEventListener("click", async () => {
+      await finishReview();
+    });
+    document.getElementById("record-calibration").addEventListener("click", async () => {
+      const note = document.getElementById("calibration-note").value;
+      await recordDecision({ fingerprint: "global", action: "calibration", note });
+    });
+  </script>
+</body>
+</html>

@@ -52,7 +52,19 @@ fast-forward the target to include the new commits. The target may be `main`,
    - Do not rewrite published/shared branch history silently. If rewriting would
      surprise someone else, tell the user the ramification and ask first.
 
-3. **Rebase onto the local target branch**:
+3. **Capture landing learnings, then run the before-landing learning check**
+   from `docs/ai/git.md`. First identify any durable bug class, review finding,
+   failed-command lesson, merge conflict pattern, or workflow issue from this
+   branch that is not already captured in the last five active learnings or
+   same-session learning memory. Invoke `/learn` capture for relevant new
+   learnings, or update/skip existing entries when already covered. Announce
+   each result with the required `🧠 Captured learning:` or
+   `🧠 Learning already captured:` one-liner. Then run the check. If it
+   reports high-confidence open learnings, stop and ask the user which action to
+   take before landing: create prevention artifact, defer with follow-up, or
+   acknowledge landing without the artifact.
+
+4. **Rebase onto the local target branch**:
    ```bash
    git rebase "$TARGET_BRANCH"
    ```
@@ -63,7 +75,7 @@ fast-forward the target to include the new commits. The target may be `main`,
      the rebase, tell the user the ramification, and use the merge-commit
      exception from `docs/ai/git.md`.
 
-4. **Advance the target branch**:
+5. **Advance the target branch**:
 
    Normal path: fast-forward the target to the current branch tip.
    ```bash
@@ -76,7 +88,7 @@ fast-forward the target to include the new commits. The target may be `main`,
    git -C "$TARGET_REPO" merge --no-ff "$BRANCH"
    ```
 
-5. **Verify** the landing:
+6. **Verify** the landing:
 
    Normal fast-forward path: both branches should point to the same commit.
    ```bash
@@ -89,7 +101,7 @@ fast-forward the target to include the new commits. The target may be `main`,
    git -C "$TARGET_REPO" merge-base --is-ancestor "$BRANCH" "$TARGET_BRANCH"
    ```
 
-6. **Report** the result: which commits were added, whether noisy commits were
+7. **Report** the result: which commits were added, whether noisy commits were
    squashed, any conflicts resolved, final commit hash.
 
 ## Rules

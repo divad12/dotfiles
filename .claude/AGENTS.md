@@ -73,12 +73,14 @@ When the user types `/graphify`, invoke the `graphify` skill before doing anythi
   | Git operations, committing, rebasing, merging | git.md |
   | Editing AGENTS.md, .agents/skills/, docs/ai/ | writing-docs.md |
   | Maintaining or troubleshooting ask-intern | ask-intern.md |
+  | Operating or changing the learning system | learning-system.md |
 - Re-read the hard rules before implementation.
 
 ## Session Tools
 
 - **MANDATORY for interactive parent sessions: invoke `task-observer` BEFORE your first tool call** when tools will produce deliverables. Delegated/non-interactive subagents, review-only workers, verify-only workers, and Codex/Claude print-mode reviewers skip it; the parent agent owns observation logging.
-- Store task-observer files centrally:
+- `task-observer` is the ambient sensor for durable feedback, not the durable store. Route project learnings through `/learn` into `docs/learnings/`; route global agent-system learnings through `/learn` in dotfiles. Use observation files only as fallback/session audit notes when a learning cannot yet be routed cleanly.
+- If fallback observation files are needed, store them centrally:
 
 | Default | Use instead |
 |---|---|
@@ -86,7 +88,7 @@ When the user types `/graphify`, invoke the `graphify` skill before doing anythi
 | `<workspace>/skill-observations/archive/log-<date>.md` | `~/.agents/observations/<project-slug>/archive/log-<date>.md` |
 | `<workspace>/skill-observations/cross-cutting.md` | `~/.agents/observations/<project-slug>/cross-cutting.md` |
 
-`<project-slug>` is the git toplevel basename, or `_meta` outside git. The repo is auto-committed by launchd and reviewed M/W/F on `divad12/agent-observations`.
+`<project-slug>` is the git toplevel basename, or `_meta` outside git. These files are not a parallel durable learning backlog; promote durable items into the learning system.
 
 ## Superpowers Paths
 

@@ -19,6 +19,7 @@ The architecture being installed:
 │   ├── README.md
 │   └── writing-docs.md       # meta-rules for editing these
 ├── .agents/skills/           # auto-activated skills (shared between agents)
+├── docs/learnings/           # optional project learning store
 └── .claude/skills            # symlink → ../.agents/skills
 ```
 
@@ -49,6 +50,7 @@ test -d docs/ai              && echo "HAS_DOCS_AI"
 test -d .agents/skills       && echo "HAS_AGENTS_SKILLS"
 test -L .claude/skills       && echo "HAS_SKILLS_SYMLINK"
 test -f docs/ai/writing-docs.md && echo "HAS_WRITING_DOCS"
+test -d docs/learnings       && echo "HAS_LEARNINGS"
 ```
 
 For each missing piece, plan to create it. For each existing piece, **do not overwrite** - instead report and skip. The user can run `/adaptive-docs-extract` to refactor existing files.
@@ -148,6 +150,17 @@ The `## This diagram covers` section is required - the `/sync-architecture` skil
 Skip this step entirely if the project is tiny (single-file CLI, one-script tool) where a diagram adds no value.
 
 If `docs/ai/architecture.md` already exists, **do not overwrite**.
+
+### 8c. Optionally initialize project learnings
+
+If the project has recurring QA/review findings, bug bashes, shakedowns, or long-lived product work, ask whether to initialize the learning system too. If yes, invoke `/learn-init` or run:
+
+```bash
+learn --repo "$PWD" learn-init
+learn --repo "$PWD" dashboard
+```
+
+Do not force learnings on tiny throwaway repos. The normal front doors are `/learn` for capture, `/dashboard` for review, and `/learn-init` for setup.
 
 ### 9. Do NOT create CLAUDE.md
 

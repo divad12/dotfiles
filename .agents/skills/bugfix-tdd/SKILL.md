@@ -57,26 +57,10 @@ npm test -- --run
 
 ### 5. Route the learning
 
-After the fix passes, discover and route through the project's learning system
-if it exists. Search the repo for `BUG_PATTERNS.md`, `LESSONS_LEARNED.md`,
-`BUGS_FIXED.md`, and `ENHANCEMENTS.md`; read the pattern/routing doc before
-updating the others.
-
-- If the project has fixed-bug logs such as `BUGS_FIXED.md`, record the
-  concrete user-facing bug, fix, regression coverage, and verification.
-- If the project has `LESSONS_LEARNED.md`, add or update the root-cause lesson.
-  Climb from symptom to bug class to the highest actionable principle.
-- If the project has `BUG_PATTERNS.md`, update it only when the fix reveals a
-  new reusable bug class or materially clarifies an existing one. If the file
-  names an immediate enforcement rule, add the narrow test/lint/helper now when
-  it is cheap and close to the fix; otherwise leave the candidate for the
-  project's scheduled checks or hardening pass.
-- If the report was useful UX polish rather than a correctness bug, route it to
-  `ENHANCEMENTS.md` when present.
-
-Do not duplicate the full incident in every file. Fixed-bug logs are specific,
-lessons bridge incident to principle, and bug patterns are the compact hunting
-map for future agents.
+After the fix passes verification, invoke `/learn` capture for any reusable bug
+class, missing guardrail, or project-specific workflow lesson. The canonical
+record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
+`LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
 ### 6. Summarize
 

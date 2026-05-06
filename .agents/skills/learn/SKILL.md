@@ -1,0 +1,98 @@
+---
+name: learn
+description: "Use when the user says '/learn', 'learn this', 'document this', 'capture this', 'remember this for next time', 'update the docs', asks to capture a durable project learning, or after fixes/reviews reveal reusable patterns."
+user-invocable: true
+argument-hint: "[plain-English learning or evidence]"
+---
+
+# Learn
+
+Read `docs/ai/learning-system.md` before operating or changing this workflow.
+
+Only three user-facing front doors are normal: `/learn` to capture, `/dashboard` to review, and `/learn-init` to initialize. Treat `bin/learn` subcommands as hidden glue for agents and automations, not commands the user should have to remember.
+
+## Store
+
+Use the current repo's `docs/learnings/` store. If it does not exist, ask whether to initialize it through `/learn-init` unless the user already asked to capture here.
+
+## Capture
+
+Capture raw evidence broadly, but write the entry at the highest actionable pattern level. Include what the user sees, loses, feels, or risks.
+
+Use the abstraction ladder from `docs/ai/learning-system.md`: start with the specific incident, identify the class of bug, then capture the highest principle that is still actionable. If a claim says a workflow "should" do something, verify the actual trigger, prompt, hook, test, structural check, or code path that makes it happen.
+
+After identifying the principle, note what would enforce it next time: a regression test, lint rule, schema/contract scan, shared helper, checklist, docs update, skill tweak, or automation.
+
+Before writing, check active inbox, candidates, promoted entries, and recent archives for an existing related learning. The CLI adds `Captured: YYYY-MM-DD` and a stable fingerprint so dashboard decisions can target a row. Fingerprint matching is not semantic dedupe; it only catches exact replay-like writes. Agents own semantic dedupe and clustering and should merge related evidence instead of creating noisy parallel entries.
+
+Before writing a new entry, also look at the last five active learnings and any same session learning captures you remember. If the learning is already covered, skip the new capture or update the existing entry only when the new evidence, source, confidence, or technical refs add value.
+
+Use the CLI only as safe write glue:
+
+```bash
+learn --repo "$PWD" capture \
+  --source "<QA|review|bugfix|agent-discovery|user-feedback|failed-command|before-merge|task-observer|learn>" \
+  --summary "<plain-English one-liner>" \
+  --evidence "<plain-English evidence>" \
+  --ramification "<user-facing impact>" \
+  --recommended-fix "<one-line prevention action>" \
+  --candidate-artifact "<test|lint|helper|skill|docs|nested-AGENTS|automation|archive>" \
+  --confidence "<low|medium|high>" \
+  --technical-ref "<file/function/test/log/screenshot>"
+```
+
+After capture or useful update, regenerate the dashboard and announce exactly one session-visible line:
+
+```text
+🧠 Captured learning: <plain-English summary>
+```
+
+If you skipped it because the learning was already captured, say:
+
+```text
+🧠 Learning already captured: <plain-English summary>
+```
+
+## Dashboard
+
+For user review, prefer the served dashboard with finish execution:
+
+```bash
+learn --repo "$PWD" dashboard --serve --execute-on-finish --host 127.0.0.1 --port 0
+```
+
+The dashboard records decisions to `docs/learnings/decisions.jsonl`. Finish & Execute applies queued decisions, clears the queue, refreshes the dashboard, and shuts the server down. If serving is not available, run:
+
+```bash
+learn --repo "$PWD" dashboard
+```
+
+If the user asks to review without automatic finish execution, serve read/write decisions only:
+
+```bash
+learn --repo "$PWD" dashboard --serve --host 127.0.0.1 --port 0
+```
+
+The dashboard must show triage signals for Needs Review, Open Items, Auto Done, Raw Inbox, Candidates, Aging/Stale, Likely Duplicates, Calibration Learned, Blocked Decisions, and Ask Agent Prompts. Aging/Stale is date-backed from `Captured` entries. Expandable evidence must include Additional evidence from exact replay merges and agent-clustered captures.
+
+## Agentic Maintenance
+
+Daily maintenance is split into Triage automation and Executor automation. Triage runs around 5pm: it clusters new learnings, merges duplicate evidence, archives obvious junk, prepares candidate actions, and surfaces a live dashboard/app link for review. Executor runs around 9pm: it acts only on high-confidence narrow work, updates low-risk docs, or implements focused prevention artifacts when it can follow TDD/review.
+
+If the user says `done` after reviewing the triage dashboard, run executor automation immediately for that repo, append a same-day audit marker, and skip the scheduled 9pm executor for that repo.
+
+Executor automation should use subagents for independent implementation, review, or verification slices with disjoint file ownership. It should log every action in `docs/learnings/auto-actions.md`.
+
+The executor can apply archive, candidate, promote, confidence, candidate-artifact, note, calibration, defer, block, revise-wording, follow-up, draft-plan, and draft-patch decisions. Draft decisions write `docs/learnings/drafts/<fingerprint>-plan.md` and `docs/learnings/drafts/<fingerprint>-patch.md`.
+
+Learning-file updates and low-risk docs can be applied directly. Code, shared skill, enforcement, and architecture changes must become TDD/review tasks or focused verified changes; never silently edit code and never mark code-related prevention as promoted before tests and required review pass.
+
+## Before Merge
+
+At landing checkpoints, agents may use:
+
+```bash
+learn --repo "$PWD" check-merge
+```
+
+Surface high-confidence open items in plain English. If a prevention artifact is missing, ask whether to create it, defer it, or acknowledge landing with a follow-up.

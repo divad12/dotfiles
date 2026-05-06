@@ -78,6 +78,12 @@ For each CONCERN, plain English with the user-facing impact:
    - **CONCERNs** - include in the build report for the user to decide.
    - **All PASS** - note it in the build report ("QA: all scenarios passed").
 
+4. **Capture durable learnings.** For each FAIL or CONCERN that reveals a
+   reusable bug class, missing guardrail, scale issue, or workflow problem,
+   invoke `/learn` capture. Lead with the user-facing experience, not test
+   jargon. If a FAIL is fixed immediately, still capture the pattern so the
+   prevention artifact can be tracked.
+
 ## Output
 
 When called by another skill, return the QA report for inclusion in the build report. When called standalone, present the report directly and offer to fix any FAILs.

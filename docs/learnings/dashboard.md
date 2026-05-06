@@ -1,0 +1,93 @@
+# Learning Dashboard
+
+## inbox.md
+
+# Learning Inbox
+
+### 83b06990aeb2-keep-one-canonical-learning-front-door
+- Fingerprint: 83b06990aeb2
+- Sources: user-feedback
+- Captured: 2026-05-05
+- Source events: None
+- Scope: project
+- User-facing summary: Keep one canonical learning front door
+- Evidence: User questioned why an old capture wrapper and repo-local README duplicated /learn behavior and warned that duplicate docs drift.
+- Technical refs: .agents/skills/learn/SKILL.md, docs/ai/learning-system.md, docs/learnings/README.md
+- Ramification: Users have to reason about multiple learning surfaces and lose trust when the setup feels like a command-line toolkit instead of a product.
+- Suspected pattern: Unknown
+- Recommended fix: Move useful capture reasoning into /learn and the canonical learning-system guide; keep repo-local READMEs pointer-only.
+- Candidate artifact: skill
+- Requires TDD/review: yes
+- Confidence: high
+- Status: inbox
+### 65a9dbb0b3b5-verify-that-required-behavior-is-actually-wired
+- Fingerprint: 65a9dbb0b3b5
+- Sources: user-feedback
+- Captured: 2026-05-05
+- Source events: None
+- Scope: project
+- User-facing summary: Verify that required behavior is actually wired
+- Evidence: User asked whether triage and executor actually read the learning-system doc and explicitly apply the abstraction ladder, revealing that "should do X" language is not enough unless the system is checked for actual wiring.
+- Technical refs: /Users/david/.codex/automations/daily-learning-triage/automation.toml, /Users/david/.codex/automations/daily-learning-executor/automation.toml, .agents/skills/learn/tests/structural-check.sh
+- Ramification: Users cannot trust a system when agents say it should behave a certain way but no prompt, hook, test, automation, or structural check makes that behavior happen.
+- Suspected pattern: Claims about expected behavior drift from actual wiring.
+- Recommended fix: When a workflow depends on a behavior, verify the actual trigger, prompt, hook, test, or structural check that enforces it; add one if it is missing.
+- Candidate artifact: automation
+- Requires TDD/review: yes
+- Confidence: high
+- Status: inbox
+### 755a268f4869-do-not-present-deterministic-ids-as-semantic-judgment
+- Fingerprint: 755a268f4869
+- Sources: user-feedback
+- Captured: 2026-05-05
+- Source events: None
+- Scope: project
+- User-facing summary: Do not present deterministic IDs as semantic judgment
+- Evidence: User pointed out that exact fingerprint matching will almost never dedupe probabilistic agent wording; meaningful duplicate detection and clustering require agent judgment.
+- Technical refs: .agents/skills/learn/SKILL.md, docs/ai/learning-system.md, bin/learn
+- Ramification: Users may trust dead plumbing and miss that the real system behavior depends on agentic triage.
+- Suspected pattern: Unknown
+- Recommended fix: Use fingerprints only as row IDs and exact replay guards; make docs, tests, and automation prompts state that semantic dedupe/clustering is agent-owned.
+- Candidate artifact: docs
+- Confidence: high
+- Status: inbox
+### 8fa091b8f04e-ambient-capture-belongs-in-the-observer--not-the-destination-ski
+- Fingerprint: 8fa091b8f04e
+- Sources: user-feedback
+- Captured: 2026-05-05
+- Source events: None
+- Scope: project
+- User-facing summary: Observers should route learnings, not become memory stores
+- Evidence: User asked whether a different Journology session would remember to capture learnings if only the /learn skill header mentioned capture triggers.
+- Additional evidence: User questioned whether task-observer's old observation log is still useful now that durable learnings should route through the learning system.
+- Technical refs: .agents/skills/task-observer/SKILL.md, .agents/skills/learn/SKILL.md, .claude/AGENTS.md
+- Ramification: Durable feedback can be missed or split across two backlogs when the ambient observer keeps its own memory instead of routing to the learning store.
+- Suspected pattern: Ambient sensors drift into parallel memory systems.
+- Recommended fix: Keep task-observer as the trigger/sensor, route durable learnings through /learn, and use observation files only as fallback or session audit notes.
+- Candidate artifact: skill
+- Requires TDD/review: yes
+- Confidence: high
+- Status: inbox
+### 23031c089efa-multi-cwd-automations-must-be-repo-scoped-per-run
+- Fingerprint: 23031c089efa
+- Sources: user-feedback
+- Captured: 2026-05-05
+- Source events: None
+- Scope: project
+- User-facing summary: Multi-cwd automations must be repo-scoped per run
+- Evidence: User noted that Codex spawns one executor per cwd, so the Journology executor should not inspect or report on dotfiles.
+- Technical refs: /Users/david/.codex/automations/daily-learning-executor/automation.toml, /Users/david/.codex/automations/daily-learning-triage/automation.toml, docs/ai/learning-system.md
+- Ramification: A repo-scoped automation becomes noisy and may hit sandbox/write failures if each run loops across sibling configured repos.
+- Suspected pattern: Unknown
+- Recommended fix: Automation prompts and contracts should state that each cron invocation operates only on its current working directory and must not touch sibling configured repos.
+- Candidate artifact: automation
+- Requires TDD/review: yes
+- Confidence: high
+- Status: inbox
+
+
+## candidates.md
+
+# Learning Candidates
+
+

@@ -355,6 +355,35 @@ After auto-fixes and verification are complete, present only the deferred items.
 
 **Anti-pattern:** "Issue: unsafe cast at form.tsx:42 - deferred because it needs a refactor." This is the engineering framing the user just told you not to use. The right framing: "When users edit forms with custom field overrides, the app could crash on save because we're not validating the override shape. User-facing impact: rare today (only one form uses overrides), but if we add more, the crash surface grows silently. Not fixing now: needs a small schema refactor that touches the form types in 3 places. Where: form.tsx:42."
 
+## Learning Closeout
+
+Before final response, identify review findings or auto-fixes that reveal a
+reusable bug class, missing guardrail, repeated workflow issue, or architecture
+gap. For each durable pattern, invoke `/learn` capture with:
+
+- source: `review`
+- plain-English evidence and ramification
+- technical refs for files/tests/functions
+- recommended fix naming the prevention artifact
+- confidence based on evidence strength
+
+Before writing a new entry, check the last five active learnings and
+same-session learning captures. Do not create duplicate learning entries for
+issues already captured by bugfix, QA, task-observer, review, or before-merge
+checks. If the learning is already covered, say:
+
+```text
+🧠 Learning already captured: <plain-English summary>
+```
+
+If new evidence materially improves the existing learning, update that entry's
+`Sources`, evidence trail, confidence, or technical refs instead of creating a
+sibling. When a learning is newly captured, say:
+
+```text
+🧠 Captured learning: <plain-English summary>
+```
+
 ## Rules
 
 - **Never commit during a review.** All fixes are left as uncommitted changes.

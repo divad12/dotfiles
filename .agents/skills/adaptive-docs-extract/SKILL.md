@@ -196,4 +196,4 @@ Report:
 - **Preserve content semantics.** When extracting, don't paraphrase or "improve" the text - move it verbatim. Refactor the writing in a separate pass if needed.
 - **Banner format is mandatory.** Every `docs/ai/` file must have the "Context loaded" banner at the top so the agent doesn't re-read it within a session.
 - **One canonical location per concept.** If you find the same rule stated in two places during extraction, keep it in one and remove the other - don't duplicate.
-- **The `/capture-learning` skill** is the long-term maintenance flow. It routes new principles into the right `docs/ai/` file. Mention this at the end so the user knows how to grow the system.
+- **The `/learn` skill** is the long-term maintenance flow. It captures new principles in `docs/learnings/` first, then dashboard/executor promotion routes them to the right prevention artifact. Mention this at the end so the user knows how to grow the system.

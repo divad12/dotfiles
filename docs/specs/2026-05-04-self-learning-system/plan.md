@@ -16,7 +16,7 @@
 - Create `setup/tests/test_learn_cli.py`: pytest coverage for store initialization, idempotent capture, dashboard generation, decision execution, and merge check summaries.
 - Create `.agents/skills/learn/SKILL.md`: explicit `/learn` workflow for capture, dashboard, and executor actions.
 - Create `.agents/skills/learn/tests/structural-check.sh`: protects the `/learn` skill's load-bearing sections.
-- Modify `.agents/skills/capture-learning/SKILL.md`: compatibility wrapper that routes "capture this" and existing `/save` trigger language into `/learn`.
+- Delete the older capture skill surface after moving its trigger phrases and abstraction ladder into `.agents/skills/learn/SKILL.md` and `docs/ai/learning-system.md`.
 - Modify `.agents/skills/task-observer/SKILL.md`: route project-specific observations into `docs/learnings/` and keep agent-system observations in dotfiles.
 - Modify `.agents/skills/deep-review/SKILL.md`: add durable-learning closeout after review/fix synthesis.
 - Modify `.agents/skills/qa-test/SKILL.md`: add FAIL/CONCERN learning closeout with plain-English ramification.
@@ -569,12 +569,12 @@ git add bin/learn setup/tests/test_learn_cli.py
 git commit -m "feat: add learning dashboard primitives"
 ```
 
-## Task 4: `/learn` Skill And Compatibility Wrapper
+## Task 4: `/learn` Skill And Old Capture Surface Removal
 
 **Files:**
 - Create: `.agents/skills/learn/SKILL.md`
 - Create: `.agents/skills/learn/tests/structural-check.sh`
-- Modify: `.agents/skills/capture-learning/SKILL.md`
+- Delete: the older standalone capture skill after migrating its useful content into `/learn`
 - Test: `.agents/skills/learn/tests/structural-check.sh`
 
 - [ ] **Step 1: Create the `/learn` skill**
@@ -683,19 +683,11 @@ Run:
 chmod +x .agents/skills/learn/tests/structural-check.sh
 ```
 
-- [ ] **Step 3: Convert `capture-learning` into compatibility wrapper**
+- [ ] **Step 3: Remove the older standalone capture surface**
 
-Modify `.agents/skills/capture-learning/SKILL.md` so the top after the H1 reads:
+Move the useful abstraction-ladder guidance into `.agents/skills/learn/SKILL.md` and `docs/ai/learning-system.md`, then remove the older standalone capture skill. The `/learn` description must include the old trigger phrases directly: "document this", "capture this", "remember this for next time", and "update the docs".
 
-```markdown
-# Capture Learning
-
-Compatibility wrapper for `/learn`. For new work, use `.agents/skills/learn/SKILL.md`.
-
-When this skill is triggered by "document this", "capture this", "remember this for next time", or `/save`, load the `/learn` skill and follow its Capture workflow. Preserve this wrapper so older prompts still route correctly.
-```
-
-Keep the existing abstraction ladder examples below that wrapper, but add this sentence after "The Abstraction Ladder":
+The canonical abstraction-ladder text should include this sentence:
 
 ```markdown
 Before writing to `docs/learnings/`, climb one rung higher than the first principle that comes to mind. If the next rung is still actionable, capture that higher principle.
@@ -717,7 +709,7 @@ Expected: structural check prints `OK: learn structural check passed`; pytest pr
 Run:
 
 ```bash
-git add .agents/skills/learn .agents/skills/capture-learning/SKILL.md
+git add .agents/skills/learn docs/ai/learning-system.md
 git commit -m "feat: add learn skill workflow"
 ```
 

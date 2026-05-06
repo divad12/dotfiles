@@ -17,7 +17,7 @@ The system borrows ideas rather than adopting a full external stack.
 - Journology's historical `PROGRESS.md` proved that close-to-the-work problem-solution notes are valuable, but it mixed durable lessons with status bookkeeping.
 - Journology's M3 shakedown loop proved a stronger shape: symptom -> root cause -> pattern -> enforcement. Its limitation is that it is scoped to one bug-bash program.
 - `task-observer` already captures durable user/agent workflow patterns, but its centralized log can grow into another backlog unless project learnings route into the repo and get promoted or archived.
-- `capture-learning` has the right abstraction ladder, but often stays too close to the specific incident. It needs stricter evidence, destination, enforcement, and "climb higher" gates.
+- The older capture workflow had the right abstraction ladder, but often stayed too close to the specific incident. `/learn` now owns that ladder with stricter evidence, destination, enforcement, and "climb higher" gates.
 - Superpowers Optimized, Reflexion, Voyager, ClawMem, and memory-backed agent systems all validate parts of the idea: raw memory, reflection, reusable skills, decay, and retrieval. The first version should stay file-first and git-native because the hard problem here is routing and judgment, not storage.
 
 ## Scope
@@ -32,7 +32,7 @@ In scope:
 - dashboard markdown and generated HTML;
 - calibration records from user feedback;
 - review/QA closeout and commit/merge checkpoints;
-- an explicit `/learn` workflow, implemented by strengthening or renaming `capture-learning`;
+- an explicit `/learn` workflow that owns all capture triggers and abstraction logic;
 - conservative auto-promotion for low-risk, high-confidence actions;
 - TDD and review requirements for any code-producing decision.
 
@@ -48,6 +48,30 @@ Out of scope for version 0:
 Capture broadly, promote sparingly, enforce aggressively.
 
 Raw evidence is allowed to be noisy because it lives in cold storage. Hot context and automatic changes must be curated. A learning is not resolved until it is either archived as non-durable or attached to a prevention artifact.
+
+## Product Experience Correction — 2026-05-05
+
+The user-facing system should feel hands-off and productized, not like a CLI toolkit. Normal users should only need three front doors:
+
+- `/learn` — capture a durable learning in the current repo through an agentic workflow.
+- `/dashboard` — open the review dashboard for the current repo, let the user review, then execute the approved actions when they finish.
+- `/learn-init` — initialize the learning system in a new repo. This may also be called by adaptive-docs initialization when a project opts into project learnings.
+
+Everything else is implementation detail. Binaries may exist for safe file writes, dashboard serving, and structured glue, but the reasoning loop should be agentic: agents read evidence, cluster findings into durable patterns, apply calibration, update markdown/docs/skills/tests when safe, and leave review-required changes as explicit follow-up tasks.
+
+The default cadence should be automation-first:
+
+- Daily agentic maintenance sweeps every participating repo with `docs/learnings/`.
+- Triage runs around 5pm and surfaces a live dashboard/app link for review.
+- Executor runs around 9pm, unless the user says `done` after triage and executor runs immediately.
+- Early usage should bias toward daily user review until enough calibration exists.
+- The daily sweep should cluster new learnings, merge duplicate evidence, archive obvious non-durable entries, update low-risk docs, and implement focused high-clarity prevention artifacts when it can do so with TDD and verification.
+- Daily work should be split into a triage automation and an executor automation. Triage clusters and prepares actions; executor acts only on high-confidence, narrow work.
+- Executor automation should use subagents when there are independent implementation, review, or verification slices with disjoint file ownership.
+- Risky code, broad architecture, shared skills, global instructions, or uncertain product decisions stay review-required.
+- Weekly review remains useful as a digest, but it is not the only automation.
+
+The dashboard is the control center. The user should be able to review visually, click Finish, or tell the agent "done" / "I'm done processing now." The system should then run the safe executor path immediately, write a same-day executor audit marker, skip the scheduled 9pm executor for that repo, regenerate the dashboard, and report what changed.
 
 ## Storage And Routing
 
@@ -177,7 +201,8 @@ Static generated views are still useful as read-only snapshots for git diffs, au
 The dashboard can reach the user through two main paths:
 
 - **Manual session:** the user starts a session and says `/learn dashboard`, `/dashboard`, or "open the learning dashboard." The agent generates or opens the interactive dashboard, waits for decisions, then runs the decision executor in the same session unless the user says to only review.
-- **Weekly automation:** a scheduled run updates the dashboard, performs allowed low-risk auto-actions, writes `auto-actions.md`, and posts or surfaces a scan-friendly summary with a link/path to the interactive dashboard. If the user records decisions from that dashboard, the next `/learn execute` session or the automation's safe executor pass applies them.
+- **Daily triage automation:** a scheduled run clusters new evidence, merges duplicate entries, archives obvious non-durable items, prepares candidate actions, writes `auto-actions.md`, and updates the dashboard.
+- **Daily executor automation:** a later scheduled run executes high-confidence narrow actions, updates low-risk docs, performs focused TDD-backed tests/lint/helper/skill guardrails, writes `auto-actions.md`, and updates the dashboard. If the user records dashboard decisions, the executor applies safe decisions and leaves risky items as follow-ups.
 
 Review closeout and before-merge checks can also invoke a focused dashboard view filtered to the current branch/session. After the user records decisions, the default behavior is to run the executor immediately for learning-file updates and low-risk docs, then create TDD/review tasks for code, skill, enforcement, or architecture changes.
 
@@ -192,7 +217,7 @@ Preferred invocation points:
 - before merge or landing;
 - task-observer when it notices durable agent/user workflow patterns;
 - failed-command capture when the command lesson is project-relevant;
-- weekly dashboard automation;
+- daily triage and executor automations;
 - an optional manual command such as `/learn` or `/learning-dashboard`.
 
 Before commit and merge, the learning check should ask whether any new bug/review finding needs a prevention artifact before landing. The user-facing ramification is that bugs do not quietly land with only a chat memory of why they happened.
@@ -204,14 +229,15 @@ Version 0 enforces checkpoints through skills and docs before adding hard shell 
 - Review, deep-review, QA, and bugfix skills add a closeout step that writes or confirms learning entries for durable findings.
 - Merge and git guidance add a before-landing learning check. The check should surface unresolved high-confidence learnings and ask whether a prevention artifact is required before landing.
 - The optional `/learn` workflow can be run manually when the user says "capture this", "learn this", "open the learning dashboard", or "what did we learn?"
-- Weekly automation updates the dashboard and auto-action log. It summarizes and proposes; it does not block work.
+- Daily triage automation updates the dashboard and auto-action log. It summarizes and proposes; it does not block work.
+- Daily executor automation performs safe high-confidence actions after triage. It must follow TDD/review for any code, test, helper, skill, or enforcement change and leave broad or risky work for dashboard review.
 - Optional repo hooks can come later for teams or projects that want hard blocking. Hooks should call a small script and print plain-English ramifications, not dump raw markdown.
 
 The first implementation should include review closeout and before-merge checks. Before-commit checks are desirable, but should not block version 0 if review/merge capture is already working.
 
 ### `/learn` And Task Observer Boundary
 
-The existing `capture-learning` skill should be strengthened and exposed as `/learn`, either by renaming it or by adding `/learn` as an alias while preserving compatibility. `/learn` is the explicit project-learning workflow: it captures raw evidence, climbs the abstraction ladder, proposes a candidate artifact, opens the dashboard, and can run the promotion/execution loop.
+`/learn` is the only explicit capture workflow. Older capture trigger phrases such as "document this", "capture this", "remember this for next time", and "update the docs" route directly to `/learn`; no separate compatibility skill should remain. `/learn` captures raw evidence, climbs the abstraction ladder, proposes a candidate artifact, opens the dashboard, and can run the promotion/execution loop.
 
 `task-observer` remains the ambient session observer. It should capture durable agent/user workflow observations and route them to the same learning store when they are project-specific, or to dotfiles when they improve the agent system. It should not become the only learning interface, and `/learn` should not replace the observer's quiet background role.
 
@@ -234,7 +260,7 @@ The decision executor turns dashboard decisions into action. It can:
 For version 0, it may automatically edit learning files and low-risk docs. It can be invoked three ways:
 
 - **Current session:** the user or a skill says to execute selected dashboard decisions.
-- **Automation:** a weekly or scheduled job handles allowed low-risk actions and writes a dashboard/audit log.
+- **Automation:** daily triage and executor jobs handle allowed low-risk actions and write dashboard/audit logs.
 - **Delegated worker/subagent:** for approved code or broader docs work, the current agent can dispatch a bounded task with the normal TDD/review contract.
 
 Code changes, shared skill changes, and architecture changes must go through the code path below even when the promotion engine labels them high confidence.
@@ -296,4 +322,4 @@ The learning system itself should have tests or checks.
 - The dashboard should be interactive by default. Static markdown/HTML remains a read-only snapshot for diffs, automation artifacts, and no-server environments.
 - How dashboard decisions are recorded for the executor: JSONL events, markdown notes, or form submissions to a local helper.
 - The first implementation should cover both dotfiles and Journology: dotfiles owns the global skill/checkpoint machinery, and Journology exercises the project-local learning store.
-- Checkpoint order: implement review closeout and before-merge first, then before-commit and weekly dashboard once the core loop works.
+- Checkpoint order: implement review closeout and before-merge first, then before-commit checks and the split daily triage/executor automations once the core loop works.

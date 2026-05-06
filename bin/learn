@@ -1,0 +1,1045 @@
+#!/usr/bin/env python3
+import argparse
+import hashlib
+import html
+from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+import json
+import re
+from dataclasses import dataclass, field
+from datetime import date
+from pathlib import Path
+
+
+STORE_FILES = {
+    "README.md": "# Project Learnings\n\nThis directory is the repo-local store for the global learning system.\n\nCanonical operating contract: dotfiles `docs/ai/learning-system.md` and the global `/learn`, `/dashboard`, and `/learn-init` skills.\n\nDo not duplicate workflow rules here; keep this file as a pointer.\n",
+    "inbox.md": "# Learning Inbox\n\n",
+    "candidates.md": "# Learning Candidates\n\n",
+    "dashboard.md": "# Learning Dashboard\n\n",
+    "calibration.md": "# Learning Calibration\n\n",
+    "auto-actions.md": "# Learning Auto-Actions\n\n",
+    "decisions.jsonl": "",
+}
+
+
+VALID_CONFIDENCE = {"low", "medium", "high"}
+CONFIDENCE_RANK = {"low": 0, "medium": 1, "high": 2}
+NON_ENTRY_MARKDOWN = {"README.md", "dashboard.md", "calibration.md", "auto-actions.md"}
+CODE_ARTIFACTS = {
+    "test",
+    "lint",
+    "helper",
+    "skill",
+    "nested-AGENTS",
+    "automation",
+    "code",
+    "enforcement",
+    "architecture",
+}
+NON_CODE_AUTO_CANDIDATES = {"docs"}
+ENTRY_HEADING = re.compile(r"^### [0-9a-f]{12}-.*$", re.MULTILINE)
+
+
+@dataclass
+class LearningEntry:
+    source: str
+    summary: str
+    evidence: str
+    ramification: str
+    recommended_fix: str
+    candidate_artifact: str
+    confidence: str = "medium"
+    captured: str = field(default_factory=lambda: date.today().isoformat())
+    source_events: list[str] = field(default_factory=list)
+    scope: str = "project"
+    suspected_pattern: str = ""
+    technical_refs: list[str] = field(default_factory=list)
+    status: str = "inbox"
+
+    @property
+    def fingerprint(self) -> str:
+        normalized = "|".join(
+            [
+                " ".join(self.summary.lower().split()),
+                " ".join(self.suspected_pattern.lower().split()),
+                "|".join(sorted(ref.strip() for ref in self.technical_refs if ref.strip())),
+            ]
+        )
+        return hashlib.sha1(normalized.encode("utf-8")).hexdigest()[:12]
+
+
+def store_dir(repo: Path) -> Path:
+    return repo / "docs" / "learnings"
+
+
+def resolve_repo(repo: Path) -> Path:
+    resolved = repo.resolve()
+    current = resolved.parent if resolved.is_file() else resolved
+    for candidate in [current, *current.parents]:
+        if (candidate / ".git").exists():
+            return candidate
+    return resolved
+
+
+def init_store(repo: Path) -> Path:
+    store = store_dir(repo)
+    store.mkdir(parents=True, exist_ok=True)
+    (store / "archive").mkdir(exist_ok=True)
+    for filename, content in STORE_FILES.items():
+        path = store / filename
+        if not path.exists():
+            path.write_text(content)
+    return store
+
+
+def format_entry(entry: LearningEntry) -> str:
+    source_events = ", ".join(entry.source_events) if entry.source_events else "None"
+    technical_refs = ", ".join(entry.technical_refs) if entry.technical_refs else "None"
+    suspected_pattern = entry.suspected_pattern or "Unknown"
+    return "\n".join(
+        [
+            f"### {entry.fingerprint}-{slugify(entry.summary)}",
+            f"- Fingerprint: {entry.fingerprint}",
+            f"- Sources: {entry.source}",
+            f"- Captured: {entry.captured}",
+            f"- Source events: {source_events}",
+            f"- Scope: {entry.scope}",
+            f"- User-facing summary: {entry.summary}",
+            f"- Evidence: {entry.evidence}",
+            f"- Technical refs: {technical_refs}",
+            f"- Ramification: {entry.ramification}",
+            f"- Suspected pattern: {suspected_pattern}",
+            f"- Recommended fix: {entry.recommended_fix}",
+            f"- Candidate artifact: {entry.candidate_artifact}",
+            *(
+                ["- Requires TDD/review: yes"]
+                if entry.candidate_artifact in CODE_ARTIFACTS
+                else []
+            ),
+            f"- Confidence: {entry.confidence}",
+            f"- Status: {entry.status}",
+            "",
+        ]
+    )
+
+
+def slugify(value: str) -> str:
+    chars = [char.lower() if char.isalnum() else "-" for char in value]
+    return "-".join("".join(chars).split("-"))[:64]
+
+
+def merge_sources(line: str, source: str) -> str:
+    prefix = "- Sources: "
+    current = [item.strip() for item in line.removeprefix(prefix).split(",") if item.strip()]
+    if source not in current:
+        current.append(source)
+    return prefix + ", ".join(current)
+
+
+def merge_existing_entry(markdown: str, entry: LearningEntry) -> str:
+    fingerprint_line = f"- Fingerprint: {entry.fingerprint}"
+    preamble, blocks = split_entry_blocks(markdown)
+    for index, block in enumerate(blocks):
+        if fingerprint_line not in block:
+            continue
+        blocks[index] = merge_entry_block(block, entry)
+        content = preamble.rstrip() + "\n\n"
+        for merged_block in blocks:
+            content += merged_block.rstrip() + "\n"
+        return content
+
+    start = markdown.find(fingerprint_line)
+    if start == -1:
+        return markdown
+
+    block_start = markdown.rfind("\n### ", 0, start)
+    if block_start == -1:
+        block_start = 0
+    else:
+        block_start += 1
+    next_entry = markdown.find("\n### ", start)
+    block_end = len(markdown) if next_entry == -1 else next_entry
+
+    block = markdown[block_start:block_end]
+    merged_block = merge_entry_block(block, entry)
+    return markdown[:block_start] + merged_block + markdown[block_end:]
+
+
+def merge_entry_block(block: str, entry: LearningEntry) -> str:
+    lines = block.splitlines()
+    merged_lines = [
+        merge_sources(line, entry.source) if line.startswith("- Sources: ") else line
+        for line in lines
+    ]
+    merged_block = "\n".join(merged_lines) + "\n"
+    evidence_line = f"- Additional evidence: {entry.evidence}"
+    if evidence_line not in merged_block.splitlines():
+        merged_block = append_entry_note(merged_block, "Additional evidence", entry.evidence)
+    merged_block = set_entry_field(merged_block, "Captured", entry.captured)
+    merged_block = set_entry_field(merged_block, "Candidate artifact", entry.candidate_artifact)
+    merged_block = set_entry_field(merged_block, "Recommended fix", entry.recommended_fix)
+    if should_raise_confidence(entry_field(merged_block, "Confidence"), entry.confidence):
+        merged_block = set_entry_field(merged_block, "Confidence", entry.confidence)
+    if requires_tdd_review(merged_block) or entry.candidate_artifact in CODE_ARTIFACTS:
+        merged_block = set_entry_field(merged_block, "Requires TDD/review", "yes")
+    return merged_block
+
+
+def should_raise_confidence(current: str, incoming: str) -> bool:
+    return CONFIDENCE_RANK.get(incoming, -1) > CONFIDENCE_RANK.get(current, -1)
+
+
+def split_entry_blocks(markdown: str) -> tuple[str, list[str]]:
+    matches = list(ENTRY_HEADING.finditer(markdown))
+    if not matches:
+        return markdown, []
+    preamble = markdown[: matches[0].start()]
+    blocks: list[str] = []
+    for index, match in enumerate(matches):
+        end = matches[index + 1].start() if index + 1 < len(matches) else len(markdown)
+        blocks.append(markdown[match.start() : end].strip() + "\n")
+    return preamble, blocks
+
+
+def write_entry_blocks(path: Path, preamble: str, blocks: list[str]) -> None:
+    content = preamble.rstrip() + "\n\n"
+    for block in blocks:
+        content += block.rstrip() + "\n"
+    path.write_text(content)
+
+
+def entry_field(block: str, label: str) -> str:
+    prefix = f"- {label}: "
+    for line in block.splitlines():
+        if line.startswith(prefix):
+            return line.removeprefix(prefix)
+    return ""
+
+
+def entry_field_multiline(block: str, label: str) -> str:
+    prefix = f"- {label}: "
+    lines = block.splitlines()
+    for index, line in enumerate(lines):
+        if not line.startswith(prefix):
+            continue
+        values = [line.removeprefix(prefix)]
+        for continuation in lines[index + 1 :]:
+            if continuation.startswith("- "):
+                break
+            values.append(continuation)
+        return "\n".join(values).strip()
+    return ""
+
+
+def entry_fields(block: str, label: str) -> list[str]:
+    prefix = f"- {label}: "
+    return [
+        line.removeprefix(prefix)
+        for line in block.splitlines()
+        if line.startswith(prefix)
+    ]
+
+
+def entry_fingerprint(block: str) -> str:
+    return entry_field(block, "Fingerprint")
+
+
+def set_entry_field(block: str, label: str, value: str) -> str:
+    prefix = f"- {label}: "
+    lines = block.rstrip().splitlines()
+    for index, line in enumerate(lines):
+        if line.startswith(prefix):
+            lines[index] = prefix + value
+            return "\n".join(lines) + "\n"
+    insert_at = len(lines)
+    for index, line in enumerate(lines):
+        if line.startswith("- Status: "):
+            insert_at = index
+            break
+    lines.insert(insert_at, prefix + value)
+    return "\n".join(lines) + "\n"
+
+
+def append_entry_note(block: str, label: str, value: str) -> str:
+    line = f"- {label}: {value}"
+    lines = block.rstrip().splitlines()
+    if line not in lines:
+        insert_at = len(lines)
+        for index, existing in enumerate(lines):
+            if existing.startswith("- Status: "):
+                insert_at = index
+                break
+        lines.insert(insert_at, line)
+    return "\n".join(lines) + "\n"
+
+
+def find_open_entry(store: Path, fingerprint: str) -> tuple[Path, str, list[str], int] | None:
+    for path in open_entry_paths(store):
+        preamble, blocks = split_entry_blocks(path.read_text())
+        for index, block in enumerate(blocks):
+            if entry_fingerprint(block) == fingerprint:
+                return path, preamble, blocks, index
+    return None
+
+
+def remove_open_entry(store: Path, fingerprint: str) -> str | None:
+    found = find_open_entry(store, fingerprint)
+    if not found:
+        return None
+    path, preamble, blocks, index = found
+    block = blocks.pop(index)
+    write_entry_blocks(path, preamble, blocks)
+    return block
+
+
+def replace_open_entry(store: Path, fingerprint: str, block: str) -> bool:
+    found = find_open_entry(store, fingerprint)
+    if not found:
+        return False
+    path, preamble, blocks, index = found
+    blocks[index] = block
+    write_entry_blocks(path, preamble, blocks)
+    return True
+
+
+def append_to_entry_file(path: Path, block: str) -> None:
+    preamble, blocks = split_entry_blocks(path.read_text())
+    fingerprint = entry_fingerprint(block)
+    blocks = [existing for existing in blocks if entry_fingerprint(existing) != fingerprint]
+    blocks.append(block)
+    write_entry_blocks(path, preamble, blocks)
+
+
+def archive_entry(store: Path, fingerprint: str, note: str = "") -> bool:
+    block = remove_open_entry(store, fingerprint)
+    if block is None:
+        return False
+    block = set_entry_field(block, "Status", "archived")
+    if note:
+        block = append_entry_note(block, "Decision note", note)
+    archive = store / "archive"
+    archive.mkdir(exist_ok=True)
+    summary_slug = slugify(entry_field(block, "User-facing summary")) or fingerprint
+    archive_path = archive / f"{fingerprint}-{summary_slug}.md"
+    archive_path.write_text("# Archived Learning\n\n" + block)
+    append_audit(store, f"archive: {fingerprint} {note}".rstrip())
+    return True
+
+
+def move_entry_to_candidates(
+    store: Path, fingerprint: str, status: str, note: str = "", audit_action: str | None = None
+) -> bool:
+    block = remove_open_entry(store, fingerprint)
+    if block is None:
+        return False
+    block = set_entry_field(block, "Status", status)
+    if note:
+        block = append_entry_note(block, "Decision note", note)
+    append_to_entry_file(store / "candidates.md", block)
+    append_audit(store, f"{audit_action or status}: {fingerprint} {note}".rstrip())
+    return True
+
+
+def update_open_entry_field(store: Path, fingerprint: str, label: str, value: str) -> bool:
+    found = find_open_entry(store, fingerprint)
+    if not found:
+        return False
+    path, preamble, blocks, index = found
+    blocks[index] = set_entry_field(blocks[index], label, value)
+    write_entry_blocks(path, preamble, blocks)
+    return True
+
+
+def append_open_entry_note(store: Path, fingerprint: str, note: str) -> bool:
+    return append_open_entry_labeled_note(store, fingerprint, "Decision note", note)
+
+
+def append_open_entry_labeled_note(
+    store: Path, fingerprint: str, label: str, note: str
+) -> bool:
+    found = find_open_entry(store, fingerprint)
+    if not found:
+        return False
+    path, preamble, blocks, index = found
+    blocks[index] = append_entry_note(blocks[index], label, note)
+    write_entry_blocks(path, preamble, blocks)
+    return True
+
+
+def code_related_entry(store: Path, fingerprint: str) -> bool:
+    found = find_open_entry(store, fingerprint)
+    if not found:
+        return False
+    _, _, blocks, index = found
+    return requires_tdd_review(blocks[index])
+
+
+def requires_tdd_review(block: str) -> bool:
+    return (
+        entry_field(block, "Requires TDD/review").lower() == "yes"
+        or entry_field(block, "Candidate artifact") in CODE_ARTIFACTS
+    )
+
+
+def open_entry_block(store: Path, fingerprint: str) -> str | None:
+    found = find_open_entry(store, fingerprint)
+    if not found:
+        return None
+    _, _, blocks, index = found
+    return blocks[index]
+
+
+def write_draft_artifact(store: Path, fingerprint: str, kind: str, note: str) -> str | None:
+    block = open_entry_block(store, fingerprint)
+    if block is None:
+        return None
+    drafts = store / "drafts"
+    drafts.mkdir(exist_ok=True)
+    relative_path = Path("drafts") / f"{fingerprint}-{kind}.md"
+    draft_path = store / relative_path
+    artifact = entry_field(block, "Candidate artifact")
+    warning = ""
+    if requires_tdd_review(block):
+        warning = (
+            "\n## TDD/Review Warning\n"
+            "TDD/review required before code, shared skill, enforcement, or architecture changes.\n"
+        )
+    draft_path.write_text(
+        "\n".join(
+            [
+                f"# Draft {kind.title()}",
+                "",
+                f"- Fingerprint: {fingerprint}",
+                f"- User-facing summary: {entry_field(block, 'User-facing summary')}",
+                f"- Evidence: {entry_field_multiline(block, 'Evidence')}",
+                f"- Ramification: {entry_field(block, 'Ramification')}",
+                f"- Recommended fix: {entry_field(block, 'Recommended fix')}",
+                f"- Technical refs: {entry_field(block, 'Technical refs')}",
+                f"- Candidate artifact: {artifact}",
+                f"- Dashboard note: {note}",
+                warning.rstrip(),
+                "",
+            ]
+        )
+    )
+    return str(relative_path)
+
+
+def iter_open_entries(store: Path) -> list[tuple[Path, str]]:
+    entries: list[tuple[Path, str]] = []
+    for path in open_entry_paths(store):
+        _, blocks = split_entry_blocks(path.read_text())
+        for block in blocks:
+            if entry_fingerprint(block):
+                entries.append((path, block))
+    return entries
+
+
+def append_audit(store: Path, line: str) -> None:
+    with (store / "auto-actions.md").open("a") as audit:
+        audit.write(line + "\n")
+
+
+def entry_paths(store: Path) -> list[Path]:
+    paths: list[Path] = []
+    for name in ["inbox.md", "candidates.md"]:
+        path = store / name
+        if path.exists():
+            paths.append(path)
+
+    archive = store / "archive"
+    if archive.exists():
+        paths.extend(sorted(archive.rglob("*.md")))
+
+    for path in sorted(store.glob("*.md")):
+        if path.name in NON_ENTRY_MARKDOWN or path in paths:
+            continue
+        paths.append(path)
+    return paths
+
+
+def open_entry_paths(store: Path) -> list[Path]:
+    archive = store / "archive"
+    return [
+        path
+        for path in entry_paths(store)
+        if not (archive.exists() and path.is_relative_to(archive))
+    ]
+
+
+def append_entry(store: Path, entry: LearningEntry) -> tuple[str, str]:
+    fingerprint = entry.fingerprint
+    archive = store / "archive"
+    for path in entry_paths(store):
+        markdown = path.read_text()
+        if f"- Fingerprint: {fingerprint}" in markdown:
+            if archive.exists() and path.is_relative_to(archive):
+                reopened_markdown = merge_existing_entry(markdown, entry)
+                _, blocks = split_entry_blocks(reopened_markdown)
+                for block in blocks:
+                    if entry_fingerprint(block) != fingerprint:
+                        continue
+                    block = set_entry_field(block, "Status", "inbox")
+                    append_to_entry_file(store / "inbox.md", block)
+                    append_audit(store, f"reopen: {fingerprint} merged source {entry.source}")
+                    return fingerprint, "updated"
+            path.write_text(merge_existing_entry(markdown, entry))
+            append_audit(store, f"exact-replay: {fingerprint} merged source {entry.source}")
+            return fingerprint, "updated"
+
+    inbox = store / "inbox.md"
+    markdown = inbox.read_text()
+    with inbox.open("a") as handle:
+        if markdown and not markdown.endswith("\n"):
+            handle.write("\n")
+        handle.write(format_entry(entry))
+    return fingerprint, "captured"
+
+
+def command_init(args: argparse.Namespace) -> int:
+    init_store(args.repo)
+    print(f"initialized {store_dir(args.repo)}")
+    return 0
+
+
+def command_capture(args: argparse.Namespace) -> int:
+    store = init_store(args.repo)
+    entry = LearningEntry(
+        source=args.source,
+        summary=args.summary,
+        evidence=args.evidence,
+        ramification=args.ramification,
+        recommended_fix=args.recommended_fix,
+        candidate_artifact=args.candidate_artifact,
+        confidence=args.confidence,
+        source_events=args.source_event,
+        scope=args.scope,
+        suspected_pattern=args.suspected_pattern,
+        technical_refs=args.technical_ref,
+    )
+    fingerprint, action = append_entry(store, entry)
+    print(f"{action} {fingerprint}")
+    return 0
+
+
+def command_dashboard(args: argparse.Namespace) -> int:
+    store = init_store(args.repo)
+    write_dashboard(store)
+    if args.serve:
+        serve_dashboard(store, args.host, args.port, args.execute_on_finish)
+        return 0
+    print(f"wrote {store / 'dashboard.md'}")
+    return 0
+
+
+def write_dashboard(store: Path) -> None:
+    sections = ["# Learning Dashboard", ""]
+    for path in open_entry_paths(store):
+        sections.extend([f"## {path.relative_to(store)}", "", path.read_text(), ""])
+    markdown = "\n".join(sections)
+    (store / "dashboard.md").write_text(markdown)
+
+    entries = [
+        {
+            "path": str(path.relative_to(store)),
+            "fingerprint": entry_fingerprint(block),
+            "summary": entry_field(block, "User-facing summary"),
+            "ramification": entry_field(block, "Ramification"),
+            "evidence": entry_field_multiline(block, "Evidence"),
+            "additional_evidence": entry_fields(block, "Additional evidence"),
+            "technical_refs": entry_field(block, "Technical refs"),
+            "artifact": entry_field(block, "Candidate artifact"),
+            "confidence": entry_field(block, "Confidence"),
+            "status": entry_field(block, "Status"),
+            "recommended_fix": entry_field(block, "Recommended fix"),
+            "decision_notes": entry_fields(block, "Decision note"),
+            "follow_up_tasks": entry_fields(block, "Follow-up task"),
+            "draft_plans": entry_fields(block, "Draft plan"),
+            "draft_patches": entry_fields(block, "Draft patch"),
+        }
+        for path, block in iter_open_entries(store)
+    ]
+    (store / "dashboard.html").write_text(render_dashboard_html(entries, dashboard_signals(store)))
+
+
+def dashboard_signals(store: Path) -> dict[str, str]:
+    inbox_blocks = split_entry_blocks((store / "inbox.md").read_text())[1]
+    candidate_blocks = split_entry_blocks((store / "candidates.md").read_text())[1]
+    archive_count = len(list((store / "archive").glob("*.md")))
+    all_blocks = [block for _, block in iter_open_entries(store)]
+    high_open = sum(1 for block in all_blocks if entry_field(block, "Confidence") == "high")
+    stale = sum(1 for block in all_blocks if entry_is_aging(block))
+    duplicate_count = sum(1 for block in all_blocks if entry_fields(block, "Additional evidence"))
+    blocked = [
+        entry_field(block, "Decision note") or entry_field(block, "Follow-up task")
+        for block in all_blocks
+        if entry_field(block, "Status") == "blocked"
+    ]
+    calibration_lines = [
+        line.removeprefix("- ")
+        for line in (store / "calibration.md").read_text().splitlines()
+        if line.startswith("- ")
+    ]
+    ask_prompts = [
+        "Ask agent: choose archive, candidate, defer, or follow-up for each needs-review item.",
+        "Ask agent: turn code-related decisions into TDD/review tasks before marking done.",
+    ]
+    return {
+        "Needs Review": str(high_open),
+        "Open Items": str(len(all_blocks)),
+        "Auto Done": str(archive_count),
+        "Raw Inbox": str(len(inbox_blocks)),
+        "Candidates": str(len(candidate_blocks)),
+        "Aging/Stale": str(stale),
+        "Likely Duplicates": str(duplicate_count),
+        "Calibration Learned": "; ".join(calibration_lines) or "None",
+        "Blocked Decisions": "; ".join(item for item in blocked if item) or "None",
+        "Ask Agent Prompts": " ".join(ask_prompts),
+    }
+
+
+def entry_is_aging(block: str, today: date | None = None) -> bool:
+    captured = entry_field(block, "Captured")
+    if not captured:
+        return False
+    try:
+        captured_date = date.fromisoformat(captured[:10])
+    except ValueError:
+        return False
+    current = today or date.today()
+    return (current - captured_date).days >= 30
+
+
+def render_dashboard_html(entries: list[dict[str, object]], signals: dict[str, str]) -> str:
+    cards: list[str] = []
+    for entry in entries:
+        fingerprint = html.escape(str(entry["fingerprint"]))
+        summary = html.escape(str(entry["summary"]))
+        additional_evidence = "".join(
+            f"<li>{html.escape(value)}</li>"
+            for value in entry.get("additional_evidence", [])
+        )
+        additional_section = (
+            f"<dt>Additional evidence</dt><dd><ul>{additional_evidence}</ul></dd>"
+            if additional_evidence
+            else ""
+        )
+        prior_decisions = render_labeled_values(
+            [
+                ("Decision note", entry.get("decision_notes", [])),
+                ("Follow-up task", entry.get("follow_up_tasks", [])),
+                ("Draft plan", entry.get("draft_plans", [])),
+                ("Draft patch", entry.get("draft_patches", [])),
+            ]
+        )
+        prior_section = (
+            f"<dt>Previous decisions</dt><dd>{prior_decisions}</dd>"
+            if prior_decisions
+            else ""
+        )
+        controls = "\n".join(
+            [
+                f'<button type="button" data-action="candidate" data-fingerprint="{fingerprint}">Candidate</button>',
+                f'<button type="button" data-action="promote" data-fingerprint="{fingerprint}">Promote</button>',
+                f'<button type="button" data-action="archive" data-fingerprint="{fingerprint}">Archive</button>',
+                f'<button type="button" data-action="defer" data-fingerprint="{fingerprint}">Defer</button>',
+            ]
+        )
+        cards.append(
+            f"""
+      <article class="entry" data-fingerprint="{fingerprint}">
+        <header>
+          <div>
+            <p class="meta">{html.escape(str(entry["path"]))} | {html.escape(str(entry["status"]))} | {html.escape(str(entry["confidence"]))} | {html.escape(str(entry["artifact"]))}</p>
+            <h2>{summary}</h2>
+          </div>
+          <div class="controls">{controls}</div>
+        </header>
+        <p>{html.escape(str(entry["ramification"]))}</p>
+        <details>
+          <summary>Evidence and Technical refs</summary>
+          <dl>
+            <dt>Evidence</dt><dd>{html.escape(str(entry["evidence"]))}</dd>
+            {additional_section}
+            <dt>Technical refs</dt><dd>{html.escape(str(entry["technical_refs"]))}</dd>
+            <dt>Recommended fix</dt><dd>{html.escape(str(entry["recommended_fix"]))}</dd>
+            {prior_section}
+          </dl>
+        </details>
+        <label>Note <textarea rows="2" data-note-for="{fingerprint}"></textarea></label>
+      </article>
+"""
+        )
+    entries_html = "\n".join(cards) or "<p>No open learning entries.</p>"
+    signal_items = "\n".join(
+        f"<li><strong>{html.escape(label)}</strong>: {html.escape(value)}</li>"
+        for label, value in signals.items()
+    )
+    return f"""<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Learning Dashboard</title>
+  <style>
+    body {{ margin: 0; font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f6f7f8; color: #202124; }}
+    header.app {{ display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 16px 20px; background: #fff; border-bottom: 1px solid #d7dce0; }}
+    h1 {{ margin: 0; font-size: 22px; }}
+    main {{ max-width: 1180px; margin: 0 auto; padding: 16px; }}
+    .entry {{ background: #fff; border: 1px solid #d7dce0; border-radius: 6px; padding: 14px; margin-bottom: 12px; }}
+    .entry header {{ display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; }}
+    h2 {{ margin: 2px 0 8px; font-size: 17px; }}
+    .meta {{ margin: 0; color: #59636e; font-size: 12px; }}
+    .controls {{ display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }}
+    button {{ border: 1px solid #9aa4ad; background: #fff; border-radius: 5px; padding: 5px 8px; cursor: pointer; }}
+    button:hover {{ background: #eef3f7; }}
+    details {{ margin-top: 8px; }}
+    dt {{ font-weight: 650; margin-top: 8px; }}
+    dd {{ margin: 2px 0 0; }}
+    textarea {{ width: 100%; box-sizing: border-box; margin-top: 6px; }}
+    .calibration {{ background: #fff; border: 1px solid #d7dce0; border-radius: 6px; padding: 12px; margin-bottom: 12px; }}
+    @media (max-width: 760px) {{ .entry header {{ grid-template-columns: 1fr; }} .controls {{ justify-content: flex-start; }} }}
+  </style>
+</head>
+<body>
+  <header class="app">
+    <h1>Learning Dashboard</h1>
+    <button type="button" id="finish">Finish &amp; Execute</button>
+    <button type="button" id="export">Export JSONL</button>
+  </header>
+  <main>
+    <section class="triage" aria-label="Dashboard Triage Signals">
+      <h2>Dashboard Triage Signals</h2>
+      <ul>{signal_items}</ul>
+    </section>
+    <section class="calibration" aria-label="Calibration">
+      <h2>Calibration</h2>
+      <label>Calibration note <textarea id="calibration-note" rows="2"></textarea></label>
+      <button type="button" id="record-calibration" data-action="calibration">Record Calibration</button>
+    </section>
+    {entries_html}
+  </main>
+  <script>
+    const decisions = [];
+    const pendingSaves = [];
+    function jsonl(decision) {{ return JSON.stringify(decision) + "\\n"; }}
+    async function recordDecision(decision) {{
+      decisions.push(decision);
+      const save = fetch("/decisions", {{
+          method: "POST",
+          headers: {{ "Content-Type": "application/json" }},
+          body: JSON.stringify(decision)
+        }}).catch((error) => {{
+        console.warn("Save decisions.jsonl fallback needed", error);
+      }});
+      pendingSaves.push(save);
+      await save;
+    }}
+    document.addEventListener("click", async (event) => {{
+      const button = event.target.closest("button[data-action]");
+      if (!button) return;
+      const fingerprint = button.dataset.fingerprint;
+      const noteBox = document.querySelector(`[data-note-for="${{fingerprint}}"]`);
+      await recordDecision({{ fingerprint, action: button.dataset.action, note: noteBox ? noteBox.value : "" }});
+    }});
+    document.getElementById("export").addEventListener("click", () => {{
+      const text = decisions.map(jsonl).join("");
+      const blob = new Blob([text], {{ type: "application/jsonl" }});
+      const anchor = document.createElement("a");
+      anchor.href = URL.createObjectURL(blob);
+      anchor.download = "decisions.jsonl";
+      anchor.click();
+      URL.revokeObjectURL(anchor.href);
+    }});
+    async function finishReview() {{
+      await Promise.allSettled(pendingSaves);
+      await fetch("/finish", {{
+        method: "POST",
+        headers: {{ "Content-Type": "application/json" }},
+        body: JSON.stringify({{ action: "finish" }})
+      }});
+    }}
+    document.getElementById("finish").addEventListener("click", async () => {{
+      await finishReview();
+    }});
+    document.getElementById("record-calibration").addEventListener("click", async () => {{
+      const note = document.getElementById("calibration-note").value;
+      await recordDecision({{ fingerprint: "global", action: "calibration", note }});
+    }});
+  </script>
+</body>
+</html>
+"""
+
+
+def render_labeled_values(groups: list[tuple[str, object]]) -> str:
+    items: list[str] = []
+    for label, values in groups:
+        if isinstance(values, str):
+            value_list = [values] if values else []
+        else:
+            value_list = [str(value) for value in values if str(value)]
+        for value in value_list:
+            items.append(
+                f"<li><strong>{html.escape(label)}</strong>: {html.escape(value)}</li>"
+            )
+    if not items:
+        return ""
+    return "<ul>" + "".join(items) + "</ul>"
+
+
+def serve_dashboard(store: Path, host: str, port: int, execute_on_finish: bool) -> None:
+    class Handler(BaseHTTPRequestHandler):
+        def log_message(self, format: str, *args: object) -> None:
+            return
+
+        def do_GET(self) -> None:
+            if self.path not in {"/", "/dashboard.html"}:
+                self.send_error(404)
+                return
+            data = (store / "dashboard.html").read_bytes()
+            self.send_response(200)
+            self.send_header("Content-Type", "text/html; charset=utf-8")
+            self.send_header("Content-Length", str(len(data)))
+            self.end_headers()
+            self.wfile.write(data)
+
+        def do_POST(self) -> None:
+            if self.path == "/finish":
+                if execute_on_finish:
+                    execute_pending_decisions(store)
+                    write_dashboard(store)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"ok": true, "finished": true}')
+                append_audit(store, "dashboard: finish received")
+                import threading
+
+                threading.Thread(target=self.server.shutdown, daemon=True).start()
+                return
+            if self.path != "/decisions":
+                self.send_error(404)
+                return
+            length = int(self.headers.get("Content-Length", "0"))
+            payload = self.rfile.read(length)
+            decision = json.loads(payload.decode("utf-8"))
+            with (store / "decisions.jsonl").open("a") as handle:
+                handle.write(json.dumps(decision, sort_keys=True) + "\n")
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.end_headers()
+            self.wfile.write(b'{"ok": true}')
+
+    server = ThreadingHTTPServer((host, port), Handler)
+    actual_host, actual_port = server.server_address
+    print(f"http://{actual_host}:{actual_port}", flush=True)
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        pass
+    finally:
+        server.server_close()
+
+
+def command_execute(args: argparse.Namespace) -> int:
+    store = init_store(args.repo)
+    execute_pending_decisions(store)
+    print("executed decisions")
+    return 0
+
+
+def execute_pending_decisions(store: Path) -> None:
+    decisions = store / "decisions.jsonl"
+    for line in decisions.read_text().splitlines():
+        if not line.strip():
+            continue
+        decision = json.loads(line)
+        execute_decision(store, decision)
+    decisions.write_text("")
+
+
+def execute_decision(store: Path, decision: dict[str, str]) -> None:
+    action = decision.get("action", "")
+    fingerprint = decision.get("fingerprint", "")
+    note = decision.get("note", "")
+    value = decision.get("value", "")
+    append_audit(
+        store,
+        "decision: {action} {fingerprint} {note}".format(
+            action=action,
+            fingerprint=fingerprint,
+            note=note,
+        ).rstrip(),
+    )
+    if action == "archive":
+        archive_entry(store, fingerprint, note)
+    elif action in {"candidate", "promote"}:
+        if code_related_entry(store, fingerprint):
+            marker = f"TDD/review required before {action}: {note}".rstrip()
+            append_open_entry_labeled_note(store, fingerprint, "Follow-up task", marker)
+            append_audit(store, f"follow-up: {fingerprint} TDD/review required before {action}")
+            return
+        status = "promoted" if action == "promote" else "candidate"
+        move_entry_to_candidates(store, fingerprint, status, note, action)
+    elif action == "revise-wording" and value:
+        if update_open_entry_field(store, fingerprint, "User-facing summary", value):
+            append_audit(store, f"revise-wording: {fingerprint} {note}".rstrip())
+    elif action == "follow-up":
+        if append_open_entry_labeled_note(store, fingerprint, "Follow-up task", note):
+            append_audit(store, f"follow-up: {fingerprint} {note}".rstrip())
+    elif action == "draft-plan":
+        marker = f"Draft plan requested: {note}".rstrip()
+        if append_open_entry_labeled_note(store, fingerprint, "Follow-up task", marker):
+            draft_path = write_draft_artifact(store, fingerprint, "plan", note)
+            if draft_path:
+                append_open_entry_labeled_note(store, fingerprint, "Draft plan", draft_path)
+                append_audit(store, f"draft-plan: {fingerprint} wrote {draft_path}")
+            append_audit(store, f"draft-plan: {fingerprint} TDD/review task marker created")
+    elif action == "draft-patch":
+        marker = f"Draft patch requested: {note}".rstrip()
+        if append_open_entry_labeled_note(store, fingerprint, "Follow-up task", marker):
+            draft_path = write_draft_artifact(store, fingerprint, "patch", note)
+            if draft_path:
+                append_open_entry_labeled_note(store, fingerprint, "Draft patch", draft_path)
+                append_audit(store, f"draft-patch: {fingerprint} wrote {draft_path}")
+            append_audit(store, f"draft-patch: {fingerprint} TDD/review task marker created")
+    elif action == "confidence" and value in VALID_CONFIDENCE:
+        if update_open_entry_field(store, fingerprint, "Confidence", value):
+            append_audit(store, f"confidence: {fingerprint} {value} {note}".rstrip())
+    elif action == "candidate-artifact" and value:
+        block = open_entry_block(store, fingerprint)
+        if block and requires_tdd_review(block):
+            update_open_entry_field(store, fingerprint, "Requires TDD/review", "yes")
+        if update_open_entry_field(store, fingerprint, "Candidate artifact", value):
+            append_audit(store, f"candidate-artifact: {fingerprint} {value} {note}".rstrip())
+    elif action == "calibration":
+        with (store / "calibration.md").open("a") as calibration:
+            calibration.write(f"- {fingerprint}: {note}\n")
+        append_audit(store, f"calibration: {fingerprint} {note}".rstrip())
+    elif action == "block":
+        if update_open_entry_field(store, fingerprint, "Status", "blocked"):
+            append_open_entry_note(store, fingerprint, note or action)
+            append_audit(store, f"block: {fingerprint} {note}".rstrip())
+    elif action in {"note", "defer"}:
+        if append_open_entry_note(store, fingerprint, note or action):
+            append_audit(store, f"{action}: {fingerprint} {note}".rstrip())
+    else:
+        append_audit(store, f"decision ignored: {action} {fingerprint}".rstrip())
+
+
+def command_promote(args: argparse.Namespace) -> int:
+    store = init_store(args.repo)
+    promoted = 0
+    for _, block in list(iter_open_entries(store)):
+        fingerprint = entry_fingerprint(block)
+        artifact = entry_field(block, "Candidate artifact")
+        confidence = entry_field(block, "Confidence")
+        if entry_field(block, "Status") != "inbox":
+            continue
+        if requires_tdd_review(block):
+            append_open_entry_labeled_note(
+                store,
+                fingerprint,
+                "Follow-up task",
+                "follow-up required before code changes",
+            )
+            if move_entry_to_candidates(
+                store,
+                fingerprint,
+                "candidate",
+                "follow-up required before code changes",
+            ):
+                append_audit(
+                    store,
+                    f"auto-promote: candidate {fingerprint} follow-up required before code changes",
+                )
+                promoted += 1
+        elif artifact == "archive":
+            if archive_entry(store, fingerprint, "auto-promotion archived archive-targeted learning"):
+                append_audit(store, f"auto-promote: archive {fingerprint}")
+                promoted += 1
+        elif confidence == "high" and artifact in NON_CODE_AUTO_CANDIDATES:
+            if move_entry_to_candidates(store, fingerprint, "candidate", "auto-promotion docs candidate"):
+                append_audit(store, f"auto-promote: candidate {fingerprint}")
+                promoted += 1
+    print(f"promoted {promoted} learning(s)")
+    return 0
+
+
+def command_check_merge(args: argparse.Namespace) -> int:
+    store = init_store(args.repo)
+    high_confidence = 0
+    for path in open_entry_paths(store):
+        for line in path.read_text().splitlines():
+            if line == "- Confidence: high":
+                high_confidence += 1
+    if high_confidence:
+        print(
+            f"Learning check: {high_confidence} high-confidence item(s) need review before landing."
+        )
+        return 1
+    print("Learning check: no high-confidence open items found.")
+    return 0
+
+
+def build_parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(description="Manage the local learning store.")
+    parser.add_argument("--repo", type=Path, default=Path.cwd())
+    subparsers = parser.add_subparsers(dest="command")
+
+    init_parser = subparsers.add_parser("init")
+    init_parser.set_defaults(func=command_init)
+
+    learn_init_parser = subparsers.add_parser("learn-init")
+    learn_init_parser.set_defaults(func=command_init)
+
+    capture_parser = subparsers.add_parser("capture")
+    capture_parser.add_argument("--source", required=True)
+    capture_parser.add_argument("--source-event", action="append", default=[])
+    capture_parser.add_argument("--scope", default="project")
+    capture_parser.add_argument("--summary", required=True)
+    capture_parser.add_argument("--evidence", required=True)
+    capture_parser.add_argument("--technical-ref", action="append", default=[])
+    capture_parser.add_argument("--ramification", required=True)
+    capture_parser.add_argument("--suspected-pattern", default="")
+    capture_parser.add_argument("--recommended-fix", required=True)
+    capture_parser.add_argument("--candidate-artifact", required=True)
+    capture_parser.add_argument(
+        "--confidence", choices=sorted(VALID_CONFIDENCE), default="medium"
+    )
+    capture_parser.set_defaults(func=command_capture)
+
+    dashboard_parser = subparsers.add_parser("dashboard")
+    dashboard_parser.add_argument("--serve", action="store_true")
+    dashboard_parser.add_argument("--execute-on-finish", action="store_true")
+    dashboard_parser.add_argument("--host", default="127.0.0.1")
+    dashboard_parser.add_argument("--port", type=int, default=8000)
+    dashboard_parser.set_defaults(func=command_dashboard)
+
+    execute_parser = subparsers.add_parser("execute")
+    execute_parser.set_defaults(func=command_execute)
+
+    promote_parser = subparsers.add_parser("promote")
+    promote_parser.set_defaults(func=command_promote)
+
+    check_merge_parser = subparsers.add_parser("check-merge")
+    check_merge_parser.set_defaults(func=command_check_merge)
+
+    return parser
+
+
+def main() -> int:
+    parser = build_parser()
+    args = parser.parse_args()
+    args.repo = resolve_repo(args.repo)
+    if not hasattr(args, "func"):
+        args.func = command_dashboard
+        args.serve = False
+        args.execute_on_finish = False
+        args.host = "127.0.0.1"
+        args.port = 8000
+    return args.func(args)
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

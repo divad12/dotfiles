@@ -110,12 +110,14 @@ When the user says "merge" or uses the `/merge` skill:
    the result in the final summary; pause only for ambiguous/risky history
    rewrites.
 4. Squash per your chosen plan (interactive rebase or soft reset).
-5. Rebase the squashed feature branch onto local `<target>`.
-6. If the rebase is practical, fast-forward the target with
+5. Capture landing-relevant learnings, then run the before-landing learning
+   check.
+6. Rebase the squashed feature branch onto local `<target>`.
+7. If the rebase is practical, fast-forward the target with
    `git merge --ff-only`.
-7. If the rebase becomes too error-prone even after squashing, abort it
+8. If the rebase becomes too error-prone even after squashing, abort it
    and merge the feature branch into the target with `git merge --no-ff`.
-8. Verify the target contains the feature branch changes.
+9. Verify the target contains the feature branch changes.
 
 ## The Squash Audit
 
@@ -146,6 +148,32 @@ Default decision rules:
 The audit must run regardless of branch size, but it is not a user approval
 checkpoint. Include the chosen cleanup in the final report, e.g. "squashed 4
 fixup commits into 2 feature commits" or "landed 1 clean commit as-is."
+
+## Before-Landing Learning Check
+
+After the squash audit is complete and before rebasing or fast-forwarding the
+target, identify any durable bug class, review finding, failed-command lesson,
+merge conflict pattern, or workflow issue from the branch. Invoke `/learn`
+capture for relevant new learnings, but first check the last five active
+learnings and same-session captures so duplicates are skipped or updated instead
+of recreated.
+Announce each capture or skip with the session-visible `🧠 Captured learning:` /
+`🧠 Learning already captured:` one-liner.
+
+Then run:
+
+```bash
+bin/learn --repo "$PWD" check-merge
+```
+
+If high-confidence open learnings are reported, surface them in plain English
+with the user-facing ramification. Ask whether to create the prevention
+artifact, defer with an explicit follow-up, or acknowledge landing without the
+artifact.
+
+This checkpoint prevents a branch from landing with only chat memory of a bug
+class or review finding. It does not replace TDD or code review; it decides
+whether a prevention artifact is needed before landing.
 
 ## Merge-Commit Exception
 

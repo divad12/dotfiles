@@ -16,7 +16,9 @@ This repo hosts my global Claude Code skills (and agent-agnostic rules) at `.cla
 └── skills/                # Custom skills
     ├── build/             # Autonomous feature build: worktree + impl + critique + review
     ├── bugfix-tdd/        # Write failing test from symptom FIRST, then investigate
-    ├── capture-learning/  # Route session insights into project docs
+    ├── learn/             # Capture durable project learnings
+    ├── dashboard/         # Review and execute learning dashboard decisions
+    ├── learn-init/        # Initialize docs/learnings in a repo
     ├── close-session/     # Teardown: merge, stop server, delete worktree + branch
     ├── critique/          # Visual UI/UX critique via Playwright MCP
     ├── deep-review/       # 6-way parallel review: audit + diff + rules + simplify + codex + UI
@@ -93,7 +95,7 @@ Commitment device: the checklist with its checkboxes and SHA slots.
 
 ## Skill invocation graph
 
-Which skills invoke which. Solid arrows = direct invocation (skill A reads skill B's SKILL.md and follows its steps inline). Dotted = triggered externally (e.g. `save` calls `capture-learning` when the session produced learnings).
+Which skills invoke which. Solid arrows = direct invocation (skill A reads skill B's SKILL.md and follows its steps inline). Dotted = triggered externally (e.g. `save` calls `learn` when the session produced learnings).
 
 ```mermaid
 graph TD
@@ -112,10 +114,10 @@ graph TD
     ship --> save
     ship --> merge
     close-session --> merge
-    save -.->|if learnings| capture-learning
+    save -.->|if learnings| learn
     save -.->|if arch drift| sync-architecture
     adaptive-docs-init --> sync-architecture
-    adaptive-docs-extract -.-> capture-learning
+    adaptive-docs-extract -.-> learn
   end
 
   subgraph superpowers[Superpowers plugin flow]

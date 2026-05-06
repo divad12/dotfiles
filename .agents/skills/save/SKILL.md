@@ -89,7 +89,7 @@ Each entry should have: **Where** (file path + line if relevant), **Issue** (wha
 
 ### 3. Capture learnings
 
-Run the `/capture-learning` skill for each learning from this session. This generalizes specific fixes into durable principles and routes them to the right documentation.
+Run the `/learn` skill for each learning from this session. This generalizes specific fixes into durable principles and routes them through the learning dashboard before promotion.
 
 If the session was genuinely trivial (one-line typo fix, config change) with nothing to capture, skip this step.
 
