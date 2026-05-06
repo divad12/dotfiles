@@ -125,21 +125,25 @@ Launch the independent reviewer in the background while you do reviews 1 and 2. 
 
 #### When the independent reviewer is Codex
 
+**Project context first:** if the project has `docs/ai/codex.md`, read it before invoking Codex — projects often pin extra flags (e.g. `--dangerously-bypass-approvals-and-sandbox` for browser walkthroughs) or document the local convention for piping prompts.
+
 Launch Codex in the background while you do reviews 1 and 2:
 
 ```bash
 # For uncommitted changes:
-codex review --uncommitted "You are the independent reviewer for /deep-review. Review only. Do not modify files. Report correctness, safety, tests, maintainability, and rule-compliance findings with file:line references. Do not invoke or read task-observer; this is a delegated/non-interactive review and the parent session logs observations."
+codex review --uncommitted
 
 # For branch changes:
-codex review --base main "You are the independent reviewer for /deep-review. Review only. Do not modify files. Report correctness, safety, tests, maintainability, and rule-compliance findings with file:line references. Do not invoke or read task-observer; this is a delegated/non-interactive review and the parent session logs observations."
+codex review --base main
 ```
+
+**Do NOT pass an inline prompt argument with `--uncommitted` or `--base`** — the codex CLI rejects that combination (`error: the argument '--uncommitted' cannot be used with '[PROMPT]'`). The flags select scope; `codex review` runs its default review on that diff. If you need to feed custom instructions, pipe via stdin with `-` and consult `docs/ai/codex.md` for the project's preferred prompt-file pattern.
 
 **Important: `--base` takes a BRANCH name, NOT a SHA.** If your scope is a SHA range (e.g. `<phase-base>^..<phase-head>` from /fly's phase-gate deep-review), create a temp branch at the base SHA first - DO NOT skip codex.
 
 ```bash
 git branch -f /tmp/codex-base <phase-base>^
-codex review --base /tmp/codex-base "You are the independent reviewer for /deep-review. Review only. Do not modify files. Report correctness, safety, tests, maintainability, and rule-compliance findings with file:line references. Do not invoke or read task-observer; this is a delegated/non-interactive review and the parent session logs observations."
+codex review --base /tmp/codex-base
 git branch -D /tmp/codex-base   # cleanup after dispatch
 ```
 
@@ -215,11 +219,12 @@ Once all reviews are complete, merge the results:
 2. **Categorize** every finding into one of three buckets:
 
    **Must fix** (auto-fix these)
-   - Correctness bugs (wrong logic, broken functionality)
+   - Correctness bugs (wrong logic, broken functionality) — **including pre-existing ones surfaced during review**. AGENTS.md / CLAUDE.md hard rule "make things better as you go" applies; "the diff didn't introduce it" is not a valid excuse to leave a broken thing broken in code you're already touching.
    - Type errors (compilation failures)
    - Security issues (missing auth, injection, exposed secrets)
    - Data integrity (missing validations that could corrupt data)
    - Accessibility failures (missing alt text, broken keyboard nav, contrast failures)
+   - **Test failures, pre-existing or new.** If `npm test` shows red on the touched paths, fix it as part of the review. Tests that were passing before but flake/break under your changes are NEW failures (always must-fix). Tests that were broken before need fixing too — they're a correctness signal someone has been ignoring and the deep-review is the moment to clear them.
 
    **Easy wins** (auto-fix these)
    - Dead code removal (unused imports, unreachable branches)
@@ -230,8 +235,9 @@ Once all reviews are complete, merge the results:
    - Minor UI polish (missing hover states, inconsistent spacing)
 
    **Fix these too** (auto-fix, but note them in the summary)
+   - **DRY violations — MUST FIX, no exceptions.** Same logic in two places, copy-pasted code, near-duplicate JSX/UI fragments, parallel constants encoding the same canonical ordering, functions that compute the same thing differently. Even a 2-instance duplication gets fixed — every duplicate is a divergence vector and a bug-multiplier. Extract a shared helper, hoist the constant, build the shared component. This category is **non-negotiable**: deferring DRY work to "later" is exactly how the second copy starts drifting.
    - **Fragile code** - brittle logic, hardcoded values, implicit dependencies that will break on the next change
-   - **Duplication** - same logic in two places, copy-pasted code, functions that compute the same thing differently
+   - **Pre-existing correctness issues touched by the diff or revealed during review.** If a review surfaces a pre-existing bug in the area you're reviewing, fix it. The "Boy Scout Rule" / AGENTS.md "make things better as you go" applies — leaving known-broken behavior in place because "the diff didn't introduce it" is exactly how regressions accumulate. Especially when the issue is correctness-related (wrong output, broken validation, silent failure modes), fix it now even if it doubles the diff size. Note clearly in the summary that the fix was a pre-existing issue you opted to address.
    - Performance optimizations with clear, low-risk fixes
    - Better naming, clearer interfaces
    - Minor UX/UI improvements that are straightforward
@@ -240,6 +246,7 @@ Once all reviews are complete, merge the results:
    **Defer** (present for user decision - do NOT auto-fix)
    - Only defer if fixing it would take longer than the entire rest of the review combined
    - "Big effort" means genuinely big (new tables, new API endpoints, multi-file architecture change) - not "more than 5 lines"
+   - **DRY findings cannot be deferred.** If you're tempted to defer "extract shared component" / "hoist canonical constant" / "dedupe parallel logic", you are violating this skill — re-read the Must Fix list above.
    - When in doubt, fix it. Err heavily toward fixing.
 
 3. **Present the consolidated review** in this format:
@@ -312,7 +319,7 @@ After applying all fixes from step 4, run one more review cycle to make sure the
 1. **Re-run the same independent reviewer** on the current uncommitted state:
    ```bash
    # If the independent reviewer is Codex:
-   codex review --uncommitted "You are the independent reviewer for the /deep-review verification round. Review only. Do not modify files. Report only new issues introduced by the fixes. Do not invoke or read task-observer; this is a delegated/non-interactive review and the parent session logs observations."
+   codex review --uncommitted
 
    # If the independent reviewer is Claude Code:
    git diff --cached > /tmp/deep-review-staged.patch
@@ -388,6 +395,8 @@ sibling. When a learning is newly captured, say:
 
 - **Never commit during a review.** All fixes are left as uncommitted changes.
 - **Fix everything. Always.** Fix every finding from every reviewer - simplify pass, independent reviewer, UI review, all of it. The only exception is genuinely massive work (new tables, new endpoints, multi-file architecture changes). "Out of scope" and "debatable" are not reasons to skip a fix. When in doubt, fix it. Collateral changes are always presented for user decision (keep or revert).
+- **DRY violations are non-negotiable must-fix.** Any duplication a reviewer surfaces — copy-pasted JSX, parallel constants, near-identical helpers, the same render block in two components — gets fixed inline as part of the deep-review. "I'll consolidate later" / "the second copy is small" / "they might diverge intentionally" are not valid reasons. Extract the shared helper / hoist the constant / build the shared component now. The cost of the second copy is a future divergence bug; the deep-review is the cheapest moment to pay that cost.
+- **Pre-existing correctness issues get fixed too.** AGENTS.md / CLAUDE.md "make things better as you go" applies. If a reviewer surfaces a pre-existing bug — failing test, wrong validation, missing key in a schema, dead-but-referenced code — fix it. "The diff didn't introduce it" is not a reason to leave broken behavior in code you're already touching. Note in the summary which fixes were pre-existing-issue cleanups so the user can see the scope expansion.
 - **If the independent reviewer is unavailable or fails**, proceed with the orchestrator-side reviews. Note which independent reviewer was skipped in the summary.
 - **If no frontend files changed**, skip the UI review entirely. Don't mention it in the summary.
 - **Respect project conventions.** Check CLAUDE.md for project-specific rules and flag violations.
