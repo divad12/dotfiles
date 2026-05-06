@@ -2017,6 +2017,70 @@ body:not(.reviewing) .review-side-nav { display: none; }
     }, 1600);
   }
 
+  // ───── Note draft persistence ─────
+  const draftSaveTimers = new Map();
+  function cancelDraftSave(fingerprint) {
+    const handle = draftSaveTimers.get(fingerprint);
+    if (handle) {
+      clearTimeout(handle);
+      draftSaveTimers.delete(fingerprint);
+    }
+  }
+  function scheduleDraftSave(fingerprint, note) {
+    cancelDraftSave(fingerprint);
+    const handle = setTimeout(async () => {
+      draftSaveTimers.delete(fingerprint);
+      try {
+        await fetch("/drafts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fingerprint, note }),
+        });
+      } catch (error) {
+        // No server (file:// view) — drafts won't persist; that's fine.
+      }
+    }, 350);
+    draftSaveTimers.set(fingerprint, handle);
+  }
+  async function clearDraft(fingerprint) {
+    cancelDraftSave(fingerprint);
+    try {
+      await fetch("/drafts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fingerprint, note: "" }),
+      });
+    } catch (error) {
+      // Silent
+    }
+  }
+
+  // Hydrate textareas with any saved drafts
+  (async () => {
+    try {
+      const response = await fetch("/drafts");
+      if (!response.ok) return;
+      const drafts = await response.json();
+      Object.entries(drafts || {}).forEach(([fp, value]) => {
+        const box = document.querySelector('[data-note-for="' + fp + '"]');
+        if (box && !box.value && typeof value === "string") {
+          box.value = value;
+        }
+      });
+    } catch (error) {
+      // No server / file:// — leave textareas empty.
+    }
+  })();
+
+  // Debounced save on input
+  document.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!target || target.tagName !== "TEXTAREA") return;
+    const fp = target.dataset.noteFor;
+    if (!fp) return;
+    scheduleDraftSave(fp, target.value);
+  });
+
   async function recordDecision(decision) {
     decisions.push(decision);
     const save = fetch("/decisions", {
@@ -2028,6 +2092,11 @@ body:not(.reviewing) .review-side-nav { display: none; }
     });
     pendingSaves.push(save);
     await save;
+    // Any decision tied to a fingerprint promotes the draft into committed
+    // state — clear the draft so a refresh doesn't resurrect it.
+    if (decision && decision.fingerprint && decision.fingerprint !== "global") {
+      clearDraft(decision.fingerprint);
+    }
   }
 
   function markRecorded(button) {

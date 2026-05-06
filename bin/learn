@@ -18,6 +18,7 @@ STORE_FILES = {
     "calibration.md": "# Learning Calibration\n\n",
     "auto-actions.md": "# Learning Auto-Actions\n\n",
     "decisions.jsonl": "",
+    "note-drafts.json": "{}\n",
 }
 
 
@@ -2433,6 +2434,70 @@ _DASHBOARD_SCRIPT = r"""
     }, 1600);
   }
 
+  // ───── Note draft persistence ─────
+  const draftSaveTimers = new Map();
+  function cancelDraftSave(fingerprint) {
+    const handle = draftSaveTimers.get(fingerprint);
+    if (handle) {
+      clearTimeout(handle);
+      draftSaveTimers.delete(fingerprint);
+    }
+  }
+  function scheduleDraftSave(fingerprint, note) {
+    cancelDraftSave(fingerprint);
+    const handle = setTimeout(async () => {
+      draftSaveTimers.delete(fingerprint);
+      try {
+        await fetch("/drafts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ fingerprint, note }),
+        });
+      } catch (error) {
+        // No server (file:// view) — drafts won't persist; that's fine.
+      }
+    }, 350);
+    draftSaveTimers.set(fingerprint, handle);
+  }
+  async function clearDraft(fingerprint) {
+    cancelDraftSave(fingerprint);
+    try {
+      await fetch("/drafts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ fingerprint, note: "" }),
+      });
+    } catch (error) {
+      // Silent
+    }
+  }
+
+  // Hydrate textareas with any saved drafts
+  (async () => {
+    try {
+      const response = await fetch("/drafts");
+      if (!response.ok) return;
+      const drafts = await response.json();
+      Object.entries(drafts || {}).forEach(([fp, value]) => {
+        const box = document.querySelector('[data-note-for="' + fp + '"]');
+        if (box && !box.value && typeof value === "string") {
+          box.value = value;
+        }
+      });
+    } catch (error) {
+      // No server / file:// — leave textareas empty.
+    }
+  })();
+
+  // Debounced save on input
+  document.addEventListener("input", (event) => {
+    const target = event.target;
+    if (!target || target.tagName !== "TEXTAREA") return;
+    const fp = target.dataset.noteFor;
+    if (!fp) return;
+    scheduleDraftSave(fp, target.value);
+  });
+
   async function recordDecision(decision) {
     decisions.push(decision);
     const save = fetch("/decisions", {
@@ -2444,6 +2509,11 @@ _DASHBOARD_SCRIPT = r"""
     });
     pendingSaves.push(save);
     await save;
+    // Any decision tied to a fingerprint promotes the draft into committed
+    // state — clear the draft so a refresh doesn't resurrect it.
+    if (decision && decision.fingerprint && decision.fingerprint !== "global") {
+      clearDraft(decision.fingerprint);
+    }
   }
 
   function markRecorded(button) {
@@ -2874,6 +2944,19 @@ def serve_dashboard(store: Path, host: str, port: int, execute_on_finish: bool) 
             return
 
         def do_GET(self) -> None:
+            if self.path == "/drafts":
+                drafts_path = store / "note-drafts.json"
+                try:
+                    data = drafts_path.read_bytes()
+                    json.loads(data)
+                except (FileNotFoundError, json.JSONDecodeError):
+                    data = b"{}"
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(data)))
+                self.end_headers()
+                self.wfile.write(data)
+                return
             if self.path not in {"/", "/dashboard.html"}:
                 self.send_error(404)
                 return
@@ -2897,6 +2980,34 @@ def serve_dashboard(store: Path, host: str, port: int, execute_on_finish: bool) 
                 import threading
 
                 threading.Thread(target=self.server.shutdown, daemon=True).start()
+                return
+            if self.path == "/drafts":
+                length = int(self.headers.get("Content-Length", "0"))
+                payload = json.loads(self.rfile.read(length).decode("utf-8")) if length else {}
+                fingerprint = str(payload.get("fingerprint", "")).strip()
+                note = str(payload.get("note", "") or "").strip()
+                if not fingerprint:
+                    self.send_response(400)
+                    self.send_header("Content-Type", "application/json")
+                    self.end_headers()
+                    self.wfile.write(b'{"ok": false, "error": "missing fingerprint"}')
+                    return
+                drafts_path = store / "note-drafts.json"
+                try:
+                    drafts = json.loads(drafts_path.read_text())
+                    if not isinstance(drafts, dict):
+                        drafts = {}
+                except (FileNotFoundError, json.JSONDecodeError):
+                    drafts = {}
+                if note:
+                    drafts[fingerprint] = note
+                else:
+                    drafts.pop(fingerprint, None)
+                drafts_path.write_text(json.dumps(drafts, indent=2, sort_keys=True) + "\n")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(b'{"ok": true}')
                 return
             if self.path != "/decisions":
                 self.send_error(404)
