@@ -1,2 +1,6 @@
 *.o
 bundle/
+.claude/settings.local.json
+.claude/worktrees/
+.vim/pack/
+hg-dummy-cert.pem
