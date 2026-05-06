@@ -11,6 +11,7 @@ import csv
 import json
 import os
 import re
+import shlex
 import sys
 import time
 from collections import Counter, defaultdict
@@ -18,6 +19,7 @@ from pathlib import Path
 
 
 DEFAULT_EVENTS = Path("~/.config/ask-intern/events.tsv").expanduser()
+DEFAULT_GUARD_EVENTS = Path("~/.config/ask-intern/read-guard/events.jsonl").expanduser()
 DEFAULT_LOG_ROOTS = [
     Path("~/.codex/sessions").expanduser(),
     Path("~/.codex/archived_sessions").expanduser(),
@@ -27,51 +29,80 @@ DEFAULT_LOG_ROOTS = [
 DIRECT_READ_RE = re.compile(
     r"(^|[;&|]\s*|\b)(cat|head|tail)\s+|"
     r"\bsed\s+-n\b|"
-    r"\bnl\s+-ba\b|"
-    r"\bpython3?\b.*\b(read_text|open\()",
+    r"\bnl\s+-ba\b",
 )
 ASK_INTERN_RE = re.compile(r"(^|[\s/])ask-intern(\s|$)")
-PATHISH_RE = re.compile(r"(?:[./~]?[\w@%+=:,.-]+/)*[\w@%+=:,.-]+\.[A-Za-z0-9_-]+")
-
-
-def iter_json_values(value):
-    yield value
-    if isinstance(value, dict):
-        for child in value.values():
-            yield from iter_json_values(child)
-    elif isinstance(value, list):
-        for child in value:
-            yield from iter_json_values(child)
+EXACT_PROMPT_RE = re.compile(
+    r"\b(verbatim|exact lines?|line numbers?|quote exact|exact code|complete source|full source|exact contents|print exact)\b",
+    re.IGNORECASE,
+)
+CONTROL_BASENAMES = {"AGENTS.md", "CLAUDE.md", "PROGRESS.md", "SKILL.md"}
+SENSITIVE_BASENAMES = {".env", ".env.local"}
+GENERATED_SEGMENTS = {"graphify-out", "node_modules"}
 
 
 def command_values(record):
-    for value in iter_json_values(record):
-        if isinstance(value, dict):
-            command = value.get("command")
-            if isinstance(command, str):
-                yield command
-            if value.get("name") == "Read":
-                tool_input = value.get("input") or value.get("parameters") or {}
-                if isinstance(tool_input, dict):
+    """Yield actual tool-call commands, not arbitrary strings from transcripts."""
+    cwd = record.get("cwd", "")
+    message = record.get("message")
+    if isinstance(message, dict):
+        content = message.get("content")
+        if isinstance(content, list):
+            for item in content:
+                if not isinstance(item, dict) or item.get("type") != "tool_use":
+                    continue
+                tool_input = item.get("input") or {}
+                if not isinstance(tool_input, dict):
+                    continue
+                if item.get("name") == "Bash":
+                    command = tool_input.get("command")
+                    if isinstance(command, str):
+                        yield command, cwd
+                elif item.get("name") == "Read":
                     path = tool_input.get("file_path") or tool_input.get("path")
                     if isinstance(path, str):
-                        yield f"Read {path}"
+                        yield f"Read {path}", cwd
+
+    payload = record.get("payload")
+    if isinstance(payload, dict) and payload.get("type") == "function_call":
+        name = payload.get("name", "")
+        if name in {"exec_command", "functions.exec_command"}:
+            try:
+                arguments = json.loads(payload.get("arguments") or "{}")
+            except json.JSONDecodeError:
+                arguments = {}
+            command = arguments.get("cmd") if isinstance(arguments, dict) else None
+            cwd = arguments.get("workdir") if isinstance(arguments, dict) else cwd
+            if isinstance(command, str):
+                yield command, cwd
 
 
-def load_events(path):
+def event_epoch(timestamp):
+    try:
+        return time.mktime(time.strptime(timestamp, "%Y-%m-%d %H:%M:%S"))
+    except (TypeError, ValueError):
+        return 0
+
+
+def load_events(path, since_days=None):
     summary = {
         "total": 0,
         "success": 0,
         "failure": 0,
         "failures": Counter(),
         "sources": Counter(),
+        "rows": [],
     }
     if not path.exists():
         return summary
+    cutoff = time.time() - since_days * 24 * 60 * 60 if since_days is not None else None
 
     with path.open(newline="") as f:
         reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
+            if cutoff is not None and event_epoch(row.get("timestamp")) < cutoff:
+                continue
+            summary["rows"].append(row)
             status = row.get("status", "")
             reason = row.get("reason", "")
             source = row.get("source") or "unknown"
@@ -83,6 +114,128 @@ def load_events(path):
                 summary["failure"] += 1
                 summary["failures"][reason or "unknown"] += 1
     return summary
+
+
+def resolve_file(path, cwd):
+    expanded = Path(os.path.expanduser(path))
+    if not expanded.is_absolute():
+        expanded = Path(cwd or os.getcwd()) / expanded
+    return expanded
+
+
+def line_count(path, cwd, cache):
+    try:
+        resolved = resolve_file(path, cwd).resolve()
+        if resolved not in cache:
+            with resolved.open("rb") as f:
+                cache[resolved] = sum(1 for _ in f)
+        return cache[resolved]
+    except OSError:
+        return None
+
+
+def row_files(row):
+    return [path for path in (row.get("files") or "").split(",") if path]
+
+
+def summarize_over_delegations(rows, limit):
+    line_cache = {}
+    exact_prompts = []
+    single_small = []
+    docs_only = []
+
+    for row in rows:
+        invocation = row.get("invocation") or ""
+        files = row_files(row)
+        counts = [line_count(path, row.get("cwd", ""), line_cache) for path in files]
+        if EXACT_PROMPT_RE.search(invocation):
+            exact_prompts.append((row, counts))
+        if len(files) == 1 and counts and counts[0] is not None and counts[0] <= 400 and not row.get("target"):
+            single_small.append((row, counts))
+        if files and all(is_exempt_direct_read_path(path) for path in files):
+            docs_only.append((row, counts))
+
+    print("possible over-delegations:")
+    print(f"- exact/verbatim prompts: {len(exact_prompts)}")
+    print(f"- single-file calls under 400 lines: {len(single_small)}")
+    print(f"- docs/control/generated-only calls: {len(docs_only)}")
+    examples = exact_prompts[-limit:]
+    if examples:
+        print("recent exact/verbatim examples:")
+        for row, counts in examples:
+            invocation = short_command(row.get("invocation") or "", 160)
+            print(
+                f"- {row.get('timestamp')} {row.get('source') or 'unknown'} "
+                f"{row.get('status')} {row.get('reason')}: lines={counts} {invocation}"
+            )
+
+
+def load_jsonl_events(path, since_days=None):
+    try:
+        lines = path.read_text(encoding="utf-8").splitlines()
+    except FileNotFoundError:
+        return []
+
+    cutoff = None
+    if since_days is not None:
+        cutoff = time.time() - since_days * 24 * 60 * 60
+
+    events = []
+    for line in lines:
+        try:
+            event = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if cutoff is not None and event.get("ts", 0) < cutoff:
+            continue
+        events.append(event)
+    return events
+
+
+def timestamp_label(ts):
+    if not ts:
+        return "unknown-time"
+    return time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(ts))
+
+
+def short_command(command, limit=120):
+    command = (command or "").replace("\n", " ")
+    if len(command) <= limit:
+        return command
+    return command[: limit - 3] + "..."
+
+
+def path_names(paths, limit=3):
+    names = [Path(path).name for path in paths[:limit]]
+    if len(paths) > limit:
+        names.append(f"+{len(paths) - limit} more")
+    return ", ".join(names) if names else "(no paths)"
+
+
+def describe_guard_event(event):
+    parts = [
+        timestamp_label(event.get("ts")),
+        event.get("reason") or "unknown",
+        event.get("tool") or "unknown-tool",
+        path_names(event.get("paths") or []),
+    ]
+    metrics = []
+    if event.get("read_lines") is not None:
+        metrics.append(f"read_lines={event.get('read_lines')}")
+    if event.get("total_lines") is not None:
+        metrics.append(f"total_lines={event.get('total_lines')}")
+    if event.get("distinct_files") is not None:
+        metrics.append(f"files={event.get('distinct_files')}")
+    if metrics:
+        parts.append(" ".join(metrics))
+
+    tool_input = event.get("tool_input") if isinstance(event.get("tool_input"), dict) else {}
+    command = event.get("command") or tool_input.get("command", "")
+    if command:
+        parts.append(f"cmd={short_command(command)}")
+    elif tool_input:
+        parts.append(f"input={tool_input}")
+    return " | ".join(parts)
 
 
 def discover_logs(paths, roots, since_days=None):
@@ -100,11 +253,90 @@ def discover_logs(paths, roots, since_days=None):
     return [p for p in logs if p.stat().st_mtime >= cutoff]
 
 
-def direct_read_path(command):
+def direct_read_paths(command):
     if command.startswith("Read "):
-        return command[5:].strip()
-    matches = PATHISH_RE.findall(command)
-    return matches[-1] if matches else "(unknown)"
+        return [command[5:].strip()]
+
+    paths = []
+    for segment in command_segments(command):
+        tokens = shell_tokens(segment)
+        index = 0
+        while index < len(tokens):
+            command_name = os.path.basename(tokens[index])
+            if command_name == "cat":
+                paths.extend(command_file_args(tokens[index + 1 :], skip_first_non_option=False))
+            elif command_name in {"head", "tail"}:
+                paths.extend(command_file_args(tokens[index + 1 :], skip_first_non_option=False))
+            elif command_name == "sed" and "-n" in tokens[index + 1 : index + 4]:
+                paths.extend(command_file_args(tokens[index + 1 :], skip_first_non_option=False))
+            elif command_name == "nl" and "-ba" in tokens[index + 1 : index + 4]:
+                paths.extend(command_file_args(tokens[index + 1 :], skip_first_non_option=False))
+            index += 1
+    return paths
+
+
+def command_segments(command):
+    return [segment.strip() for segment in re.split(r"\s*(?:&&|\|\||;)\s*", command) if segment.strip()]
+
+
+def shell_tokens(command):
+    try:
+        return shlex.split(command)
+    except ValueError:
+        return command.split()
+
+
+def is_shell_operator(token):
+    return token in {"|", "||", "&&", ";"} or token.startswith((">", "2>", "<<"))
+
+
+def looks_like_path_token(token):
+    if not token or token.startswith("$") or token.startswith("#"):
+        return False
+    if token in {"echo", "git", "grep", "sed", "nl", "ls", "wc", "readlink"}:
+        return False
+    basename = os.path.basename(token.rstrip(","))
+    return "/" in token or "." in basename or basename in {"Dockerfile", "Gemfile", "Makefile", "Rakefile"}
+
+
+def command_file_args(args, skip_first_non_option):
+    paths = []
+    skipped_payload = not skip_first_non_option
+    index = 0
+    while index < len(args):
+        token = args[index]
+        if is_shell_operator(token):
+            break
+        if token in {"-n", "-c", "-m"} and index + 1 < len(args):
+            index += 2
+            continue
+        if token.startswith("-"):
+            index += 1
+            continue
+        if not skipped_payload:
+            skipped_payload = True
+            index += 1
+            continue
+        if token not in {"-", ""} and looks_like_path_token(token):
+            paths.append(token)
+        index += 1
+    return paths
+
+
+def is_exempt_direct_read_path(path):
+    if not path or path == "(unknown)":
+        return True
+    if path.startswith("http://") or path.startswith("https://"):
+        return True
+    basename = os.path.basename(path)
+    if basename in CONTROL_BASENAMES or basename in SENSITIVE_BASENAMES:
+        return True
+    parts = set(Path(path).parts)
+    if "docs" in parts or parts & GENERATED_SEGMENTS:
+        return True
+    if path.startswith("/private/tmp/") or path.startswith("/tmp/"):
+        return True
+    return False
 
 
 def scan_log(path):
@@ -122,25 +354,31 @@ def scan_log(path):
             record = json.loads(line)
         except json.JSONDecodeError:
             continue
-        for command in command_values(record):
+        for command, _cwd in command_values(record):
             if ASK_INTERN_RE.search(command):
                 result["ask_intern"] += 1
             if DIRECT_READ_RE.search(command) and not ASK_INTERN_RE.search(command):
-                result["direct_reads"].append((command, direct_read_path(command)))
+                for path in direct_read_paths(command):
+                    if not is_exempt_direct_read_path(path):
+                        result["direct_reads"].append((command, path))
     return result
 
 
 def main():
     parser = argparse.ArgumentParser(description="Audit ask-intern usage and likely missed delegations.")
     parser.add_argument("--events", default=str(DEFAULT_EVENTS), help="Path to ask-intern events.tsv")
+    parser.add_argument("--guard-events", default=str(DEFAULT_GUARD_EVENTS), help="Path to read-guard events.jsonl")
     parser.add_argument("--log", action="append", default=[], help="Session JSONL log to scan (repeatable)")
     parser.add_argument("--log-root", action="append", default=[], help="Directory of JSONL logs to scan recursively")
     parser.add_argument("--since-days", type=float, default=None, help="Only scan session logs modified in the last N days")
     parser.add_argument("--min-direct-reads", type=int, default=3, help="Direct-read count that flags a session")
     parser.add_argument("--top", type=int, default=10, help="Number of top paths/sessions to print")
+    parser.add_argument("--guard-limit", type=int, default=8, help="Number of recent read-guard blocks to print")
     args = parser.parse_args()
 
-    events = load_events(Path(args.events).expanduser())
+    events = load_events(Path(args.events).expanduser(), since_days=args.since_days)
+    guard_events = load_jsonl_events(Path(args.guard_events).expanduser(), since_days=args.since_days)
+    guard_blocked = [event for event in guard_events if event.get("action") == "blocked"]
     if args.log_root:
         log_roots = [Path(p).expanduser() for p in args.log_root]
     elif args.log:
@@ -173,6 +411,15 @@ def main():
         print("failure reasons:")
         for reason, count in events["failures"].most_common():
             print(f"- {reason}: {count}")
+    summarize_over_delegations(events["rows"], args.top)
+    print(f"read-guard events: {len(guard_events)} (blocked {len(guard_blocked)})")
+    if guard_blocked:
+        print("read-guard blocked reasons:")
+        for reason, count in Counter(event.get("reason") or "unknown" for event in guard_blocked).most_common():
+            print(f"- {reason}: {count}")
+        print("recent read-guard blocks:")
+        for event in guard_blocked[-args.guard_limit :]:
+            print(f"- {describe_guard_event(event)}")
     if args.since_days is not None:
         print(f"session log window: last {args.since_days:g} days")
     print(f"session logs scanned: {len(logs)}")

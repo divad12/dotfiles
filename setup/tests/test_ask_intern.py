@@ -185,6 +185,108 @@ class AskInternConfigTest(unittest.TestCase):
         self.assertIn("missing.md", events)
         self.assertIn("ask-intern -f missing.md 'secret prompt'", events)
 
+    def test_exact_source_request_is_blocked_before_api_call(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            work = home / "repo"
+            work.mkdir()
+            source_file = work / "source.py"
+            source_file.write_text("def ok():\n    return True\n", encoding="utf-8")
+            config_dir = home / ".config" / "ask-intern"
+            config_dir.mkdir(parents=True)
+            module = load_ask_intern(home)
+            module.EVENTS_FILE = str(config_dir / "events.tsv")
+
+            def fail_urlopen(*_args, **_kwargs):
+                raise AssertionError("exact-source requests should be denied before API calls")
+
+            stderr = io.StringIO()
+            with (
+                patch.dict(os.environ, {"HOME": str(home), "ASK_INTERN_SOURCE": "codex"}, clear=True),
+                patch.object(module, "urlopen", fail_urlopen),
+                patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "ask-intern",
+                        "-f",
+                        str(source_file),
+                        "Show me the EXACT code with line numbers",
+                    ],
+                ),
+                patch.object(sys, "stdin", io.StringIO("")),
+                patch.object(sys, "stdout", io.StringIO()),
+                patch.object(sys, "stderr", stderr),
+                self.assertRaises(SystemExit),
+            ):
+                module.main()
+
+            events = (config_dir / "events.tsv").read_text(encoding="utf-8")
+
+        self.assertIn("Exact/verbatim source requests should use direct small reads", stderr.getvalue())
+        self.assertIn("\tcodex\tfailure\texact_source_request\t", events)
+        self.assertIn(str(source_file), events)
+        self.assertIn("Show me the EXACT code with line numbers", events)
+
+    def test_exact_source_guard_can_be_overridden(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            work = home / "repo"
+            work.mkdir()
+            source_file = work / "source.py"
+            source_file.write_text("def ok():\n    return True\n", encoding="utf-8")
+            config_dir = home / ".config" / "ask-intern"
+            config_dir.mkdir(parents=True)
+            (config_dir / "env").write_text(
+                "export OPENROUTER_API_KEY=file-key\n",
+                encoding="utf-8",
+            )
+            module = load_ask_intern(home)
+            module.STATS_FILE = str(config_dir / "stats.tsv")
+            module.EVENTS_FILE = str(config_dir / "events.tsv")
+            captured = {}
+
+            class FakeResponse:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, exc_type, exc, tb):
+                    return False
+
+                def read(self):
+                    return json.dumps(
+                        {
+                            "choices": [{"message": {"content": "ok"}}],
+                            "usage": {"prompt_tokens": 10, "completion_tokens": 1},
+                        }
+                    ).encode("utf-8")
+
+            def fake_urlopen(req, timeout):
+                captured["payload"] = json.loads(req.data.decode("utf-8"))
+                return FakeResponse()
+
+            with (
+                patch.dict(os.environ, {"HOME": str(home)}, clear=True),
+                patch.object(module, "urlopen", fake_urlopen),
+                patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "ask-intern",
+                        "--allow-exact-source",
+                        "-f",
+                        str(source_file),
+                        "Show me the EXACT code with line numbers",
+                    ],
+                ),
+                patch.object(sys, "stdin", io.StringIO("")),
+                patch.object(sys, "stdout", io.StringIO()),
+                patch.object(sys, "stderr", io.StringIO()),
+            ):
+                module.main()
+
+        self.assertEqual(captured["payload"]["messages"][-1]["content"], "Show me the EXACT code with line numbers")
+
     def test_existing_event_log_is_migrated_and_backfilled_to_include_source_column(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)

@@ -64,8 +64,25 @@ load_env_file(CONFIG_FILE)
 DEFAULT_MODEL = os.environ.get("INTERN_MODEL", "deepseek/deepseek-v4-flash")
 MAX_TOKENS_READ = int(os.environ.get("INTERN_MAX_TOKENS", "8192"))
 MAX_TOKENS_WRITE = int(os.environ.get("INTERN_MAX_TOKENS_WRITE", "16384"))
+# Weekly Opus-equivalent budget for "% saved" display.
+# Max $200/month (20x) ≈ $200/week in API-equivalent usage.
+WEEKLY_BUDGET = float(os.environ.get("INTERN_WEEKLY_BUDGET", "200"))
 STATS_FILE = os.path.expanduser("~/.config/ask-intern/stats.tsv")
 EVENTS_FILE = os.path.expanduser("~/.config/ask-intern/events.tsv")
+EXACT_SOURCE_RE = re.compile(
+    r"\b("
+    r"verbatim|"
+    r"exact\s+(?:source|code|contents?|lines?|text)|"
+    r"line[- ]numbered|line\s+numbers?|"
+    r"complete\s+source|full\s+source|"
+    r"full\s+implementation|"
+    r"all\s+imports|"
+    r"show\s+(?:me\s+)?all\s+\d+\s+lines?|"
+    r"print\s+(?:the\s+)?(?:file|source|code)|"
+    r"quote\s+(?:the\s+)?(?:exact|key|\d+[-–]\d+)"
+    r")\b",
+    re.IGNORECASE,
+)
 EVENT_FIELDS = [
     "timestamp",
     "source",
@@ -119,6 +136,10 @@ def has_optional_missing_file(row):
         return False
     files = [part.strip() for part in row.get("files", "").split(",") if part.strip()]
     return any(is_optional_missing_file(path) for path in files)
+
+
+def is_exact_source_request(prompt):
+    return bool(EXACT_SOURCE_RE.search(prompt or ""))
 
 
 def infer_source_from_text(*values):
@@ -290,6 +311,18 @@ def fatal(msg, reason=None, model="", files=None, target=None, elapsed=0.0):
     sys.exit(1)
 
 
+def deny_exact_source_request(model, files=None, target=None):
+    fatal(
+        "Exact/verbatim source requests should use direct small reads or narrow snippets, not ask-intern. "
+        "Use `rg -n <symbol> <file>` to find anchors, then `sed -n 'START,ENDp' <file>` or a narrow Read range "
+        "for the exact text. Use ask-intern for summaries, contracts, risky callers, and approximate ranges.",
+        reason="exact_source_request",
+        model=model,
+        files=files,
+        target=target,
+    )
+
+
 def print_stats():
     if not os.path.exists(STATS_FILE):
         print("No usage data yet.")
@@ -384,8 +417,13 @@ def print_stats():
     print(f"{'─' * 45}")
     print(f"  ask-intern usage stats")
     print(f"{'─' * 45}")
+    week_saved = week_opus - week_cost
+    budget_line = ""
+    if WEEKLY_BUDGET > 0 and week_opus > 0:
+        budget_pct = week_opus / WEEKLY_BUDGET * 100
+        budget_line = f" = {budget_pct:.1f}% of ~${WEEKLY_BUDGET:.0f} weekly limit"
     print(f"  All time:   {total_calls} calls | {fmt_cost(total_cost)} spent | {fmt_cost(saved)} saved ({pct})")
-    print(f"  This week:  {week_calls} calls | {fmt_cost(week_cost)} spent | {fmt_cost(week_opus - week_cost)} saved")
+    print(f"  This week:  {week_calls} calls | {fmt_cost(week_cost)} spent | {fmt_cost(week_saved)} saved{budget_line}")
     print(f"  Today:      {today_calls} calls | {fmt_cost(today_cost)} spent | {fmt_cost(today_opus - today_cost)} saved")
     print(f"{'─' * 45}")
     print(f"  Tokens:     {total_in:,} in / {total_out:,} out")
@@ -403,11 +441,14 @@ def print_stats():
     print(f"{'─' * 45}")
 
 
-def log_usage(model, in_tok, out_tok, elapsed):
+def log_usage(model, in_tok, out_tok, elapsed, actual_cost=None):
     from datetime import datetime, timezone
 
-    pricing = MODEL_PRICING.get(model, (0.50, 1.00))
-    cost = (in_tok * pricing[0] + out_tok * pricing[1]) / 1_000_000
+    if actual_cost is not None:
+        cost = actual_cost
+    else:
+        pricing = MODEL_PRICING.get(model, (0.50, 1.00))
+        cost = (in_tok * pricing[0] + out_tok * pricing[1]) / 1_000_000
     opus_cost = (in_tok * OPUS_PRICING[0] + out_tok * OPUS_PRICING[1]) / 1_000_000
 
     row = "\t".join([
@@ -445,11 +486,26 @@ def main():
     parser.add_argument("-s", "--system", default=None, help="System prompt override")
     parser.add_argument("-v", "--verbose", action="store_true", help="Print full request/response to stderr")
     parser.add_argument("--stats", action="store_true", help="Print usage stats and exit")
+    parser.add_argument(
+        "--allow-exact-source",
+        action="store_true",
+        help="Bypass the exact-source misuse guard for rare manual debugging cases",
+    )
     args = parser.parse_args()
 
     if args.stats:
         print_stats()
         return
+
+    prompt = " ".join(args.prompt) if args.prompt else ""
+    if (
+        prompt
+        and not args.target
+        and not args.allow_exact_source
+        and not os.environ.get("ASK_INTERN_ALLOW_EXACT_SOURCE")
+        and is_exact_source_request(prompt)
+    ):
+        deny_exact_source_request(args.model, files=args.file, target=args.target)
 
     load_env_file(CONFIG_FILE)
     api_key = os.environ.get("OPENROUTER_API_KEY")
@@ -483,8 +539,6 @@ def main():
         stdin_content = sys.stdin.read()
         if stdin_content.strip():
             context_parts.append(f"<stdin>\n{stdin_content}\n</stdin>")
-
-    prompt = " ".join(args.prompt) if args.prompt else ""
 
     if not prompt and not context_parts:
         fatal("Nothing to do. Provide a prompt, files (-f), or pipe input.", reason="no_input", model=args.model, files=args.file, target=args.target)
@@ -581,13 +635,19 @@ def main():
     else:
         print(content)
 
-    # Log usage stats
+    # Log usage stats — prefer actual cost from OpenRouter over our pricing table
     usage = data.get("usage", {})
     in_tok = usage.get("prompt_tokens", 0)
     out_tok = usage.get("completion_tokens", 0)
-    log_usage(args.model, in_tok, out_tok, elapsed)
+    actual_cost = usage.get("cost")
+    log_usage(args.model, in_tok, out_tok, elapsed, actual_cost=actual_cost)
     log_event("success", "ok", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
     print(f"[intern: {args.model} | {in_tok}in/{out_tok}out | {elapsed:.1f}s]", file=sys.stderr)
+    if not args.target:
+        print(
+            "[intern: use direct narrow snippets for exact code/line numbers; do not re-ask ask-intern for verbatim source]",
+            file=sys.stderr,
+        )
 
 
 if __name__ == "__main__":

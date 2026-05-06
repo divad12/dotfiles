@@ -17,7 +17,13 @@ import time
 from pathlib import Path
 
 
-SEARCH_RE = re.compile(r"(^|[;&|]\s*|\b)(rg|grep|find|fd|ack|ag|ripgrep)\b")
+SEARCH_RE = re.compile(r"(^|[;&|]\s*|\b)(rg|grep|ack|ag|ripgrep)\b")
+VERIFICATION_RE = re.compile(
+    r"\b(vitest|jest|mocha|playwright|tsc|npm\s+(?:run\s+)?test|pnpm\s+(?:run\s+)?test|yarn\s+(?:run\s+)?test)\b"
+)
+SEARCH_COMMANDS = {"rg", "grep", "ack", "ag", "ripgrep"}
+FILE_EXT_RE = re.compile(r"\.[A-Za-z0-9_-]{1,8}$")
+COMMON_DIRS = {"app", "docs", "lib", "packages", "prisma", "src", "test", "tests"}
 
 
 def read_input():
@@ -38,16 +44,31 @@ def session_hash(session_id):
     return hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:16] if session_id else ""
 
 
-def log_event(record, action, command="", root=""):
+def tool_input_summary(record):
+    tool_input = record.get("tool_input") or {}
+    if not isinstance(tool_input, dict):
+        return {}
+
+    summary = {}
+    for key in ("command", "file_path", "offset", "limit"):
+        if key in tool_input:
+            summary[key] = tool_input[key]
+    return summary
+
+
+def log_event(record, action, command="", root="", reason=""):
     event = {
         "ts": int(time.time()),
         "session": session_hash(record.get("session_id", "")),
         "source": "claude",
         "action": action,
+        "reason": reason,
         "cwd": record.get("cwd", ""),
         "root": str(root) if root else "",
         "tool": record.get("tool_name", ""),
         "command": command,
+        "hook_event_name": record.get("hook_event_name", ""),
+        "tool_input": tool_input_summary(record),
     }
     try:
         with (state_dir() / "events.jsonl").open("a", encoding="utf-8") as f:
@@ -62,6 +83,65 @@ def is_graphify_command(command):
     except ValueError:
         tokens = command.split()
     return any(os.path.basename(token) == "graphify" for token in tokens)
+
+
+def shell_tokens(segment):
+    try:
+        return shlex.split(segment)
+    except ValueError:
+        return segment.split()
+
+
+def command_segments(command):
+    return [segment.strip() for segment in re.split(r"\s*(?:&&|\|\||;)\s*", command) if segment.strip()]
+
+
+def looks_like_file_path(token):
+    token = token.rstrip(",")
+    return bool(FILE_EXT_RE.search(token)) and not token.startswith("-")
+
+
+def looks_like_directory_operand(token):
+    if token.startswith("-") or looks_like_file_path(token):
+        return False
+    stripped = token.strip("'\"")
+    parts = [part for part in Path(stripped).parts if part not in {"/", ".", "..", "~"}]
+    return bool(parts and parts[0] in COMMON_DIRS)
+
+
+def has_recursive_grep_flag(args):
+    for token in args:
+        if token == "--":
+            break
+        if not token.startswith("-") or token == "-":
+            continue
+        if "r" in token or "R" in token:
+            return True
+    return False
+
+
+def search_segment_is_broad(segment):
+    tokens = shell_tokens(segment)
+    for index, token in enumerate(tokens):
+        if os.path.basename(token) not in SEARCH_COMMANDS:
+            continue
+        command = os.path.basename(token)
+        args = tokens[index + 1 :]
+        if command == "grep" and has_recursive_grep_flag(args):
+            return True
+        has_file_operand = any(looks_like_file_path(arg) for arg in args)
+        has_directory_operand = any(looks_like_directory_operand(arg) for arg in args)
+        if has_file_operand and not has_directory_operand:
+            return False
+        return True
+    return False
+
+
+def is_broad_search_command(command):
+    if VERIFICATION_RE.search(command):
+        return False
+    segments = [segment for segment in command_segments(command) if SEARCH_RE.search(segment)]
+    return any(search_segment_is_broad(segment) for segment in segments)
 
 
 def graph_root(cwd):
@@ -90,6 +170,9 @@ def main():
         log_event(record, "command", command=command)
         return
 
+    if not is_broad_search_command(command):
+        return
+
     root = graph_root(record.get("cwd", ""))
     if root is None:
         return
@@ -101,7 +184,7 @@ def main():
         f"`{report}` for god nodes and community structure. Then use ask-intern "
         "on the selected files if you still need bulk source summaries."
     )
-    log_event(record, "nudge", command=command, root=root)
+    log_event(record, "nudge", command=command, root=root, reason="broad_search_in_graphified_repo")
     print(json.dumps({
         "hookSpecificOutput": {
             "hookEventName": "PreToolUse",

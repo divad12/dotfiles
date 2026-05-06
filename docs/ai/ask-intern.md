@@ -63,6 +63,7 @@ After `--target`, review the output and edit only what needs fixing.
 | `-m MODEL` | Override model (e.g. `deepseek/deepseek-v4-pro`) |
 | `-s PROMPT` | Override system prompt |
 | `-v` | Verbose: dump full request/response to stderr |
+| `--allow-exact-source` | Bypass the exact-source guard for rare manual debugging |
 | `--stats` | Print usage dashboard and exit |
 
 ## Debugging
@@ -72,10 +73,14 @@ After `--target`, review the output and edit only what needs fixing.
 - Claude Code read-guard log: `~/.config/ask-intern/read-guard/events.jsonl`
 - `ask-intern --stats` includes recent failure counts by reason, such as `missing_file`, `missing_api_key`, `api_error`, or `empty_response`.
 - The event log records source (`claude`, `codex`, or `unknown`), status, reason, model, cwd, file paths, target path, latency, and the exact `ask-intern` invocation for early debugging.
+- The read-guard log records every catch with reason, paths, source tool, original hook input (`Read` `file_path`/`offset`/`limit` or Bash `command`), and computed line/count estimates when available.
 - Source is inferred from `ASK_INTERN_SOURCE`, agent-specific environment variables, working directory, and process ancestry; old rows are backfilled from `cwd` when obvious and otherwise remain `unknown`.
 - The invocation field may include prompt text. Keep this while tuning adoption, then remove or redact it once common failure modes are understood.
+- `ask-intern-audit` flags likely over-delegation patterns such as exact/verbatim-code prompts, single small-file calls, and docs/control-only calls. Exact source text should come from direct small reads or narrow snippets, not from `ask-intern`.
+- `ask-intern` hard-denies exact/verbatim source requests before any API call and logs `exact_source_request`. Use direct `rg`/`sed`/narrow `Read` snippets for exact text; set `--allow-exact-source` or `ASK_INTERN_ALLOW_EXACT_SOURCE=1` only for deliberate manual debugging.
+- Successful read-mode calls print a short stderr reminder that exact code and line numbers should come from direct narrow snippets after the summary.
 - Missing temp/log files are treated as stale optional context and skipped with a warning; missing project/source files still fail so the agent corrects guessed paths.
-- Adoption audit: `ask-intern-audit` scans the event log plus Claude/Codex JSONL logs and reports suspicious direct reads and likely missed delegations. Use `ask-intern-audit --since-days 1` for recent sessions, or `ask-intern-audit --log path/to/session.jsonl` to inspect a specific session.
+- Adoption audit: `ask-intern-audit` scans the event log, read-guard catches, and Claude/Codex JSONL logs. It reports recent guard blocks, suspicious direct reads, and likely missed delegations. Use `ask-intern-audit --since-days 1` for recent sessions, or `ask-intern-audit --log path/to/session.jsonl` to inspect a specific session.
 
 ## Claude Code Read Guard
 

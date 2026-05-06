@@ -20,9 +20,10 @@ fi
 
 home="$tmpdir/home"
 work="$tmpdir/work"
-mkdir -p "$home" "$work/graphify-out"
+mkdir -p "$home" "$work/graphify-out" "$work/src" "$work/docs/specs"
 printf '{}\n' >"$work/graphify-out/graph.json"
 printf '# Graph Report\n' >"$work/graphify-out/GRAPH_REPORT.md"
+printf 'export const auth = true;\n' >"$work/src/file.ts"
 
 run_hook() {
   HOME="$home" GRAPHIFY_USAGE_DIR="$tmpdir/graphify-usage" "$script" <<EOF
@@ -65,6 +66,42 @@ if ! grep -q '"action": "command"' "$tmpdir/graphify-usage/events.jsonl"; then
 fi
 if ! grep -q '"action": "nudge"' "$tmpdir/graphify-usage/events.jsonl"; then
   echo "graphify guard did not log search nudges" >&2
+  exit 1
+fi
+if ! grep -q '"reason": "broad_search_in_graphified_repo"' "$tmpdir/graphify-usage/events.jsonl"; then
+  echo "graphify guard did not log nudge reason" >&2
+  exit 1
+fi
+if ! grep -q '"hook_event_name": "PreToolUse"' "$tmpdir/graphify-usage/events.jsonl"; then
+  echo "graphify guard did not log hook event name" >&2
+  exit 1
+fi
+if ! grep -q '"tool_input": {"command": "rg auth src"}' "$tmpdir/graphify-usage/events.jsonl"; then
+  echo "graphify guard did not log original Bash tool input" >&2
+  exit 1
+fi
+
+run_hook "$(bash_json "grep -n auth '$work/src/file.ts' | head -5")" >/tmp/graphify-guard.out
+if [ -s /tmp/graphify-guard.out ]; then
+  echo "graphify guard should stay quiet for exact single-file grep" >&2
+  exit 1
+fi
+
+run_hook "$(bash_json "grep -n 'auth\\|login' '$work/src/file.ts' | head -5")" >/tmp/graphify-guard.out
+if [ -s /tmp/graphify-guard.out ]; then
+  echo "graphify guard should stay quiet for exact grep with alternation" >&2
+  exit 1
+fi
+
+run_hook "$(bash_json "npx vitest run src/file.test.ts 2>&1 | grep -A 20 failed")" >/tmp/graphify-guard.out
+if [ -s /tmp/graphify-guard.out ]; then
+  echo "graphify guard should stay quiet for verification-output filtering" >&2
+  exit 1
+fi
+
+run_hook "$(bash_json "find '$work/docs/specs' -name '*.md'")" >/tmp/graphify-guard.out
+if [ -s /tmp/graphify-guard.out ]; then
+  echo "graphify guard should stay quiet for file-name discovery" >&2
   exit 1
 fi
 

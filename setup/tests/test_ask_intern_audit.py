@@ -17,12 +17,13 @@ class AskInternAuditTest(unittest.TestCase):
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
             events = tmpdir / "events.tsv"
+            now = time.strftime("%Y-%m-%d %H:%M:%S")
             events.write_text(
                 "\n".join(
                     [
                         "timestamp\tsource\tstatus\treason\tmodel\tfile_count\ttarget\tlatency_s\tcwd\tfiles\tinvocation",
-                        "2026-05-03 19:00:00\tclaude\tsuccess\tok\tdeepseek/deepseek-v4-flash\t2\t\t1.00\t/repo\ta.md,b.md\task-intern -f a.md -f b.md prompt",
-                        "2026-05-03 19:01:00\tcodex\tfailure\tmissing_file\tdeepseek/deepseek-v4-flash\t1\t\t0.00\t/repo\tAGENTS.md\task-intern -f AGENTS.md prompt",
+                        f"{now}\tclaude\tsuccess\tok\tdeepseek/deepseek-v4-flash\t2\t\t1.00\t/repo\ta.md,b.md\task-intern -f a.md -f b.md prompt",
+                        f"{now}\tcodex\tfailure\tmissing_file\tdeepseek/deepseek-v4-flash\t1\t\t0.00\t/repo\tAGENTS.md\task-intern -f AGENTS.md prompt",
                     ]
                 )
                 + "\n",
@@ -33,8 +34,8 @@ class AskInternAuditTest(unittest.TestCase):
             good_log.write_text(
                 "\n".join(
                     [
-                        '{"type":"item.completed","item":{"type":"command_execution","command":"sed -n \'1,80p\' a.md"}}',
-                        '{"type":"item.completed","item":{"type":"command_execution","command":"ask-intern -f a.md -f b.md summarize"}}',
+                        '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"sed -n \'1,80p\' a.md\\"}"}}',
+                        '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"ask-intern -f a.md -f b.md summarize\\"}"}}',
                     ]
                 )
                 + "\n",
@@ -45,9 +46,9 @@ class AskInternAuditTest(unittest.TestCase):
             missed_log.write_text(
                 "\n".join(
                     [
-                        '{"type":"item.completed","item":{"type":"command_execution","command":"sed -n \'1,220p\' alpha.md"}}',
-                        '{"type":"item.completed","item":{"type":"command_execution","command":"cat beta.md"}}',
-                        '{"type":"item.completed","item":{"type":"command_execution","command":"nl -ba gamma.md | sed -n \'1,120p\'"}}',
+                        '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"sed -n \'1,220p\' alpha.md\\"}"}}',
+                        '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"cat beta.md\\"}"}}',
+                        '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"nl -ba gamma.md | sed -n \'1,120p\'\\"}"}}',
                     ]
                 )
                 + "\n",
@@ -56,7 +57,7 @@ class AskInternAuditTest(unittest.TestCase):
 
             old_log = tmpdir / "old-session.jsonl"
             old_log.write_text(
-                '{"type":"item.completed","item":{"type":"command_execution","command":"cat stale.md"}}\n',
+                '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"cat stale.md\\"}"}}\n',
                 encoding="utf-8",
             )
             old_time = time.time() - 10 * 24 * 60 * 60

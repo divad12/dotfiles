@@ -8,9 +8,11 @@ Use `ask-intern` to offload high-token/low-reasoning work to a cheap model (~$0.
 
 You MUST use `ask-intern` before reading any single file over 400 lines, or before broadly reading a cumulative set of medium/large context files. Build the file list from actual paths (`rg --files` is fine), then use the summary instead of reading those files yourself. If `ask-intern` reports `Cannot read`, correct the paths and retry. Re-reading small files and narrow snippets is allowed for exact line numbers, verification, and edits. Claude Code has a PreToolUse hook that routes broad direct reads to `ask-intern` when they cross the line budget.
 
+Do not use `ask-intern` to print exact/verbatim code, full source, or line-numbered snippets. Use it to identify relevant files, functions, contracts, risks, and approximate ranges; exact text for edits must come from direct small-file reads or narrow `Read`/`sed` snippets.
+
 Read durable control and project documentation files directly when exact instructions, ordering, or checkboxes matter: `PROGRESS.md`, `AGENTS.md`, `CLAUDE.md`, `SKILL.md`, and anything under a `docs/` directory. For arbitrary queue/plan files outside `docs/`, put `<!-- agent-control: direct-read -->` near the top. If the user explicitly asks to read a file verbatim and the guard blocks it, run `ask-intern-guard --allow-next <path> "verbatim user request"` and then read it directly.
 
-When dispatching code-reading or code-editing subagents, copy the relevant Token Delegation instructions into each subagent prompt **verbatim**: the MUST threshold sentence, the `ask-intern -t` draft-write examples when tests/fixtures/docs/repetitive code may be generated, and the narrow-snippet-after-summary rule. Do not paraphrase. Subagents often rebuild context from scratch, and paraphrases lose the thresholds after long context.
+When dispatching code-reading or code-editing subagents, copy the relevant Token Delegation instructions into each subagent prompt **verbatim**: the MUST threshold sentence, the `ask-intern -t` draft-write examples when tests/fixtures/docs/repetitive code may be generated, the narrow-snippet-after-summary rule, and the exact/verbatim-code prohibition. Do not paraphrase. This applies even when a workflow skill such as `superpowers:subagent-driven-development` supplies the rest of the prompt; append the Token Delegation block before the `spawn_agent` / Task call. Subagents often rebuild context from scratch, and paraphrases lose the thresholds after long context.
 
 ### When to delegate
 
@@ -28,6 +30,7 @@ Stop signals — if you think any of these, delegate instead:
 - Architecture decisions, debugging, safety-critical code
 - Anything requiring conversation context or careful reasoning
 - When exact line numbers are needed for editing (read a narrow snippet after delegating for the overview)
+- Exact/verbatim code, full source, or line-numbered snippets
 
 ### Usage
 
@@ -63,6 +66,7 @@ When the user types `/graphify`, invoke the `graphify` skill before doing anythi
 ## Before Work
 
 - Read root `PROGRESS.md` at session start.
+- At session start, before broad codebase exploration, check whether the first context-gathering step is `ask-intern`-shaped: large files, multiple medium/large files, long logs, diffs, transcripts, or repetitive draft generation. Use the `ask-intern` skill if helpful.
 - Use context7, or the agent's equivalent docs MCP, for code generation, setup/configuration, and library/API docs. Resolve and fetch docs without waiting for an explicit ask.
 - **Adaptive docs.** Read the matching file BEFORE relevant work and announce `📖 Loading context: <path>.md`.
   - Per-project: if the project has `docs/ai/`, treat it as source of truth.

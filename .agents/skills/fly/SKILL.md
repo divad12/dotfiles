@@ -153,7 +153,15 @@ Standard Task-dispatch flow per steps A-G below.
 
    If no injected steps, say "None." If the task has no `Pre-reading:` line in the checklist, omit section 3 entirely.
 
-4. Dispatch via Task tool:
+4. Append a `## Token Delegation Override` block after `## Checklist Overrides`. Copy the Token Delegation rules from `~/.claude/AGENTS.md` verbatim, limited to these required parts:
+   - the MUST threshold sentence for `ask-intern`;
+   - the two `ask-intern -t` draft-write examples;
+   - the narrow-snippet-after-summary rule;
+   - the exact/verbatim-code prohibition.
+
+   Do not paraphrase this block. If `~/.claude/AGENTS.md` is unavailable, use `.claude/AGENTS.md` from this dotfiles repo as the fallback source. These agents rebuild context from scratch, and this block is the difference between delegation being available in theory and actually being used during 30-fix runs.
+
+5. Dispatch via Task tool:
    - `subagent_type`: `general-purpose`
    - `model`: the EXACT model string from the checklist's `Model:` annotation. No drift in either direction. If the checklist says `Model: sonnet`, the Task call gets `model: "sonnet"` - not opus, not haiku, not a different opus variant. The checklist IS the contract.
    - `description`: `Implement <task id>: <task name>`
@@ -165,7 +173,7 @@ Standard Task-dispatch flow per steps A-G below.
 
    **Exception: fix-implementer dispatches** (step F and session-gate fix loops) are NOT governed by a checklist annotation. The fixer defaults to the task's implementer model but may upgrade on its own judgment when a finding is architecturally gnarly or when the default-model fix BLOCKED. Discretionary, not contract-gated.
 
-5. Wait for the implementer's report.
+6. Wait for the implementer's report.
 
 ### B. Handle implementer status
 
@@ -227,6 +235,8 @@ If the script exits non-zero, HALT and surface - it means the checklist is missi
    ```
 
    Reviewers without this context flag valid code as wrong (or miss real violations). Skip this section if the task has no Pre-reading line.
+
+5c. Append the same `## Token Delegation Override` block used for implementers. Reviewers often need to inspect callers or tests beyond the diff, so they need the exact same delegation threshold and exact-code prohibition.
 
 6. Add a `## Review scope` section to the prompt with explicit dual focus:
    ```

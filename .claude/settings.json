@@ -104,7 +104,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"MANDATORY pre-flight for interactive parent sessions: invoke task-observer via the Skill tool before your first tool call. Delegated/non-interactive subagents, review-only workers, verify-only workers, and Codex/Claude print-mode reviewers skip task-observer; the parent session logs observations.\"}}'"
+            "command": "echo '{\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"MANDATORY pre-flight for interactive parent sessions: invoke task-observer via the Skill tool before your first tool call. Delegated/non-interactive subagents, review-only workers, verify-only workers, and Codex/Claude print-mode reviewers skip task-observer; the parent session logs observations. Before broad context gathering, check whether the first read is ask-intern-shaped: large files, multiple medium/large files, long logs, diffs, transcripts, or repetitive draft generation.\"}}'"
           }
         ]
       }

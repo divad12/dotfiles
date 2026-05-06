@@ -168,4 +168,34 @@ run_hook "$(read_json "$small_a" s5)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(read_json "$small_b" s5)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(bash_json "cat > '$commit_msg' << 'CMSGEOF'; commit body; CMSGEOF; git commit -F '$commit_msg' 2>&1 | tail -5" s5)" >/tmp/guard.out 2>/tmp/guard.err
 
+events="$home/.config/ask-intern/read-guard/events.jsonl"
+if ! grep -q '"tool_input": {"file_path":' "$events"; then
+  echo "read guard events did not log original Read tool input" >&2
+  exit 1
+fi
+if ! grep -q '"hook_event_name": "PreToolUse"' "$events"; then
+  echo "read guard events did not log hook event name" >&2
+  exit 1
+fi
+if ! grep -q '"limit": 500' "$events"; then
+  echo "read guard events did not log partial Read limit" >&2
+  exit 1
+fi
+if ! grep -q '"read_lines": 401' "$events"; then
+  echo "read guard events did not log read-line estimate" >&2
+  exit 1
+fi
+if ! grep -q '"total_lines": 900' "$events"; then
+  echo "read guard events did not log cumulative line total" >&2
+  exit 1
+fi
+if ! grep -q '"distinct_files": 3' "$events"; then
+  echo "read guard events did not log cumulative file count" >&2
+  exit 1
+fi
+if ! grep -q '"tool_input": {"command": "cat ' "$events"; then
+  echo "read guard events did not log original Bash command in tool input" >&2
+  exit 1
+fi
+
 echo "ok"

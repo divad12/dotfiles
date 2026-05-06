@@ -41,6 +41,10 @@ grep -qi "findings == fixed + deferred\|findings = fixed + deferred" "$SKILL" ||
 grep -qi "disposition\|\[fix\].*\[defer\]" "$SKILL" || { echo "FAIL: disposition field"; exit 1; }
 grep -qi "default disposition is .\[fix\]\|default = .\[fix\]\|Default disposition" "$SKILL" || { echo "FAIL: fix-by-default rule"; exit 1; }
 grep -q "review: <path>\|reviews/task-\|reviews/phase-" "$SKILL" || { echo "FAIL: review path convention"; exit 1; }
+grep -q "Token Delegation Override" "$SKILL" || { echo "FAIL: token delegation override missing"; exit 1; }
+grep -q "MUST threshold sentence" "$SKILL" || { echo "FAIL: ask-intern MUST threshold injection missing"; exit 1; }
+grep -q "ask-intern -t" "$SKILL" || { echo "FAIL: ask-intern write-mode examples missing"; exit 1; }
+grep -q "exact/verbatim-code prohibition" "$SKILL" || { echo "FAIL: exact-code prohibition injection missing"; exit 1; }
 
 # fly Completion must NOT independently re-list deferred §N items - the
 # synthetic deferred-resolution task is the canonical user-facing surface.

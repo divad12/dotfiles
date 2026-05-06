@@ -84,6 +84,13 @@ def main():
         for name, count in collections.Counter(short_path(event.get("root", "")) for event in nudges).most_common(10):
             print(f"{count:5}  {name}")
 
+        print("\nrecent nudges")
+        for event in nudges[-args.limit:]:
+            stamp = time.strftime("%Y-%m-%d %H:%M:%S", time.localtime(event.get("ts", 0)))
+            reason = event.get("reason") or "legacy"
+            command = event.get("command", "").replace("\n", " ")
+            print(f"{stamp}  {short_path(event.get('cwd', ''))}  {reason}  {command}")
+
     if commands:
         print("\nrecent commands")
         for event in commands[-args.limit:]:
