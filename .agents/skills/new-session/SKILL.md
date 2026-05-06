@@ -36,6 +36,30 @@ Set up a worktree with everything needed to run the dev server: env files, `node
    - URL: `http://localhost:<PORT>`
    - Reminder to start the server with: `npm run dev -- --port <PORT>`
 
+## Worktree recovery
+
+When work has accidentally landed in the main checkout and the goal is to continue on a feature branch, **check for an existing clean worktree before creating a new one.**
+
+```bash
+git worktree list
+```
+
+For each listed worktree, inspect whether it is clean (no uncommitted changes, no branch-only commits ahead of the target):
+
+```bash
+git -C <worktree-path> status --porcelain          # must be empty
+git -C <worktree-path> log --oneline <target>..HEAD # must be empty
+```
+
+If a suitable worktree exists, fast-forward it to the target branch and assign its launch port instead of spinning up a new worktree:
+
+```bash
+git -C <worktree-path> merge --ff-only <target>
+cat <worktree-path>/.claude/launch.json             # find assigned port
+```
+
+Only create a new worktree if no existing one is clean and suitable. Unnecessary worktrees add clutter and port allocation overhead.
+
 ## Always use the assigned port
 
 For the rest of this session, whenever you start a dev server or open a URL, use the port from `launch.json` - never bare `npm run dev` (defaults to 3000, which belongs to the main repo) and never `http://localhost:3000`.
