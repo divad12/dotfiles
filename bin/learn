@@ -1127,6 +1127,8 @@ def _render_card(entry: dict[str, object], summary_counts: dict[str, int]) -> st
         f'            <dd class="guardrails-value">{artifacts_value}</dd>\n'
         "          </div>\n"
         f"{prior_section}\n"
+        "              </dl>\n"
+        f"{notes_block}\n"
         '          <details class="tech-details">\n'
         '            <summary>Files &amp; references</summary>\n'
         '            <dl class="tech-grid">\n'
@@ -1138,8 +1140,6 @@ def _render_card(entry: dict[str, object], summary_counts: dict[str, int]) -> st
         f'            <div><dt>Fingerprint</dt><dd><code>{fingerprint}</code></dd></div>\n'
         "            </dl>\n"
         "          </details>\n"
-        "              </dl>\n"
-        f"{notes_block}\n"
         f"{more_actions}\n"
         "            </div>\n"
         "          </details>\n"
@@ -2062,7 +2062,7 @@ body.reviewing { overflow: hidden; }
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 18px 32px;
+  padding: 14px 32px;
   border-bottom: 1px solid var(--rule);
 }
 .review-bar-left, .review-bar-right { display: flex; align-items: center; gap: 18px; }
@@ -2122,18 +2122,17 @@ body.reviewing { overflow: hidden; }
 .review-stage {
   flex: 1;
   overflow-y: auto;
-  padding: 56px 32px 32px;
+  padding: 32px 36px 24px;
   display: flex;
   justify-content: center;
   outline: none;
 }
-.review-stage:empty::before {
-  content: "";
-}
 .review-card-wrap {
   width: 100%;
-  max-width: 760px;
+  max-width: 1080px;
   animation: review-rise 0.32s ease;
+  display: flex;
+  flex-direction: column;
 }
 @keyframes review-rise {
   from { opacity: 0; transform: translateY(10px); }
@@ -2147,89 +2146,124 @@ body.reviewing { overflow: hidden; }
   margin: 0;
   animation: none;
   width: 100%;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
 }
 .review-stage .entry.review-active:hover { border: 0; }
 .review-stage .entry.review-active.is-decided::before { display: none; }
+.review-stage .entry.review-active .entry-head { margin-bottom: 0; padding: 0 4px; }
 .review-stage .entry.review-active .entry-title h2 {
-  font-size: 36px;
+  font-size: 28px;
   line-height: 1.18;
-  font-variation-settings: "opsz" 96;
-  letter-spacing: -0.02em;
+  font-variation-settings: "opsz" 60;
+  letter-spacing: -0.018em;
   font-weight: 500;
+  max-width: 30ch;
 }
-.review-stage .entry.review-active .entry-head { margin-bottom: 4px; }
 .review-stage .entry.review-active .conf {
-  width: 9px;
-  height: 9px;
+  width: 8px;
+  height: 8px;
 }
 .review-stage .entry.review-active .ramification {
-  font-size: 19px;
-  margin: 14px 0 22px 0;
-  max-width: none;
+  font-size: 16.5px;
+  margin: 10px 0 14px 0;
+  max-width: 70ch;
+  padding: 0 4px;
   font-family: var(--serif);
-  font-variation-settings: "opsz" 24;
+  font-variation-settings: "opsz" 18;
   font-style: italic;
-  line-height: 1.5;
+  line-height: 1.45;
   color: var(--text-2);
 }
 .review-stage .entry.review-active .entry-meta {
   margin-left: 0;
-  margin-bottom: 28px;
+  margin-bottom: 18px;
   gap: 10px;
+  padding: 0 4px;
 }
-.review-stage .entry.review-active .entry-meta .meta-item { font-size: 13px; }
+.review-stage .entry.review-active .entry-meta .meta-item { font-size: 12.5px; }
 .review-stage .entry.review-active .pill {
-  font-size: 12.5px;
-  padding: 5px 12px 5px 13px;
+  font-size: 11.5px;
+  padding: 4px 11px 4px 12px;
 }
 .review-stage .entry.review-active .entry-body { margin-top: 0; }
 .review-stage .entry.review-active .entry-body > summary { display: none; }
 .review-stage .entry.review-active .entry-body[open] { display: block; }
+
+/* 2-column slideshow body */
 .review-stage .entry.review-active .body {
   background: var(--surface);
   border: 1px solid var(--border);
-  padding: 36px 40px;
-  font-size: 17px;
-  gap: 24px;
+  padding: 24px 28px;
+  font-size: 15.5px;
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 0.9fr);
+  grid-template-areas:
+    "read write"
+    "read tech"
+    "read more";
+  gap: 14px 36px;
+  align-items: start;
 }
 .review-stage .entry.review-active .body::before { display: none; }
-.review-stage .entry.review-active .body .field dt { font-size: 11.5px; margin-bottom: 8px; }
+.review-stage .entry.review-active .body > dl {
+  grid-area: read;
+  margin: 0;
+  display: grid;
+  gap: 18px;
+  align-self: start;
+  border-right: 1px solid var(--border);
+  padding-right: 36px;
+  margin-right: -18px;
+}
+.review-stage .entry.review-active .body .field dt { font-size: 10.5px; margin-bottom: 6px; }
 .review-stage .entry.review-active .body .field dd {
-  font-size: 17px;
-  line-height: 1.65;
-  max-width: none;
-}
-.review-stage .entry.review-active .guardrails-value { font-size: 14.5px; }
-.review-stage .entry.review-active .note-field {
-  display: block;
-  margin: 4px 0 0;
-  padding-top: 24px;
-  border-top: 1px dashed var(--rule);
-}
-.review-stage .entry.review-active .note-field span {
-  font-size: 11.5px;
-  letter-spacing: 0.16em;
-}
-.review-stage .entry.review-active .note-field textarea {
   font-size: 15.5px;
-  min-height: 92px;
-  padding: 14px 16px;
   line-height: 1.55;
+  max-width: 60ch;
 }
-.review-stage .entry.review-active .more-actions {
+.review-stage .entry.review-active .guardrails-value { font-size: 13.5px; }
+.review-stage .entry.review-active .body > .note-field {
+  grid-area: write;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  align-self: start;
+}
+.review-stage .entry.review-active .body > .note-field span {
+  font-size: 10.5px;
+  letter-spacing: 0.16em;
+  margin-bottom: 8px;
+}
+.review-stage .entry.review-active .body > .note-field textarea {
+  font-size: 14.5px;
+  min-height: 96px;
+  padding: 12px 14px;
+  line-height: 1.5;
+}
+.review-stage .entry.review-active .body > details.tech-details {
+  grid-area: tech;
+  margin: 0;
+  align-self: start;
+}
+.review-stage .entry.review-active .tech-details > summary { font-size: 12px; }
+.review-stage .entry.review-active .body > .more-actions {
+  grid-area: more;
+  margin: 0;
   display: flex;
-  margin-top: 14px;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-self: end;
 }
 .review-stage .entry.review-active > .actions { display: none; }
-.review-stage .entry.review-active .tech-details > summary { font-size: 12.5px; }
-.review-stage .entry.review-active .tech-details { margin-top: 8px; }
 
 .review-footer {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 16px 32px 22px;
+  padding: 14px 32px 18px;
   border-top: 1px solid var(--rule);
   gap: 16px;
   background: var(--bg);
