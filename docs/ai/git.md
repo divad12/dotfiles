@@ -30,31 +30,24 @@ If the target is unclear, ask before rewriting history or landing commits.
 
 ## Local Target Only
 
-All landing decisions use the local target branch. Do not fetch, pull, or switch
-the comparison base to `origin/<target>` unless the user explicitly asks.
+Use local target refs for landing decisions, fast-forwards, rebases, ancestor
+checks, and branch logs. Do not `fetch`, `pull`, or substitute
+`origin/<target>` unless the user explicitly asks.
 
-Forbidden shortcut:
+Rationale: these repos usually have one collaborator, the user pushes
+infrequently, and local work is backed up by Dropbox. Touching origin adds
+noise, may change the comparison base, and can trigger unnecessary Vercel
+builds. A request like "merge m3" or "update from m3" means use the local `m3`
+ref.
 
-```bash
-git merge-base --is-ancestor origin/<target> HEAD
-```
+| User intent | Use local | Do not use |
+|---|---|---|
+| Update this worktree from `m3` | `git merge --ff-only m3` | `git pull origin m3` |
+| Check whether this branch includes `m3` | `git merge-base --is-ancestor m3 HEAD` | `git merge-base --is-ancestor origin/m3 HEAD` |
+| List branch-only commits | `git log --oneline m3..HEAD` | `git log --oneline origin/m3..HEAD` |
 
-That check answers whether the branch contains the remote-tracking ref, not
-whether it is ready to land into the local target branch. It can hide that the
-local target worktree is stale or that the agent silently changed the base of
-comparison.
-
-Use the local target instead:
-
-```bash
-git merge-base --is-ancestor <target> HEAD
-git log --oneline --decorate <target>..HEAD
-```
-
-If the agent believes `origin/<target>` has relevant commits, tell the user the
-ramification: remote-tracking refs may be newer than the local landing branch,
-but the current workflow lands into the local target. Ask before fetching,
-pulling, or treating `origin/<target>` as authoritative.
+If a command contains `origin`, `fetch`, or `pull`, stop and ask unless the user
+explicitly requested the remote.
 
 ## Before Merging to the Target
 
@@ -200,9 +193,11 @@ unless the merge-commit exception applies.
 
 ### Do not substitute `origin/<target>` for the local target
 
-Remote-tracking refs are not the landing branch. If local `<target>` is stale,
-surface that as a decision for the user instead of declaring the branch current
-because it contains `origin/<target>`.
+See "Local Target Only" above — that section is the canonical rule. Short
+version: remote-tracking refs are not the landing branch. If local `<target>`
+is stale, surface that as a decision for the user instead of declaring the
+branch current because it contains `origin/<target>`. The user's request to
+"merge m3" or "update from m3" never authorises touching origin.
 
 ### Rebase: `--ours` and `--theirs` are swapped
 
