@@ -79,6 +79,8 @@ Use `git diff` (for uncommitted) or `git diff main...HEAD` (for branch) to read 
 
 **Step 1: Re-read the project rules.** Read CLAUDE.md (or AGENTS.md) and any docs it references that are relevant to the changed files. Don't rely on what you "remember" from earlier in the session - actually re-read them now. If the project has a reference table mapping topics to docs (e.g. "forms -> docs/ai/form-guidelines.md"), read the docs that match the changed file types.
 
+While reading, note any capabilities the project explicitly **de-scopes** — phrases like "No ARIA/screen reader work yet", "desktop-only", "no-mobile", "no-i18n", "no-RTL", "single-user", "no-timezone handling". These create **inadmissibility rules**: any finding that targets a de-scoped capability is not a finding — skip it. This is the inverse of the violation-escalation rule. Asymmetric calibration (escalating violations without also suppressing de-scoped concerns) causes reviewers to add out-of-scope work.
+
 **Step 2: For each rule, grep the diff for violations.** Common patterns to check (adapt to the project's specific rules):
 
 ```bash
@@ -195,7 +197,7 @@ If the diff includes frontend files (`.tsx`, `.jsx`, `.css`, `.scss`, or compone
 4. Review against these criteria:
    - **Visual hierarchy and layout** - spacing, alignment, clear entry points
    - **Interactive states** - loading, empty, error, hover, focus, disabled (actually trigger each one)
-   - **Accessibility** - contrast ratios (WCAG AA), keyboard navigation (tab through the page), screen reader support (check snapshot roles/labels), `prefers-reduced-motion`
+   - **Accessibility** - contrast ratios (WCAG AA), keyboard navigation (tab through the page), screen reader support (check snapshot roles/labels), `prefers-reduced-motion` — **only when not de-scoped by AGENTS.md** (check for "No ARIA", "desktop-only", etc. before raising)
    - **UX patterns** - are interactions intuitive? Do forms validate clearly? Are destructive actions confirmed?
    - **Component API** - are props well-named and minimal? Is the component doing too much?
 5. Be specific about findings. Reference file paths and line numbers.
@@ -357,6 +359,6 @@ After auto-fixes and verification are complete, present only the deferred items.
 - **Fix everything. Always.** Fix every finding from every reviewer - simplify pass, independent reviewer, UI review, all of it. The only exception is genuinely massive work (new tables, new endpoints, multi-file architecture changes). "Out of scope" and "debatable" are not reasons to skip a fix. When in doubt, fix it. Collateral changes are always presented for user decision (keep or revert).
 - **If the independent reviewer is unavailable or fails**, proceed with the orchestrator-side reviews. Note which independent reviewer was skipped in the summary.
 - **If no frontend files changed**, skip the UI review entirely. Don't mention it in the summary.
-- **Respect project conventions.** Check CLAUDE.md for project-specific rules and flag violations.
+- **Respect project conventions.** Check CLAUDE.md/AGENTS.md for project-specific rules and flag violations. Apply the inverse equally: if AGENTS.md explicitly de-scopes a capability ("No ARIA/screen reader work yet", "desktop-only", "no-i18n", "single-user"), findings targeting that capability are inadmissible — skip them and do not auto-fix. One-directional calibration (escalating violations without suppressing de-scoped concerns) produces out-of-scope changes the user didn't ask for.
 - **Be specific.** Every finding must reference a file path and ideally a line number. No vague "consider improving error handling" without saying where.
 - **Disagree transparently.** If reviewers disagree on a finding, present both perspectives and let the user decide. Don't silently drop one opinion.
