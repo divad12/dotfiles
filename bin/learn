@@ -920,12 +920,41 @@ def _build_dashboard_page(
         '        <button type="button" class="chip" data-conf="medium" aria-pressed="false"><span class="conf-dot conf-medium"></span>Medium</button>\n'
         '        <button type="button" class="chip" data-conf="low" aria-pressed="false"><span class="conf-dot conf-low"></span>Low</button>\n'
         '      </div>\n'
+        '      <button type="button" id="review-start" class="btn review-start" aria-label="Open focus review mode">'
+        '<svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true"><path fill="currentColor" d="M3 2.5A1.5 1.5 0 0 1 4.5 1h7A1.5 1.5 0 0 1 13 2.5v11a1.5 1.5 0 0 1-1.5 1.5h-7A1.5 1.5 0 0 1 3 13.5v-11ZM4.5 2a.5.5 0 0 0-.5.5v11a.5.5 0 0 0 .5.5h7a.5.5 0 0 0 .5-.5v-11a.5.5 0 0 0-.5-.5h-7Z"/><path fill="currentColor" d="M6 5.5A.5.5 0 0 1 6.5 5h3a.5.5 0 0 1 0 1h-3a.5.5 0 0 1-.5-.5ZM6 8a.5.5 0 0 1 .5-.5h3a.5.5 0 0 1 0 1h-3A.5.5 0 0 1 6 8Z"/></svg>'
+        '<span>Focus review</span></button>\n'
         '    </div>\n'
         '\n'
         f'{panels}\n'
         '  </main>\n'
         '\n'
         '  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>\n'
+        '\n'
+        '  <div class="review-overlay" id="review-overlay" hidden aria-modal="true" role="dialog" aria-label="Focus review">\n'
+        '    <div class="review-bar">\n'
+        '      <div class="review-bar-left">\n'
+        '        <span class="review-mode-label">Focus review</span>\n'
+        '        <span class="review-progress" id="review-progress">— of —</span>\n'
+        '      </div>\n'
+        '      <div class="review-bar-right">\n'
+        '        <span class="review-hint"><kbd>esc</kbd> close <span class="review-hint-sep">·</span> <kbd>←</kbd> <kbd>→</kbd> navigate</span>\n'
+        '        <button type="button" id="review-close" class="review-close" aria-label="Close focus review">×</button>\n'
+        '      </div>\n'
+        '    </div>\n'
+        '    <div class="review-stage" id="review-stage" tabindex="-1"></div>\n'
+        '    <div class="review-footer">\n'
+        '      <div class="review-nav">\n'
+        '        <button type="button" id="review-prev" class="review-nav-btn" aria-label="Previous">‹</button>\n'
+        '        <button type="button" id="review-next" class="review-nav-btn" aria-label="Next">›</button>\n'
+        '      </div>\n'
+        '      <div class="review-actions">\n'
+        '        <button type="button" class="btn btn-primary" data-review-action="promote">Adopt</button>\n'
+        '        <button type="button" class="btn" data-review-action="candidate">Triage</button>\n'
+        '        <button type="button" class="btn" data-review-action="archive">Archive</button>\n'
+        '        <button type="button" class="btn btn-ghost" data-review-action="defer">Snooze</button>\n'
+        '      </div>\n'
+        '    </div>\n'
+        '  </div>\n'
         '\n'
         '  <script>'
         + _DASHBOARD_SCRIPT
@@ -1257,7 +1286,7 @@ html, body { height: 100%; }
 body {
   margin: 0;
   font-family: var(--sans);
-  font-size: 14.5px;
+  font-size: 16px;
   line-height: 1.6;
   background: var(--bg);
   background-image:
@@ -1285,7 +1314,7 @@ button { font: inherit; }
   grid-column: 1 / -1;
   margin: 0 0 18px;
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 500;
   letter-spacing: 0.18em;
   text-transform: uppercase;
@@ -1314,7 +1343,7 @@ button { font: inherit; }
 }
 .brand h1 {
   font-family: var(--serif);
-  font-size: 34px;
+  font-size: 38px;
   font-weight: 500;
   font-variation-settings: "opsz" 96;
   letter-spacing: -0.018em;
@@ -1324,13 +1353,13 @@ button { font: inherit; }
 }
 .snapshot {
   margin: 0;
-  font-size: 13px;
+  font-size: 14px;
   color: var(--text-2);
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
   grid-column: 1;
   grid-row: 3;
-  padding: 6px 0 0 23px;
+  padding: 8px 0 0 23px;
   letter-spacing: 0.005em;
 }
 .app-controls {
@@ -1355,10 +1384,10 @@ button { font: inherit; }
   background: var(--surface);
   border: 1px solid var(--border-strong);
   color: var(--text);
-  padding: 7px 14px;
+  padding: 8px 16px;
   border-radius: var(--radius-sm);
   font-family: var(--sans);
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 500;
   letter-spacing: 0.005em;
   cursor: pointer;
@@ -1410,7 +1439,7 @@ button { font: inherit; }
   padding: 14px 18px 14px 0;
   margin-right: 22px;
   font-family: var(--sans);
-  font-size: 13.5px;
+  font-size: 15px;
   font-weight: 500;
   display: inline-flex;
   align-items: center;
@@ -1429,7 +1458,7 @@ button { font: inherit; }
 .tabs .count {
   font-family: var(--mono);
   font-variant-numeric: tabular-nums;
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 500;
   color: var(--text-3);
   padding: 0;
@@ -1494,7 +1523,7 @@ main {
   grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
   gap: 6px 28px;
 }
-.signal-grid li { color: var(--text-2); font-size: 12.5px; line-height: 1.55; }
+.signal-grid li { color: var(--text-2); font-size: 13.5px; line-height: 1.55; }
 .signal-grid strong { color: var(--text); font-weight: 500; }
 
 .toolbar {
@@ -1522,9 +1551,10 @@ main {
   background: transparent;
   border: 0;
   flex: 1;
-  padding: 8px 8px;
+  padding: 9px 8px;
   color: var(--text);
   font: inherit;
+  font-size: 15px;
   outline: none;
 }
 
@@ -1534,13 +1564,13 @@ main {
   background: transparent;
   border: 1px solid var(--border);
   color: var(--text-2);
-  font-size: 12.5px;
-  padding: 5px 10px;
+  font-size: 13.5px;
+  padding: 6px 12px;
   border-radius: var(--radius-pill);
   cursor: pointer;
   display: inline-flex;
   align-items: center;
-  gap: 5px;
+  gap: 6px;
   transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
 }
 .chip:hover { background: var(--surface-2); color: var(--text); }
@@ -1614,7 +1644,7 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
 }
 .entry-title h2 {
   font-family: var(--serif);
-  font-size: 19px;
+  font-size: 22px;
   margin: 0;
   font-weight: 500;
   font-variation-settings: "opsz" 36;
@@ -1652,10 +1682,10 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
 .badge-done { color: var(--text-3); background: var(--surface-2); border-color: var(--border); }
 
 .ramification {
-  margin: 8px 0 14px 19px;
+  margin: 10px 0 16px 19px;
   color: var(--text-2);
-  font-size: 14px;
-  line-height: 1.55;
+  font-size: 16px;
+  line-height: 1.6;
   max-width: 68ch;
 }
 
@@ -1670,7 +1700,7 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
 .meta-item {
   color: var(--text-3);
   font-family: var(--mono);
-  font-size: 11px;
+  font-size: 12px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.04em;
   text-transform: lowercase;
@@ -1684,19 +1714,19 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
   display: inline-flex;
   align-items: center;
   gap: 8px;
-  padding: 3px 10px 3px 11px;
+  padding: 4px 11px 4px 12px;
   border-radius: 3px;
   border: 1px solid var(--required-border);
   background: var(--required-bg);
   color: var(--required-text);
   font-family: var(--mono);
-  font-size: 10.5px;
+  font-size: 11.5px;
   font-weight: 500;
   letter-spacing: 0.06em;
   text-transform: uppercase;
 }
 .pill .pill-kind {
-  font-size: 9.5px;
+  font-size: 10.5px;
   font-weight: 500;
   color: var(--text-3);
   letter-spacing: 0.08em;
@@ -1767,7 +1797,7 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
 .body dl { margin: 0; display: grid; gap: 18px; }
 .body .field dt {
   font-family: var(--mono);
-  font-size: 10px;
+  font-size: 11px;
   text-transform: uppercase;
   letter-spacing: 0.14em;
   color: var(--text-3);
@@ -1777,8 +1807,8 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
 .body .field dd {
   margin: 0;
   color: var(--text);
-  font-size: 14.5px;
-  line-height: 1.6;
+  font-size: 16px;
+  line-height: 1.65;
   max-width: 70ch;
 }
 .body .field-list { margin: 6px 0 0; padding-left: 20px; }
@@ -1786,7 +1816,7 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
 
 .guardrails-value {
   font-family: var(--mono);
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--text-2);
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
@@ -1853,21 +1883,31 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
 }
 .tech-grid dd {
   margin: 0;
-  font-size: 12.5px;
+  font-size: 13.5px;
   color: var(--text-2);
   word-break: break-word;
+  line-height: 1.55;
 }
 .tech-grid code {
-  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
-  font-size: 11.5px;
+  font-family: var(--mono);
+  font-size: 12.5px;
   background: var(--surface-2);
   padding: 1px 6px;
   border-radius: 4px;
   color: var(--text-2);
 }
 
-.note-field { display: block; font-size: 12px; color: var(--text-2); }
-.note-field span { display: block; margin-bottom: 4px; font-weight: 500; }
+.note-field { display: block; font-size: 13px; color: var(--text-2); }
+.note-field span {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.14em;
+  color: var(--text-3);
+}
 .note-field textarea {
   display: block;
   width: 100%;
@@ -1875,12 +1915,12 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
   background: var(--surface);
   border: 1px solid var(--border-strong);
   border-radius: var(--radius-sm);
-  padding: 8px 10px;
+  padding: 10px 12px;
   font: inherit;
-  font-size: 13px;
+  font-size: 14.5px;
   color: inherit;
   resize: vertical;
-  min-height: 56px;
+  min-height: 64px;
   transition: border-color 0.12s ease;
 }
 .note-field textarea:focus { outline: 2px solid var(--ring); outline-offset: -1px; border-color: var(--ring); }
@@ -1897,7 +1937,7 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
   gap: 6px;
   margin-top: 14px;
 }
-.actions .btn { padding: 6px 12px; font-size: 12.5px; }
+.actions .btn { padding: 7px 14px; font-size: 13.5px; }
 .actions .btn-ghost { color: var(--text-2); }
 
 .cal-pane {
@@ -1981,6 +2021,253 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
   transform: translateX(-50%) translateY(0);
 }
 
+.review-start {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
+  padding: 7px 14px;
+  background: var(--surface);
+  color: var(--text);
+  border: 1px solid var(--border-strong);
+  font-size: 13.5px;
+}
+.review-start svg { color: var(--accent); }
+.review-start:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent); }
+.review-start:hover svg { color: var(--accent); }
+main[data-active-tab="calibration"] .review-start { display: none; }
+
+.review-overlay {
+  position: fixed;
+  inset: 0;
+  background: var(--bg);
+  background-image:
+    radial-gradient(ellipse 1000px 700px at 50% -10%, rgba(31,78,74,0.05), transparent 60%),
+    radial-gradient(ellipse 800px 600px at 50% 110%, rgba(143,90,40,0.04), transparent 60%);
+  z-index: 200;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: review-fade 0.22s ease;
+}
+.review-overlay[hidden] { display: none; }
+@keyframes review-fade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+body.reviewing { overflow: hidden; }
+
+.review-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 32px;
+  border-bottom: 1px solid var(--rule);
+}
+.review-bar-left, .review-bar-right { display: flex; align-items: center; gap: 18px; }
+.review-mode-label {
+  font-family: var(--mono);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.18em;
+  color: var(--accent);
+  font-weight: 500;
+}
+.review-progress {
+  font-family: var(--mono);
+  font-size: 12px;
+  letter-spacing: 0.08em;
+  color: var(--text-3);
+  font-variant-numeric: tabular-nums;
+}
+.review-hint {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-3);
+  letter-spacing: 0.04em;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.review-hint kbd {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  padding: 1px 5px;
+  background: var(--surface);
+  color: var(--text-2);
+}
+.review-hint-sep { opacity: 0.5; margin: 0 4px; }
+.review-close {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  font-size: 24px;
+  line-height: 1;
+  width: 32px;
+  height: 32px;
+  border-radius: var(--radius-sm);
+  color: var(--text-2);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.review-close:hover { background: var(--surface-2); color: var(--text); }
+
+.review-stage {
+  flex: 1;
+  overflow-y: auto;
+  padding: 56px 32px 32px;
+  display: flex;
+  justify-content: center;
+  outline: none;
+}
+.review-stage:empty::before {
+  content: "";
+}
+.review-card-wrap {
+  width: 100%;
+  max-width: 760px;
+  animation: review-rise 0.32s ease;
+}
+@keyframes review-rise {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.review-stage .entry.review-active {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  animation: none;
+  width: 100%;
+}
+.review-stage .entry.review-active:hover { border: 0; }
+.review-stage .entry.review-active.is-decided::before { display: none; }
+.review-stage .entry.review-active .entry-title h2 {
+  font-size: 36px;
+  line-height: 1.18;
+  font-variation-settings: "opsz" 96;
+  letter-spacing: -0.02em;
+  font-weight: 500;
+}
+.review-stage .entry.review-active .entry-head { margin-bottom: 4px; }
+.review-stage .entry.review-active .conf {
+  width: 9px;
+  height: 9px;
+}
+.review-stage .entry.review-active .ramification {
+  font-size: 19px;
+  margin: 14px 0 22px 0;
+  max-width: none;
+  font-family: var(--serif);
+  font-variation-settings: "opsz" 24;
+  font-style: italic;
+  line-height: 1.5;
+  color: var(--text-2);
+}
+.review-stage .entry.review-active .entry-meta {
+  margin-left: 0;
+  margin-bottom: 28px;
+  gap: 10px;
+}
+.review-stage .entry.review-active .entry-meta .meta-item { font-size: 13px; }
+.review-stage .entry.review-active .pill {
+  font-size: 12.5px;
+  padding: 5px 12px 5px 13px;
+}
+.review-stage .entry.review-active .entry-body { margin-top: 0; }
+.review-stage .entry.review-active .entry-body > summary { display: none; }
+.review-stage .entry.review-active .entry-body[open] { display: block; }
+.review-stage .entry.review-active .body {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  padding: 36px 40px;
+  font-size: 17px;
+  gap: 24px;
+}
+.review-stage .entry.review-active .body::before { display: none; }
+.review-stage .entry.review-active .body .field dt { font-size: 11.5px; margin-bottom: 8px; }
+.review-stage .entry.review-active .body .field dd {
+  font-size: 17px;
+  line-height: 1.65;
+  max-width: none;
+}
+.review-stage .entry.review-active .guardrails-value { font-size: 14.5px; }
+.review-stage .entry.review-active .note-field { display: none; }
+.review-stage .entry.review-active .more-actions { display: none; }
+.review-stage .entry.review-active > .actions { display: none; }
+.review-stage .entry.review-active .tech-details > summary { font-size: 12.5px; }
+.review-stage .entry.review-active .tech-details { margin-top: 8px; }
+
+.review-footer {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 16px 32px 22px;
+  border-top: 1px solid var(--rule);
+  gap: 16px;
+  background: var(--bg);
+}
+.review-nav {
+  display: flex;
+  gap: 6px;
+}
+.review-nav-btn {
+  appearance: none;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  width: 40px;
+  height: 38px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 18px;
+  color: var(--text-2);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.review-nav-btn:hover:not([disabled]) { background: var(--surface-2); border-color: var(--text-3); color: var(--text); }
+.review-nav-btn[disabled] { opacity: 0.35; cursor: default; }
+.review-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+.review-actions .btn {
+  font-size: 14.5px;
+  padding: 9px 18px;
+}
+
+.review-finished {
+  text-align: center;
+  padding: 80px 24px;
+  max-width: 480px;
+  margin: 0 auto;
+  animation: review-rise 0.32s ease;
+}
+.review-finished h2 {
+  font-family: var(--serif);
+  font-size: 32px;
+  font-weight: 500;
+  font-variation-settings: "opsz" 60;
+  margin: 0 0 12px;
+  letter-spacing: -0.01em;
+}
+.review-finished p {
+  color: var(--text-2);
+  font-size: 16px;
+  line-height: 1.6;
+  margin: 0 0 24px;
+}
+
 @media (max-width: 720px) {
   .app { grid-template-columns: 1fr; padding: 24px 18px 6px; }
   .app-controls { grid-row: auto; grid-column: 1; justify-self: start; }
@@ -1989,6 +2276,12 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
   .tabs { padding: 0 18px; }
   .entry { padding: 14px 16px; }
   .ramification, .entry-meta { margin-left: 0; }
+  .review-stage { padding: 28px 18px; }
+  .review-bar, .review-footer { padding: 14px 18px; }
+  .review-hint { display: none; }
+  .review-stage .entry.review-active .entry-title h2 { font-size: 28px; }
+  .review-stage .entry.review-active .body { padding: 24px 22px; font-size: 16px; }
+  .review-stage .entry.review-active .ramification { font-size: 17px; }
 }
 """
 
@@ -2176,6 +2469,7 @@ _DASHBOARD_SCRIPT = r"""
   document.addEventListener("keydown", (event) => {
     if (event.target && /input|textarea/i.test(event.target.tagName || "")) return;
     if (event.metaKey || event.ctrlKey || event.altKey) return;
+    if (window.__reviewActive) return;
     const visible = Array.from(document.querySelectorAll("[data-panel]:not([hidden]) .entry"))
       .filter((card) => !card.hidden);
     if (!visible.length) return;
@@ -2204,6 +2498,212 @@ _DASHBOARD_SCRIPT = r"""
   // Make entries focusable for keyboard nav
   document.querySelectorAll(".entry").forEach((card) => {
     if (!card.hasAttribute("tabindex")) card.setAttribute("tabindex", "-1");
+  });
+
+  // ───── Focus review (slideshow) ─────
+  const review = {
+    cards: [],
+    index: 0,
+    active: false,
+    placeholder: null,
+    overlay: document.getElementById("review-overlay"),
+    stage: document.getElementById("review-stage"),
+    progress: document.getElementById("review-progress"),
+    prevBtn: document.getElementById("review-prev"),
+    nextBtn: document.getElementById("review-next"),
+    actionsRow: document.querySelector(".review-actions"),
+  };
+
+  function gatherReviewCards() {
+    return Array.from(
+      document.querySelectorAll('[data-panel]:not([hidden]) .entry')
+    ).filter((c) => !c.hidden);
+  }
+
+  function reviewStashCurrent() {
+    const wrap = review.stage.querySelector(".review-card-wrap");
+    if (!wrap) return;
+    const card = wrap.querySelector(".entry");
+    if (card && review.placeholder) {
+      review.placeholder.replaceWith(card);
+      card.classList.remove("review-active");
+      // Restore tech-details state we may have toggled
+      card.querySelectorAll(".entry-body").forEach((d) => { d.open = false; });
+    }
+    review.placeholder = null;
+    wrap.remove();
+  }
+
+  function reviewRender() {
+    reviewStashCurrent();
+    if (!review.cards.length) {
+      reviewShowFinished();
+      return;
+    }
+    if (review.index >= review.cards.length) review.index = review.cards.length - 1;
+    if (review.index < 0) review.index = 0;
+    const card = review.cards[review.index];
+    if (!card) return;
+    // Insert placeholder where the card was, move card into stage
+    review.placeholder = document.createElement("div");
+    review.placeholder.style.display = "none";
+    review.placeholder.dataset.reviewPlaceholder = "1";
+    card.replaceWith(review.placeholder);
+    card.classList.add("review-active");
+    // Force evidence/suggested fix expanded; tech refs collapsed
+    const body = card.querySelector(".entry-body");
+    if (body) body.open = true;
+    const tech = card.querySelector(".tech-details");
+    if (tech) tech.open = false;
+    const wrap = document.createElement("div");
+    wrap.className = "review-card-wrap";
+    wrap.appendChild(card);
+    review.stage.innerHTML = "";
+    review.stage.appendChild(wrap);
+    review.stage.scrollTop = 0;
+    // Progress label
+    review.progress.textContent =
+      String(review.index + 1).padStart(2, "0") +
+      " of " +
+      String(review.cards.length).padStart(2, "0");
+    // Prev/next disabled states
+    review.prevBtn.disabled = review.index === 0;
+    review.nextBtn.disabled = review.index === review.cards.length - 1;
+    // Action buttons reflect decided state of this card
+    const decided = card.classList.contains("is-decided");
+    review.actionsRow.querySelectorAll("[data-review-action]").forEach((btn) => {
+      btn.disabled = decided;
+      btn.dataset.recorded = decided ? "true" : "";
+    });
+    review.stage.focus({ preventScroll: true });
+  }
+
+  function reviewShowFinished() {
+    reviewStashCurrent();
+    review.stage.innerHTML =
+      '<div class="review-finished"><h2>Review complete</h2>' +
+      '<p>You\'ve walked through every visible card. Hit Finish &amp; Execute to land your decisions, ' +
+      "or close this view and keep browsing.</p>" +
+      '<button type="button" id="review-finish" class="btn btn-primary">Finish &amp; Execute</button></div>';
+    const finishBtn = document.getElementById("review-finish");
+    if (finishBtn) {
+      finishBtn.addEventListener("click", async () => {
+        finishBtn.disabled = true;
+        finishBtn.textContent = "Finishing…";
+        await finishReview();
+        showToast("All decisions executed");
+      });
+    }
+    review.progress.textContent = "done";
+    review.prevBtn.disabled = false;
+    review.nextBtn.disabled = true;
+    review.actionsRow.querySelectorAll("[data-review-action]").forEach((btn) => {
+      btn.disabled = true;
+    });
+  }
+
+  function reviewOpen() {
+    const cards = gatherReviewCards();
+    if (!cards.length) {
+      showToast("Nothing to review");
+      return;
+    }
+    review.cards = cards;
+    review.index = 0;
+    review.active = true;
+    window.__reviewActive = true;
+    review.overlay.hidden = false;
+    document.body.classList.add("reviewing");
+    reviewRender();
+  }
+
+  function reviewClose() {
+    if (!review.active) return;
+    reviewStashCurrent();
+    review.stage.innerHTML = "";
+    review.cards = [];
+    review.active = false;
+    window.__reviewActive = false;
+    review.overlay.hidden = true;
+    document.body.classList.remove("reviewing");
+  }
+
+  function reviewNext() {
+    if (!review.active) return;
+    if (review.index >= review.cards.length - 1) {
+      reviewShowFinished();
+      return;
+    }
+    review.index += 1;
+    reviewRender();
+  }
+
+  function reviewPrev() {
+    if (!review.active) return;
+    if (review.index <= 0) return;
+    review.index -= 1;
+    reviewRender();
+  }
+
+  document.getElementById("review-start").addEventListener("click", reviewOpen);
+  document.getElementById("review-close").addEventListener("click", reviewClose);
+  review.prevBtn.addEventListener("click", reviewPrev);
+  review.nextBtn.addEventListener("click", reviewNext);
+
+  // Click on a backdrop area closes (but not on the card itself)
+  review.overlay.addEventListener("click", (event) => {
+    if (event.target === review.overlay) reviewClose();
+  });
+
+  // Footer action buttons — record + auto-advance
+  review.actionsRow.addEventListener("click", async (event) => {
+    const btn = event.target.closest("[data-review-action]");
+    if (!btn || btn.disabled) return;
+    const action = btn.dataset.reviewAction;
+    const card = review.cards[review.index];
+    if (!card) return;
+    const fingerprint = card.dataset.fingerprint;
+    await recordDecision({ fingerprint, action, note: "" });
+    // Mirror the decided visual state on the underlying card
+    card.classList.add("is-decided");
+    review.actionsRow.querySelectorAll("[data-review-action]").forEach((b) => {
+      b.disabled = true;
+      b.dataset.recorded = "true";
+    });
+    // Also mark inline action button on the card
+    const inline = card.querySelector('.actions [data-action="' + action + '"]');
+    if (inline) inline.dataset.recorded = "true";
+    showToast(ACTION_TOAST[action] || "Recorded");
+    // Auto-advance to next undecided after a short pause
+    setTimeout(() => {
+      const nextUndecided = review.cards.findIndex(
+        (c, i) => i > review.index && !c.classList.contains("is-decided")
+      );
+      if (nextUndecided !== -1) {
+        review.index = nextUndecided;
+        reviewRender();
+      } else if (review.index < review.cards.length - 1) {
+        reviewNext();
+      } else {
+        reviewShowFinished();
+      }
+    }, 320);
+  });
+
+  // Keyboard inside review mode
+  document.addEventListener("keydown", (event) => {
+    if (!review.active) return;
+    if (event.target && /input|textarea/i.test(event.target.tagName || "")) return;
+    if (event.key === "Escape") {
+      event.preventDefault();
+      reviewClose();
+    } else if (event.key === "ArrowRight" || event.key === "l" || event.key === "j") {
+      event.preventDefault();
+      reviewNext();
+    } else if (event.key === "ArrowLeft" || event.key === "h" || event.key === "k") {
+      event.preventDefault();
+      reviewPrev();
+    }
   });
 })();
 """
