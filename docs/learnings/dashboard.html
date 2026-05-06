@@ -33,13 +33,13 @@
   <main>
     <section class="triage" aria-label="Dashboard Triage Signals">
       <h2>Dashboard Triage Signals</h2>
-      <ul><li><strong>Needs Review</strong>: 5</li>
-<li><strong>Open Items</strong>: 5</li>
+      <ul><li><strong>Needs Review</strong>: 8</li>
+<li><strong>Open Items</strong>: 9</li>
 <li><strong>Auto Done</strong>: 0</li>
-<li><strong>Raw Inbox</strong>: 5</li>
+<li><strong>Raw Inbox</strong>: 9</li>
 <li><strong>Candidates</strong>: 0</li>
 <li><strong>Aging/Stale</strong>: 0</li>
-<li><strong>Likely Duplicates</strong>: 1</li>
+<li><strong>Likely Duplicates</strong>: 2</li>
 <li><strong>Calibration Learned</strong>: None</li>
 <li><strong>Blocked Decisions</strong>: None</li>
 <li><strong>Ask Agent Prompts</strong>: Ask agent: choose archive, candidate, defer, or follow-up for each needs-review item. Ask agent: turn code-related decisions into TDD/review tasks before marking done.</li></ul>
@@ -49,11 +49,11 @@
       <label>Calibration note <textarea id="calibration-note" rows="2"></textarea></label>
       <button type="button" id="record-calibration" data-action="calibration">Record Calibration</button>
     </section>
-    
+
       <article class="entry" data-fingerprint="83b06990aeb2">
         <header>
           <div>
-            <p class="meta">inbox.md | inbox | high | skill</p>
+            <p class="meta">inbox.md | inbox | high | skill (required)</p>
             <h2>Keep one canonical learning front door</h2>
           </div>
           <div class="controls"><button type="button" data-action="candidate" data-fingerprint="83b06990aeb2">Candidate</button>
@@ -66,10 +66,10 @@
           <summary>Evidence and Technical refs</summary>
           <dl>
             <dt>Evidence</dt><dd>User questioned why an old capture wrapper and repo-local README duplicated /learn behavior and warned that duplicate docs drift.</dd>
-            
+
             <dt>Technical refs</dt><dd>.agents/skills/learn/SKILL.md, docs/ai/learning-system.md, docs/learnings/README.md</dd>
             <dt>Recommended fix</dt><dd>Move useful capture reasoning into /learn and the canonical learning-system guide; keep repo-local READMEs pointer-only.</dd>
-            
+
           </dl>
         </details>
         <label>Note <textarea rows="2" data-note-for="83b06990aeb2"></textarea></label>
@@ -79,7 +79,7 @@
       <article class="entry" data-fingerprint="65a9dbb0b3b5">
         <header>
           <div>
-            <p class="meta">inbox.md | inbox | high | automation</p>
+            <p class="meta">inbox.md | inbox | high | automation (required)</p>
             <h2>Verify that required behavior is actually wired</h2>
           </div>
           <div class="controls"><button type="button" data-action="candidate" data-fingerprint="65a9dbb0b3b5">Candidate</button>
@@ -92,10 +92,10 @@
           <summary>Evidence and Technical refs</summary>
           <dl>
             <dt>Evidence</dt><dd>User asked whether triage and executor actually read the learning-system doc and explicitly apply the abstraction ladder, revealing that &quot;should do X&quot; language is not enough unless the system is checked for actual wiring.</dd>
-            
+
             <dt>Technical refs</dt><dd>/Users/david/.codex/automations/daily-learning-triage/automation.toml, /Users/david/.codex/automations/daily-learning-executor/automation.toml, .agents/skills/learn/tests/structural-check.sh</dd>
             <dt>Recommended fix</dt><dd>When a workflow depends on a behavior, verify the actual trigger, prompt, hook, test, or structural check that enforces it; add one if it is missing.</dd>
-            
+
           </dl>
         </details>
         <label>Note <textarea rows="2" data-note-for="65a9dbb0b3b5"></textarea></label>
@@ -105,7 +105,7 @@
       <article class="entry" data-fingerprint="755a268f4869">
         <header>
           <div>
-            <p class="meta">inbox.md | inbox | high | docs</p>
+            <p class="meta">inbox.md | inbox | high | docs (required)</p>
             <h2>Do not present deterministic IDs as semantic judgment</h2>
           </div>
           <div class="controls"><button type="button" data-action="candidate" data-fingerprint="755a268f4869">Candidate</button>
@@ -118,10 +118,10 @@
           <summary>Evidence and Technical refs</summary>
           <dl>
             <dt>Evidence</dt><dd>User pointed out that exact fingerprint matching will almost never dedupe probabilistic agent wording; meaningful duplicate detection and clustering require agent judgment.</dd>
-            
+
             <dt>Technical refs</dt><dd>.agents/skills/learn/SKILL.md, docs/ai/learning-system.md, bin/learn</dd>
             <dt>Recommended fix</dt><dd>Use fingerprints only as row IDs and exact replay guards; make docs, tests, and automation prompts state that semantic dedupe/clustering is agent-owned.</dd>
-            
+
           </dl>
         </details>
         <label>Note <textarea rows="2" data-note-for="755a268f4869"></textarea></label>
@@ -131,7 +131,7 @@
       <article class="entry" data-fingerprint="8fa091b8f04e">
         <header>
           <div>
-            <p class="meta">inbox.md | inbox | high | skill</p>
+            <p class="meta">inbox.md | inbox | high | skill (required)</p>
             <h2>Observers should route learnings, not become memory stores</h2>
           </div>
           <div class="controls"><button type="button" data-action="candidate" data-fingerprint="8fa091b8f04e">Candidate</button>
@@ -144,10 +144,10 @@
           <summary>Evidence and Technical refs</summary>
           <dl>
             <dt>Evidence</dt><dd>User asked whether a different Journology session would remember to capture learnings if only the /learn skill header mentioned capture triggers.</dd>
-            <dt>Additional evidence</dt><dd><ul><li>User questioned whether task-observer&#x27;s old observation log is still useful now that durable learnings should route through the learning system.</li></ul></dd>
+<dt>Additional evidence</dt><dd><ul><li>User questioned whether task-observer&#x27;s old observation log is still useful now that durable learnings should route through the learning system.</li></ul></dd>
             <dt>Technical refs</dt><dd>.agents/skills/task-observer/SKILL.md, .agents/skills/learn/SKILL.md, .claude/AGENTS.md</dd>
             <dt>Recommended fix</dt><dd>Keep task-observer as the trigger/sensor, route durable learnings through /learn, and use observation files only as fallback or session audit notes.</dd>
-            
+
           </dl>
         </details>
         <label>Note <textarea rows="2" data-note-for="8fa091b8f04e"></textarea></label>
@@ -157,7 +157,7 @@
       <article class="entry" data-fingerprint="23031c089efa">
         <header>
           <div>
-            <p class="meta">inbox.md | inbox | high | automation</p>
+            <p class="meta">inbox.md | inbox | high | automation (required)</p>
             <h2>Multi-cwd automations must be repo-scoped per run</h2>
           </div>
           <div class="controls"><button type="button" data-action="candidate" data-fingerprint="23031c089efa">Candidate</button>
@@ -170,13 +170,117 @@
           <summary>Evidence and Technical refs</summary>
           <dl>
             <dt>Evidence</dt><dd>User noted that Codex spawns one executor per cwd, so the Journology executor should not inspect or report on dotfiles.</dd>
-            
+
             <dt>Technical refs</dt><dd>/Users/david/.codex/automations/daily-learning-executor/automation.toml, /Users/david/.codex/automations/daily-learning-triage/automation.toml, docs/ai/learning-system.md</dd>
             <dt>Recommended fix</dt><dd>Automation prompts and contracts should state that each cron invocation operates only on its current working directory and must not touch sibling configured repos.</dd>
-            
+
           </dl>
         </details>
         <label>Note <textarea rows="2" data-note-for="23031c089efa"></textarea></label>
+      </article>
+
+
+      <article class="entry" data-fingerprint="631e0a957ad5">
+        <header>
+          <div>
+            <p class="meta">inbox.md | inbox | high | docs (required), test (required)</p>
+            <h2>Prevention plans can need companion artifacts</h2>
+          </div>
+          <div class="controls"><button type="button" data-action="candidate" data-fingerprint="631e0a957ad5">Candidate</button>
+<button type="button" data-action="promote" data-fingerprint="631e0a957ad5">Promote</button>
+<button type="button" data-action="archive" data-fingerprint="631e0a957ad5">Archive</button>
+<button type="button" data-action="defer" data-fingerprint="631e0a957ad5">Defer</button></div>
+        </header>
+        <p>Agents can auto-promote a docs-looking entry while skipping the test, helper, skill, or automation work that actually prevents the bug.</p>
+        <details>
+          <summary>Evidence and Technical refs</summary>
+          <dl>
+            <dt>Evidence</dt><dd>Journology candidates showed prevention plans often need more than one artifact, such as a test plus docs or a helper plus test.</dd>
+<dt>Additional evidence</dt><dd><ul><li>User clarified that the system should store one readable prevention artifact list with required/proposed markers instead of primary and secondary fields.</li></ul></dd>
+            <dt>Technical refs</dt><dd>docs/ai/learning-system.md, .agents/skills/learn/SKILL.md, setup/tests/test_learn_cli.py</dd>
+            <dt>Recommended fix</dt><dd>Store Prevention artifacts as one list with required/proposed markers and apply TDD/review gates to required code-risk artifacts.</dd>
+
+          </dl>
+        </details>
+        <label>Note <textarea rows="2" data-note-for="631e0a957ad5"></textarea></label>
+      </article>
+
+
+      <article class="entry" data-fingerprint="f25da97943c6">
+        <header>
+          <div>
+            <p class="meta">inbox.md | inbox | high | docs (required), automation (required)</p>
+            <h2>Learning automation parents need frontier judgment models</h2>
+          </div>
+          <div class="controls"><button type="button" data-action="candidate" data-fingerprint="f25da97943c6">Candidate</button>
+<button type="button" data-action="promote" data-fingerprint="f25da97943c6">Promote</button>
+<button type="button" data-action="archive" data-fingerprint="f25da97943c6">Archive</button>
+<button type="button" data-action="defer" data-fingerprint="f25da97943c6">Defer</button></div>
+        </header>
+        <p>A weaker parent model can miscluster evidence, auto-execute the wrong prevention work, or miss when a decision needs human review.</p>
+        <details>
+          <summary>Evidence and Technical refs</summary>
+          <dl>
+            <dt>Evidence</dt><dd>User noted that daily learning automations were defaulting to gpt-5.2, which is too weak for clustering, abstraction, safety, and calibration decisions across many learnings.</dd>
+
+            <dt>Technical refs</dt><dd>docs/ai/learning-system.md, /Users/david/.codex/automations/daily-learning-triage/automation.toml, /Users/david/.codex/automations/daily-learning-executor/automation.toml</dd>
+            <dt>Recommended fix</dt><dd>Run daily learning triage and executor parents on gpt-5.5 high reasoning while using focused coding models such as gpt-5.3-codex only for bounded executor-dispatched subagents.</dd>
+
+          </dl>
+        </details>
+        <label>Note <textarea rows="2" data-note-for="f25da97943c6"></textarea></label>
+      </article>
+
+
+      <article class="entry" data-fingerprint="08c2d3bc8cf3">
+        <header>
+          <div>
+            <p class="meta">inbox.md | inbox | medium | docs (required)</p>
+            <h2>Daily automations should read canonical docs from master</h2>
+          </div>
+          <div class="controls"><button type="button" data-action="candidate" data-fingerprint="08c2d3bc8cf3">Candidate</button>
+<button type="button" data-action="promote" data-fingerprint="08c2d3bc8cf3">Promote</button>
+<button type="button" data-action="archive" data-fingerprint="08c2d3bc8cf3">Archive</button>
+<button type="button" data-action="defer" data-fingerprint="08c2d3bc8cf3">Defer</button></div>
+        </header>
+        <p>Scheduled runs can follow stale or disappearing feature-worktree instructions instead of the current canonical learning contract.</p>
+        <details>
+          <summary>Evidence and Technical refs</summary>
+          <dl>
+            <dt>Evidence</dt><dd>Daily learning automation prompts were still reading the global learning-system contract from /Users/david/.codex/worktrees/20dc/dotfiles even after the work was being landed to master.</dd>
+
+            <dt>Technical refs</dt><dd>None</dd>
+            <dt>Recommended fix</dt><dd>Point daily learning automations at the durable dotfiles master checkout and use repo-local docs only as cwd-specific supplements.</dd>
+
+          </dl>
+        </details>
+        <label>Note <textarea rows="2" data-note-for="08c2d3bc8cf3"></textarea></label>
+      </article>
+
+
+      <article class="entry" data-fingerprint="b1ade9e50ec0">
+        <header>
+          <div>
+            <p class="meta">inbox.md | inbox | high | docs (required), automation (required)</p>
+            <h2>Daily automations should read canonical docs from master</h2>
+          </div>
+          <div class="controls"><button type="button" data-action="candidate" data-fingerprint="b1ade9e50ec0">Candidate</button>
+<button type="button" data-action="promote" data-fingerprint="b1ade9e50ec0">Promote</button>
+<button type="button" data-action="archive" data-fingerprint="b1ade9e50ec0">Archive</button>
+<button type="button" data-action="defer" data-fingerprint="b1ade9e50ec0">Defer</button></div>
+        </header>
+        <p>Scheduled runs can follow stale or disappearing feature-worktree instructions instead of the current canonical learning contract.</p>
+        <details>
+          <summary>Evidence and Technical refs</summary>
+          <dl>
+            <dt>Evidence</dt><dd>Daily learning automation prompts were still reading the global learning-system contract from /Users/david/.codex/worktrees/20dc/dotfiles even after the work was being landed to master.</dd>
+
+            <dt>Technical refs</dt><dd>docs/ai/learning-system.md, /Users/david/.codex/automations/daily-learning-triage/automation.toml, /Users/david/.codex/automations/daily-learning-executor/automation.toml</dd>
+            <dt>Recommended fix</dt><dd>Point daily learning automations at the durable dotfiles master checkout and use repo-local docs only as cwd-specific supplements.</dd>
+
+          </dl>
+        </details>
+        <label>Note <textarea rows="2" data-note-for="b1ade9e50ec0"></textarea></label>
       </article>
 
   </main>

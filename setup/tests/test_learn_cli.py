@@ -34,8 +34,8 @@ def capture_scale_picker(repo: Path, source: str) -> subprocess.CompletedProcess
         "Users waste time finding a guest and may think preview is broken.",
         "--recommended-fix",
         "Use the shared searchable picker for large guest collections.",
-        "--candidate-artifact",
-        "helper",
+        "--prevention-artifact",
+        "helper|required",
         "--technical-ref",
         "PreviewSimulator",
         "--confidence",
@@ -64,8 +64,8 @@ def capture_learning(
         "Users lose a durable guardrail if this learning is forgotten.",
         "--recommended-fix",
         "Route the learning to the closest durable prevention artifact.",
-        "--candidate-artifact",
-        artifact,
+        "--prevention-artifact",
+        f"{artifact}|required",
         "--technical-ref",
         technical_ref,
         "--confidence",
@@ -87,8 +87,8 @@ def capture_multiline_evidence(repo: Path) -> subprocess.CompletedProcess[str]:
         "Users lose evidence if markdown headings split the learning entry.",
         "--recommended-fix",
         "Only split stored entries on real learning headings.",
-        "--candidate-artifact",
-        "docs",
+        "--prevention-artifact",
+        "docs|required",
         "--technical-ref",
         "docs/learnings/evidence.md",
         "--confidence",
@@ -156,8 +156,81 @@ def test_capture_writes_plain_english_entry(tmp_path: Path) -> None:
     assert "- User-facing summary: Preview guest picker is painful on large events" in inbox
     assert "- Ramification: Users waste time finding a guest and may think preview is broken." in inbox
     assert "- Recommended fix: Use the shared searchable picker for large guest collections." in inbox
-    assert "- Candidate artifact: helper" in inbox
+    assert "- Prevention artifacts: helper (required)" in inbox
     assert "- Status: inbox" in inbox
+
+
+def test_capture_preserves_prevention_artifacts_in_entry_and_dashboard(tmp_path: Path) -> None:
+    assert run_learn(tmp_path, "init").returncode == 0
+
+    result = run_learn(
+        tmp_path,
+        "capture",
+        "--source",
+        "review",
+        "--summary",
+        "Candidate actions can need companion artifacts",
+        "--evidence",
+        "A learning may need a docs update plus a regression test.",
+        "--ramification",
+        "Users lose the full prevention plan if the artifact list hides required companion work.",
+        "--recommended-fix",
+        "Keep the primary candidate artifact for routing and preserve companion artifacts for review.",
+        "--prevention-artifact",
+        "docs|required",
+        "--prevention-artifact",
+        "test|required",
+        "--prevention-artifact",
+        "skill|proposed",
+        "--technical-ref",
+        "docs/learnings/candidates.md",
+        "--confidence",
+        "high",
+    )
+
+    assert result.returncode == 0, result.stderr
+    inbox = (tmp_path / "docs" / "learnings" / "inbox.md").read_text()
+    assert "- Prevention artifacts: docs (required), test (required), skill (proposed)" in inbox
+    assert "- Requires TDD/review: yes" in inbox
+
+    dashboard = run_learn(tmp_path, "dashboard")
+
+    assert dashboard.returncode == 0, dashboard.stderr
+    html = (tmp_path / "docs" / "learnings" / "dashboard.html").read_text()
+    assert "docs (required), test (required), skill (proposed)" in html
+
+
+def test_required_code_prevention_artifact_blocks_promote_decision_until_tdd_review(
+    tmp_path: Path,
+) -> None:
+    assert run_learn(tmp_path, "init").returncode == 0
+    assert capture_learning(
+        tmp_path,
+        summary="Docs rule still needs a regression test",
+        artifact="docs",
+        technical_ref="docs/learnings/candidates.md",
+    ).returncode == 0
+    store = tmp_path / "docs" / "learnings"
+    fingerprint = fingerprint_from((store / "inbox.md").read_text())
+    (store / "decisions.jsonl").write_text(
+        json.dumps({"fingerprint": fingerprint, "action": "prevention-artifact", "value": "test|required", "note": "add test too"})
+        + "\n"
+        + json.dumps({"fingerprint": fingerprint, "action": "promote", "note": "after docs review"})
+        + "\n"
+    )
+
+    result = run_learn(tmp_path, "execute")
+
+    assert result.returncode == 0, result.stderr
+    inbox = (store / "inbox.md").read_text()
+    candidates = (store / "candidates.md").read_text()
+    audit = (store / "auto-actions.md").read_text()
+    assert "Docs rule still needs a regression test" in inbox
+    assert "Docs rule still needs a regression test" not in candidates
+    assert "- Prevention artifacts: docs (required), test (required)" in inbox
+    assert "- Requires TDD/review: yes" in inbox
+    assert "- Follow-up task: TDD/review required before promote: after docs review" in inbox
+    assert f"follow-up: {fingerprint} TDD/review required before promote" in audit
 
 
 def test_capture_merges_exact_fingerprint_replays(tmp_path: Path) -> None:
@@ -644,7 +717,7 @@ def test_capture_reopens_archive_with_new_dashboard_metadata(tmp_path: Path) -> 
     assert dashboard.returncode == 0, dashboard.stderr
     inbox = (store / "inbox.md").read_text()
     html = (store / "dashboard.html").read_text()
-    assert "- Candidate artifact: docs" in inbox
+    assert "- Prevention artifacts: docs (required)" in inbox
     assert "- Confidence: high" in inbox
     assert "- Recommended fix: Route the learning to the closest durable prevention artifact." in inbox
     assert "- Status: inbox" in inbox
@@ -745,8 +818,8 @@ def test_execute_preserves_code_risk_when_artifact_changed_before_promote(tmp_pa
         json.dumps(
             {
                 "fingerprint": fingerprint,
-                "action": "candidate-artifact",
-                "value": "docs",
+                "action": "prevention-artifact",
+                "value": "docs|required",
                 "note": "try docs first",
             }
         )
@@ -763,7 +836,7 @@ def test_execute_preserves_code_risk_when_artifact_changed_before_promote(tmp_pa
     audit = (store / "auto-actions.md").read_text()
     assert "Helper risk should not be laundered through docs" in inbox
     assert "Helper risk should not be laundered through docs" not in candidates
-    assert "- Candidate artifact: docs" in inbox
+    assert "- Prevention artifacts: helper (required), docs (required)" in inbox
     assert "- Requires TDD/review: yes" in inbox
     assert "- Follow-up task: TDD/review required before promote: promote after docs" in inbox
     assert f"follow-up: {fingerprint} TDD/review required before promote" in audit
@@ -777,7 +850,7 @@ def test_execute_metadata_decisions_update_learning_files(tmp_path: Path) -> Non
     (store / "decisions.jsonl").write_text(
         json.dumps({"fingerprint": fingerprint, "action": "confidence", "value": "low", "note": "not recurring"})
         + "\n"
-        + json.dumps({"fingerprint": fingerprint, "action": "candidate-artifact", "value": "docs", "note": "docs only"})
+        + json.dumps({"fingerprint": fingerprint, "action": "prevention-artifacts", "value": "docs|required", "note": "docs only"})
         + "\n"
         + json.dumps({"fingerprint": fingerprint, "action": "note", "note": "Revisit after next preview QA"})
         + "\n"
@@ -790,7 +863,7 @@ def test_execute_metadata_decisions_update_learning_files(tmp_path: Path) -> Non
     assert result.returncode == 0, result.stderr
     inbox = (store / "inbox.md").read_text()
     assert "- Confidence: low" in inbox
-    assert "- Candidate artifact: docs" in inbox
+    assert "- Prevention artifacts: docs (required)" in inbox
     assert "- Decision note: Revisit after next preview QA" in inbox
     assert f"- {fingerprint}: High confidence was too strong" in (store / "calibration.md").read_text()
     assert (store / "decisions.jsonl").read_text() == ""
@@ -932,6 +1005,46 @@ def test_promote_pass_respects_persistent_tdd_review_marker(tmp_path: Path) -> N
     assert "- Requires TDD/review: yes" in candidates
     assert "- Follow-up task: follow-up required before code changes" in candidates
     assert "auto-promote: candidate" in audit
+
+
+def test_promote_pass_treats_secondary_code_artifacts_as_tdd_work(tmp_path: Path) -> None:
+    assert run_learn(tmp_path, "init").returncode == 0
+    result = run_learn(
+        tmp_path,
+        "capture",
+        "--source",
+        "review",
+        "--summary",
+        "Docs candidate also needs a test",
+        "--evidence",
+        "The durable rule is documented, but the regression is still testable.",
+        "--ramification",
+        "Users get a written rule without the automated prevention that would catch regressions.",
+        "--recommended-fix",
+        "Update the docs and add the regression test when the code surface exists.",
+        "--prevention-artifact",
+        "docs|required",
+        "--prevention-artifact",
+        "test|required",
+        "--technical-ref",
+        "docs/learnings/candidates.md",
+        "--confidence",
+        "high",
+    )
+    assert result.returncode == 0, result.stderr
+    store = tmp_path / "docs" / "learnings"
+
+    promote = run_learn(tmp_path, "promote")
+
+    assert promote.returncode == 0, promote.stderr
+    inbox = (store / "inbox.md").read_text()
+    candidates = (store / "candidates.md").read_text()
+    audit = (store / "auto-actions.md").read_text()
+    assert "Docs candidate also needs a test" not in inbox
+    assert "Docs candidate also needs a test" in candidates
+    assert "- Prevention artifacts: docs (required), test (required)" in candidates
+    assert "- Requires TDD/review: yes" in candidates
+    assert "- Follow-up task: follow-up required before code changes" in candidates
     assert "follow-up required before code changes" in audit
 
 

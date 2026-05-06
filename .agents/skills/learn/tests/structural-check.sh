@@ -33,7 +33,8 @@ grep -q "decisions.jsonl" "$SKILL" || { echo "FAIL: decisions.jsonl contract"; e
 grep -q "Needs Review.*Open Items.*Auto Done.*Raw Inbox.*Candidates.*Aging/Stale.*Likely Duplicates.*Calibration Learned.*Blocked Decisions.*Ask Agent Prompts" "$SKILL" || { echo "FAIL: dashboard triage contract"; exit 1; }
 grep -q "Aging/Stale is date-backed" "$SKILL" || { echo "FAIL: date-backed aging contract"; exit 1; }
 grep -q "Additional evidence" "$SKILL" || { echo "FAIL: additional evidence contract"; exit 1; }
-grep -q "archive.*candidate.*promote.*confidence.*candidate-artifact.*note.*calibration.*defer.*block.*revise-wording.*follow-up.*draft-plan.*draft-patch" "$SKILL" || { echo "FAIL: executor actions contract"; exit 1; }
+grep -q "Prevention artifacts: docs (required), test (required), skill (proposed)" "$SKILL" || { echo "FAIL: prevention artifacts contract"; exit 1; }
+grep -q "archive.*candidate.*promote.*confidence.*prevention-artifact.*prevention-artifacts.*note.*calibration.*defer.*block.*revise-wording.*follow-up.*draft-plan.*draft-patch" "$SKILL" || { echo "FAIL: executor actions contract"; exit 1; }
 grep -q "docs/learnings/drafts/<fingerprint>-plan.md.*docs/learnings/drafts/<fingerprint>-patch.md" "$SKILL" || { echo "FAIL: draft artifact contract"; exit 1; }
 grep -q "TDD/review tasks" "$SKILL" || { echo "FAIL: TDD/review executor contract"; exit 1; }
 grep -q "never silently edit code" "$SKILL" || { echo "FAIL: code decision guardrail"; exit 1; }
@@ -42,6 +43,13 @@ grep -q "Only three user-facing front doors" "$DOC" || { echo "FAIL: learning do
 grep -q "The Abstraction Ladder" "$DOC" || { echo "FAIL: abstraction ladder moved to canonical doc"; exit 1; }
 grep -q "Fingerprint matching is not semantic dedupe" "$DOC" || { echo "FAIL: learning doc fingerprint boundary"; exit 1; }
 grep -q "Daily maintenance is split" "$DOC" || { echo "FAIL: learning doc daily automation"; exit 1; }
+grep -q "Use a frontier reasoning parent model" "$DOC" || { echo "FAIL: learning automation model policy"; exit 1; }
+grep -q "gpt-5.5.*high reasoning" "$DOC" || { echo "FAIL: learning automation parent model"; exit 1; }
+grep -q "gpt-5.3-codex" "$DOC" || { echo "FAIL: learning automation subagent model"; exit 1; }
+grep -q "durable dotfiles master checkout" "$DOC" || { echo "FAIL: learning automation canonical checkout"; exit 1; }
+grep -q "Prevention artifacts: docs (required), test (required), skill (proposed)" "$DOC" || { echo "FAIL: learning doc prevention artifacts"; exit 1; }
+grep -q "Skill and Doc Enforcement" "$DOC" || { echo "FAIL: skill/doc enforcement contract"; exit 1; }
+grep -q "automatically loads the rule before implementation" "$DOC" || { echo "FAIL: automatic skill enforcement rationale"; exit 1; }
 grep -q "write the failing test or structural check first" "$DOC" || { echo "FAIL: learning doc TDD automation"; exit 1; }
 grep -q "Triage automation" "$DOC" || { echo "FAIL: triage automation contract"; exit 1; }
 grep -q "Executor automation" "$DOC" || { echo "FAIL: executor automation contract"; exit 1; }

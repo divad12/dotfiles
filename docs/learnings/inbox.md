@@ -12,7 +12,7 @@
 - Ramification: Users have to reason about multiple learning surfaces and lose trust when the setup feels like a command-line toolkit instead of a product.
 - Suspected pattern: Unknown
 - Recommended fix: Move useful capture reasoning into /learn and the canonical learning-system guide; keep repo-local READMEs pointer-only.
-- Candidate artifact: skill
+- Prevention artifacts: skill (required)
 - Requires TDD/review: yes
 - Confidence: high
 - Status: inbox
@@ -28,7 +28,7 @@
 - Ramification: Users cannot trust a system when agents say it should behave a certain way but no prompt, hook, test, automation, or structural check makes that behavior happen.
 - Suspected pattern: Claims about expected behavior drift from actual wiring.
 - Recommended fix: When a workflow depends on a behavior, verify the actual trigger, prompt, hook, test, or structural check that enforces it; add one if it is missing.
-- Candidate artifact: automation
+- Prevention artifacts: automation (required)
 - Requires TDD/review: yes
 - Confidence: high
 - Status: inbox
@@ -44,7 +44,7 @@
 - Ramification: Users may trust dead plumbing and miss that the real system behavior depends on agentic triage.
 - Suspected pattern: Unknown
 - Recommended fix: Use fingerprints only as row IDs and exact replay guards; make docs, tests, and automation prompts state that semantic dedupe/clustering is agent-owned.
-- Candidate artifact: docs
+- Prevention artifacts: docs (required)
 - Confidence: high
 - Status: inbox
 ### 8fa091b8f04e-ambient-capture-belongs-in-the-observer--not-the-destination-ski
@@ -60,7 +60,7 @@
 - Ramification: Durable feedback can be missed or split across two backlogs when the ambient observer keeps its own memory instead of routing to the learning store.
 - Suspected pattern: Ambient sensors drift into parallel memory systems.
 - Recommended fix: Keep task-observer as the trigger/sensor, route durable learnings through /learn, and use observation files only as fallback or session audit notes.
-- Candidate artifact: skill
+- Prevention artifacts: skill (required)
 - Requires TDD/review: yes
 - Confidence: high
 - Status: inbox
@@ -76,7 +76,71 @@
 - Ramification: A repo-scoped automation becomes noisy and may hit sandbox/write failures if each run loops across sibling configured repos.
 - Suspected pattern: Unknown
 - Recommended fix: Automation prompts and contracts should state that each cron invocation operates only on its current working directory and must not touch sibling configured repos.
-- Candidate artifact: automation
+- Prevention artifacts: automation (required)
+- Requires TDD/review: yes
+- Confidence: high
+- Status: inbox
+### 631e0a957ad5-prevention-plans-can-need-companion-artifacts
+- Fingerprint: 631e0a957ad5
+- Sources: user-feedback
+- Captured: 2026-05-06
+- Source events: None
+- Scope: agent-system
+- User-facing summary: Prevention plans can need companion artifacts
+- Evidence: Journology candidates showed prevention plans often need more than one artifact, such as a test plus docs or a helper plus test.
+- Additional evidence: User clarified that the system should store one readable prevention artifact list with required/proposed markers instead of primary and secondary fields.
+- Technical refs: docs/ai/learning-system.md, .agents/skills/learn/SKILL.md, setup/tests/test_learn_cli.py
+- Ramification: Agents can auto-promote a docs-looking entry while skipping the test, helper, skill, or automation work that actually prevents the bug.
+- Suspected pattern: Unknown
+- Recommended fix: Store Prevention artifacts as one list with required/proposed markers and apply TDD/review gates to required code-risk artifacts.
+- Prevention artifacts: docs (required), test (required)
+- Requires TDD/review: yes
+- Confidence: high
+- Status: inbox
+### f25da97943c6-learning-automation-parents-need-frontier-judgment-models
+- Fingerprint: f25da97943c6
+- Sources: user-feedback
+- Captured: 2026-05-06
+- Source events: None
+- Scope: agent-system
+- User-facing summary: Learning automation parents need frontier judgment models
+- Evidence: User noted that daily learning automations were defaulting to gpt-5.2, which is too weak for clustering, abstraction, safety, and calibration decisions across many learnings.
+- Technical refs: docs/ai/learning-system.md, /Users/david/.codex/automations/daily-learning-triage/automation.toml, /Users/david/.codex/automations/daily-learning-executor/automation.toml
+- Ramification: A weaker parent model can miscluster evidence, auto-execute the wrong prevention work, or miss when a decision needs human review.
+- Suspected pattern: Unknown
+- Recommended fix: Run daily learning triage and executor parents on gpt-5.5 high reasoning while using focused coding models such as gpt-5.3-codex only for bounded executor-dispatched subagents.
+- Prevention artifacts: docs (required), automation (required)
+- Requires TDD/review: yes
+- Confidence: high
+- Status: inbox
+### 08c2d3bc8cf3-daily-automations-should-read-canonical-docs-from-master
+- Fingerprint: 08c2d3bc8cf3
+- Sources: user-feedback
+- Captured: 2026-05-06
+- Source events: None
+- Scope: agent-system
+- User-facing summary: Daily automations should read canonical docs from master
+- Evidence: Daily learning automation prompts were still reading the global learning-system contract from /Users/david/.codex/worktrees/20dc/dotfiles even after the work was being landed to master.
+- Technical refs: None
+- Ramification: Scheduled runs can follow stale or disappearing feature-worktree instructions instead of the current canonical learning contract.
+- Suspected pattern: Unknown
+- Recommended fix: Point daily learning automations at the durable dotfiles master checkout and use repo-local docs only as cwd-specific supplements.
+- Prevention artifacts: docs (required)
+- Confidence: medium
+- Status: inbox
+### b1ade9e50ec0-daily-automations-should-read-canonical-docs-from-master
+- Fingerprint: b1ade9e50ec0
+- Sources: user-feedback
+- Captured: 2026-05-06
+- Source events: None
+- Scope: agent-system
+- User-facing summary: Daily automations should read canonical docs from master
+- Evidence: Daily learning automation prompts were still reading the global learning-system contract from /Users/david/.codex/worktrees/20dc/dotfiles even after the work was being landed to master.
+- Technical refs: docs/ai/learning-system.md, /Users/david/.codex/automations/daily-learning-triage/automation.toml, /Users/david/.codex/automations/daily-learning-executor/automation.toml
+- Ramification: Scheduled runs can follow stale or disappearing feature-worktree instructions instead of the current canonical learning contract.
+- Suspected pattern: Unknown
+- Recommended fix: Point daily learning automations at the durable dotfiles master checkout and use repo-local docs only as cwd-specific supplements.
+- Prevention artifacts: docs (required), automation (required)
 - Requires TDD/review: yes
 - Confidence: high
 - Status: inbox

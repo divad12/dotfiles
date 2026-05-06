@@ -46,7 +46,7 @@ class LearningEntry:
     evidence: str
     ramification: str
     recommended_fix: str
-    candidate_artifact: str
+    prevention_artifacts: list[str]
     confidence: str = "medium"
     captured: str = field(default_factory=lambda: date.today().isoformat())
     source_events: list[str] = field(default_factory=list)
@@ -95,6 +95,8 @@ def format_entry(entry: LearningEntry) -> str:
     source_events = ", ".join(entry.source_events) if entry.source_events else "None"
     technical_refs = ", ".join(entry.technical_refs) if entry.technical_refs else "None"
     suspected_pattern = entry.suspected_pattern or "Unknown"
+    prevention_artifacts = unique_prevention_artifacts(entry.prevention_artifacts)
+    needs_tdd_review = artifacts_require_tdd(prevention_artifacts)
     return "\n".join(
         [
             f"### {entry.fingerprint}-{slugify(entry.summary)}",
@@ -109,10 +111,10 @@ def format_entry(entry: LearningEntry) -> str:
             f"- Ramification: {entry.ramification}",
             f"- Suspected pattern: {suspected_pattern}",
             f"- Recommended fix: {entry.recommended_fix}",
-            f"- Candidate artifact: {entry.candidate_artifact}",
+            f"- Prevention artifacts: {format_prevention_artifacts(prevention_artifacts)}",
             *(
                 ["- Requires TDD/review: yes"]
-                if entry.candidate_artifact in CODE_ARTIFACTS
+                if needs_tdd_review
                 else []
             ),
             f"- Confidence: {entry.confidence}",
@@ -125,6 +127,77 @@ def format_entry(entry: LearningEntry) -> str:
 def slugify(value: str) -> str:
     chars = [char.lower() if char.isalnum() else "-" for char in value]
     return "-".join("".join(chars).split("-"))[:64]
+
+
+def unique_values(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    unique: list[str] = []
+    for value in values:
+        normalized = value.strip()
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        unique.append(normalized)
+    return unique
+
+
+def normalize_prevention_artifact(value: str) -> str:
+    stripped = value.strip()
+    if not stripped:
+        return ""
+    match = re.match(
+        r"^(.+?)\s*(?:\((required|proposed)\)|[|:](required|proposed))$",
+        stripped,
+    )
+    if match:
+        artifact = match.group(1).strip()
+        status = (match.group(2) or match.group(3) or "required").strip()
+    else:
+        artifact = stripped
+        status = "required"
+    return f"{artifact} ({status})"
+
+
+def unique_prevention_artifacts(values: list[str]) -> list[str]:
+    return unique_values(
+        [
+            normalized
+            for normalized in (normalize_prevention_artifact(value) for value in values)
+            if normalized
+        ]
+    )
+
+
+def parse_prevention_artifacts(value: str) -> list[str]:
+    return unique_prevention_artifacts(value.split(","))
+
+
+def format_prevention_artifacts(values: list[str]) -> str:
+    return ", ".join(unique_prevention_artifacts(values))
+
+
+def prevention_artifact_parts(value: str) -> tuple[str, str]:
+    normalized = normalize_prevention_artifact(value)
+    match = re.match(r"^(.+?) \((required|proposed)\)$", normalized)
+    if not match:
+        return normalized, "required"
+    return match.group(1), match.group(2)
+
+
+def required_artifact_names(artifacts: list[str]) -> list[str]:
+    return [
+        name
+        for name, status in (prevention_artifact_parts(artifact) for artifact in artifacts)
+        if status == "required"
+    ]
+
+
+def artifacts_require_tdd(artifacts: list[str]) -> bool:
+    return any(name in CODE_ARTIFACTS for name in required_artifact_names(artifacts))
+
+
+def block_artifacts(block: str) -> list[str]:
+    return parse_prevention_artifacts(entry_field(block, "Prevention artifacts"))
 
 
 def merge_sources(line: str, source: str) -> str:
@@ -175,11 +248,23 @@ def merge_entry_block(block: str, entry: LearningEntry) -> str:
     if evidence_line not in merged_block.splitlines():
         merged_block = append_entry_note(merged_block, "Additional evidence", entry.evidence)
     merged_block = set_entry_field(merged_block, "Captured", entry.captured)
-    merged_block = set_entry_field(merged_block, "Candidate artifact", entry.candidate_artifact)
+    current_artifacts = block_artifacts(merged_block)
+    incoming_artifacts = unique_prevention_artifacts(entry.prevention_artifacts)
+    prevention_artifacts = (
+        incoming_artifacts
+        if "archive" in required_artifact_names(current_artifacts)
+        and "archive" not in required_artifact_names(incoming_artifacts)
+        else unique_prevention_artifacts(current_artifacts + incoming_artifacts)
+    )
+    merged_block = set_entry_field(
+        merged_block,
+        "Prevention artifacts",
+        format_prevention_artifacts(prevention_artifacts),
+    )
     merged_block = set_entry_field(merged_block, "Recommended fix", entry.recommended_fix)
     if should_raise_confidence(entry_field(merged_block, "Confidence"), entry.confidence):
         merged_block = set_entry_field(merged_block, "Confidence", entry.confidence)
-    if requires_tdd_review(merged_block) or entry.candidate_artifact in CODE_ARTIFACTS:
+    if requires_tdd_review(merged_block):
         merged_block = set_entry_field(merged_block, "Requires TDD/review", "yes")
     return merged_block
 
@@ -376,7 +461,7 @@ def code_related_entry(store: Path, fingerprint: str) -> bool:
 def requires_tdd_review(block: str) -> bool:
     return (
         entry_field(block, "Requires TDD/review").lower() == "yes"
-        or entry_field(block, "Candidate artifact") in CODE_ARTIFACTS
+        or artifacts_require_tdd(block_artifacts(block))
     )
 
 
@@ -396,7 +481,7 @@ def write_draft_artifact(store: Path, fingerprint: str, kind: str, note: str) ->
     drafts.mkdir(exist_ok=True)
     relative_path = Path("drafts") / f"{fingerprint}-{kind}.md"
     draft_path = store / relative_path
-    artifact = entry_field(block, "Candidate artifact")
+    artifacts = entry_field(block, "Prevention artifacts")
     warning = ""
     if requires_tdd_review(block):
         warning = (
@@ -414,7 +499,7 @@ def write_draft_artifact(store: Path, fingerprint: str, kind: str, note: str) ->
                 f"- Ramification: {entry_field(block, 'Ramification')}",
                 f"- Recommended fix: {entry_field(block, 'Recommended fix')}",
                 f"- Technical refs: {entry_field(block, 'Technical refs')}",
-                f"- Candidate artifact: {artifact}",
+                f"- Prevention artifacts: {artifacts}",
                 f"- Dashboard note: {note}",
                 warning.rstrip(),
                 "",
@@ -509,7 +594,7 @@ def command_capture(args: argparse.Namespace) -> int:
         evidence=args.evidence,
         ramification=args.ramification,
         recommended_fix=args.recommended_fix,
-        candidate_artifact=args.candidate_artifact,
+        prevention_artifacts=args.prevention_artifact,
         confidence=args.confidence,
         source_events=args.source_event,
         scope=args.scope,
@@ -547,7 +632,7 @@ def write_dashboard(store: Path) -> None:
             "evidence": entry_field_multiline(block, "Evidence"),
             "additional_evidence": entry_fields(block, "Additional evidence"),
             "technical_refs": entry_field(block, "Technical refs"),
-            "artifact": entry_field(block, "Candidate artifact"),
+            "prevention_artifacts": entry_field(block, "Prevention artifacts"),
             "confidence": entry_field(block, "Confidence"),
             "status": entry_field(block, "Status"),
             "recommended_fix": entry_field(block, "Recommended fix"),
@@ -614,6 +699,7 @@ def render_dashboard_html(entries: list[dict[str, object]], signals: dict[str, s
     for entry in entries:
         fingerprint = html.escape(str(entry["fingerprint"]))
         summary = html.escape(str(entry["summary"]))
+        prevention_artifacts = str(entry["prevention_artifacts"])
         additional_evidence = "".join(
             f"<li>{html.escape(value)}</li>"
             for value in entry.get("additional_evidence", [])
@@ -649,7 +735,7 @@ def render_dashboard_html(entries: list[dict[str, object]], signals: dict[str, s
       <article class="entry" data-fingerprint="{fingerprint}">
         <header>
           <div>
-            <p class="meta">{html.escape(str(entry["path"]))} | {html.escape(str(entry["status"]))} | {html.escape(str(entry["confidence"]))} | {html.escape(str(entry["artifact"]))}</p>
+            <p class="meta">{html.escape(str(entry["path"]))} | {html.escape(str(entry["status"]))} | {html.escape(str(entry["confidence"]))} | {html.escape(prevention_artifacts)}</p>
             <h2>{summary}</h2>
           </div>
           <div class="controls">{controls}</div>
@@ -659,10 +745,10 @@ def render_dashboard_html(entries: list[dict[str, object]], signals: dict[str, s
           <summary>Evidence and Technical refs</summary>
           <dl>
             <dt>Evidence</dt><dd>{html.escape(str(entry["evidence"]))}</dd>
-            {additional_section}
+{additional_section}
             <dt>Technical refs</dt><dd>{html.escape(str(entry["technical_refs"]))}</dd>
             <dt>Recommended fix</dt><dd>{html.escape(str(entry["recommended_fix"]))}</dd>
-            {prior_section}
+{prior_section}
           </dl>
         </details>
         <label>Note <textarea rows="2" data-note-for="{fingerprint}"></textarea></label>
@@ -716,7 +802,7 @@ def render_dashboard_html(entries: list[dict[str, object]], signals: dict[str, s
       <label>Calibration note <textarea id="calibration-note" rows="2"></textarea></label>
       <button type="button" id="record-calibration" data-action="calibration">Record Calibration</button>
     </section>
-    {entries_html}
+{entries_html}
   </main>
   <script>
     const decisions = [];
@@ -906,12 +992,26 @@ def execute_decision(store: Path, decision: dict[str, str]) -> None:
     elif action == "confidence" and value in VALID_CONFIDENCE:
         if update_open_entry_field(store, fingerprint, "Confidence", value):
             append_audit(store, f"confidence: {fingerprint} {value} {note}".rstrip())
-    elif action == "candidate-artifact" and value:
+    elif action == "prevention-artifact" and value:
         block = open_entry_block(store, fingerprint)
-        if block and requires_tdd_review(block):
-            update_open_entry_field(store, fingerprint, "Requires TDD/review", "yes")
-        if update_open_entry_field(store, fingerprint, "Candidate artifact", value):
-            append_audit(store, f"candidate-artifact: {fingerprint} {value} {note}".rstrip())
+        current = block_artifacts(block) if block else []
+        artifacts = unique_prevention_artifacts(current + [value])
+        if update_open_entry_field(
+            store, fingerprint, "Prevention artifacts", format_prevention_artifacts(artifacts)
+        ):
+            block = open_entry_block(store, fingerprint)
+            if block and requires_tdd_review(block):
+                update_open_entry_field(store, fingerprint, "Requires TDD/review", "yes")
+            append_audit(store, f"prevention-artifact: {fingerprint} {value} {note}".rstrip())
+    elif action == "prevention-artifacts" and value:
+        artifacts = parse_prevention_artifacts(value)
+        if update_open_entry_field(
+            store, fingerprint, "Prevention artifacts", format_prevention_artifacts(artifacts)
+        ):
+            block = open_entry_block(store, fingerprint)
+            if block and requires_tdd_review(block):
+                update_open_entry_field(store, fingerprint, "Requires TDD/review", "yes")
+            append_audit(store, f"prevention-artifacts: {fingerprint} {value} {note}".rstrip())
     elif action == "calibration":
         with (store / "calibration.md").open("a") as calibration:
             calibration.write(f"- {fingerprint}: {note}\n")
@@ -932,7 +1032,8 @@ def command_promote(args: argparse.Namespace) -> int:
     promoted = 0
     for _, block in list(iter_open_entries(store)):
         fingerprint = entry_fingerprint(block)
-        artifact = entry_field(block, "Candidate artifact")
+        artifacts = block_artifacts(block)
+        required_names = required_artifact_names(artifacts)
         confidence = entry_field(block, "Confidence")
         if entry_field(block, "Status") != "inbox":
             continue
@@ -954,11 +1055,13 @@ def command_promote(args: argparse.Namespace) -> int:
                     f"auto-promote: candidate {fingerprint} follow-up required before code changes",
                 )
                 promoted += 1
-        elif artifact == "archive":
+        elif "archive" in required_names:
             if archive_entry(store, fingerprint, "auto-promotion archived archive-targeted learning"):
                 append_audit(store, f"auto-promote: archive {fingerprint}")
                 promoted += 1
-        elif confidence == "high" and artifact in NON_CODE_AUTO_CANDIDATES:
+        elif confidence == "high" and required_names and all(
+            artifact in NON_CODE_AUTO_CANDIDATES for artifact in required_names
+        ):
             if move_entry_to_candidates(store, fingerprint, "candidate", "auto-promotion docs candidate"):
                 append_audit(store, f"auto-promote: candidate {fingerprint}")
                 promoted += 1
@@ -1003,7 +1106,7 @@ def build_parser() -> argparse.ArgumentParser:
     capture_parser.add_argument("--ramification", required=True)
     capture_parser.add_argument("--suspected-pattern", default="")
     capture_parser.add_argument("--recommended-fix", required=True)
-    capture_parser.add_argument("--candidate-artifact", required=True)
+    capture_parser.add_argument("--prevention-artifact", action="append", required=True)
     capture_parser.add_argument(
         "--confidence", choices=sorted(VALID_CONFIDENCE), default="medium"
     )

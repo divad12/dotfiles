@@ -23,6 +23,8 @@ Use the abstraction ladder from `docs/ai/learning-system.md`: start with the spe
 
 After identifying the principle, note what would enforce it next time: a regression test, lint rule, schema/contract scan, shared helper, checklist, docs update, skill tweak, or automation.
 
+Store prevention work as one readable list, e.g. `Prevention artifacts: docs (required), test (required), skill (proposed)`. Required artifacts describe work needed to prevent the issue; proposed artifacts are worthwhile ideas to consider. The executor decides what is executable now and records completed, blocked, deferred, or follow-up status. Any required code, test, helper, skill, automation, architecture, or enforcement artifact requires TDD/review discipline. If the code surface does not exist yet, docs, skill, or nested-AGENTS updates may be the only executable prevention artifact for now.
+
 Before writing, check active inbox, candidates, promoted entries, and recent archives for an existing related learning. The CLI adds `Captured: YYYY-MM-DD` and a stable fingerprint so dashboard decisions can target a row. Fingerprint matching is not semantic dedupe; it only catches exact replay-like writes. Agents own semantic dedupe and clustering and should merge related evidence instead of creating noisy parallel entries.
 
 Before writing a new entry, also look at the last five active learnings and any same session learning captures you remember. If the learning is already covered, skip the new capture or update the existing entry only when the new evidence, source, confidence, or technical refs add value.
@@ -36,7 +38,7 @@ learn --repo "$PWD" capture \
   --evidence "<plain-English evidence>" \
   --ramification "<user-facing impact>" \
   --recommended-fix "<one-line prevention action>" \
-  --candidate-artifact "<test|lint|helper|skill|docs|nested-AGENTS|automation|archive>" \
+  --prevention-artifact "<test|lint|helper|skill|docs|nested-AGENTS|automation|archive>:<required|proposed>" \
   --confidence "<low|medium|high>" \
   --technical-ref "<file/function/test/log/screenshot>"
 ```
@@ -83,7 +85,7 @@ If the user says `done` after reviewing the triage dashboard, run executor autom
 
 Executor automation should use subagents for independent implementation, review, or verification slices with disjoint file ownership. It should log every action in `docs/learnings/auto-actions.md`.
 
-The executor can apply archive, candidate, promote, confidence, candidate-artifact, note, calibration, defer, block, revise-wording, follow-up, draft-plan, and draft-patch decisions. Draft decisions write `docs/learnings/drafts/<fingerprint>-plan.md` and `docs/learnings/drafts/<fingerprint>-patch.md`.
+The executor can apply archive, candidate, promote, confidence, prevention-artifact, prevention-artifacts, note, calibration, defer, block, revise-wording, follow-up, draft-plan, and draft-patch decisions. It should plan or execute required prevention artifacts when they are clear enough and consider proposed artifacts when they fit the task. Draft decisions write `docs/learnings/drafts/<fingerprint>-plan.md` and `docs/learnings/drafts/<fingerprint>-patch.md`.
 
 Learning-file updates and low-risk docs can be applied directly. Code, shared skill, enforcement, and architecture changes must become TDD/review tasks or focused verified changes; never silently edit code and never mark code-related prevention as promoted before tests and required review pass.
 

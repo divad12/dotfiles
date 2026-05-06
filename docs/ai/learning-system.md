@@ -9,6 +9,7 @@
 - Keep the canonical store in `docs/learnings/`. Raw evidence can be noisy; hot context and promoted guidance must stay curated.
 - Use agents for judgment: clustering, abstraction, calibration, destination choice, and deciding whether a prevention artifact is clear enough to implement.
 - Use binaries only for boring glue: initializing files, appending structured entries, assigning row IDs, serving the dashboard, recording decisions, safe markdown moves, and checks.
+- Store prevention work as one readable list: `Prevention artifacts: docs (required), test (required), skill (proposed)`. Required artifacts describe the prevention work needed; proposed artifacts are worthwhile ideas to consider. The executor decides what is executable now.
 - Fingerprint matching is not semantic dedupe. It is only a row identity and exact replay guard. Agents do all meaningful duplicate detection, semantic clustering, and pattern formation.
 - Daily agentic automation should sweep participating repos, cluster new evidence, execute low-risk/high-clarity prevention work, regenerate dashboards, and report what needs human review.
 - Code, tests, helpers, skills, architecture, and global guidance still require TDD/review discipline. Automation may implement focused, high-clarity fixes only when it can write the failing test or structural check first and verify the result.
@@ -43,7 +44,7 @@ Pattern:        Validate at the boundary by constraining inputs to valid values
 Principle:      Make invalid user-facing input states unrepresentable
 ```
 
-Write the principle as the main learning. Use the specific incident as evidence, the user-facing consequence as the ramification, and the enforcement idea as the candidate artifact.
+Write the principle as the main learning. Use the specific incident as evidence, the user-facing consequence as the ramification, and list the prevention artifacts that would stop the issue from recurring.
 
 When the bug involves a removed field, renamed type, changed response shape, modified helper behavior, changed component props, or another shared surface, climb to the contract level:
 
@@ -61,7 +62,20 @@ The sweet spot is the highest level that still tells a future agent what to do. 
 
 Treat "this should happen" as a warning sign, not a learning. Climb from the specific missing instruction or hook to the class: required behavior must be verified against actual wiring. The learning should name the enforcement surface: trigger phrase, skill text, automation prompt, hook, test, structural check, or code path.
 
-After choosing the principle, ask what would enforce it next time: a regression test, lint rule, schema/contract scan, shared helper, checklist, docs update, skill tweak, or automation. Triage automation uses this ladder to cluster raw evidence into patterns; executor automation uses the enforcement idea to decide whether a prevention artifact is clear enough to implement.
+After choosing the principle, ask what would enforce it next time: a regression test, lint rule, schema/contract scan, shared helper, checklist, docs update, skill tweak, or automation. Mark each prevention artifact as required or proposed. If the code surface does not exist yet, docs, skill, or nested-AGENTS updates may be the only executable prevention artifact for now; record the code/test artifact as required and let the executor mark it blocked or follow-up. Triage automation uses this ladder to cluster raw evidence into patterns; executor automation uses the enforcement idea to decide whether a prevention artifact is clear enough to implement.
+
+### Skill and Doc Enforcement
+
+When a learning is a repeatable habit for a task class, promote it into the
+activation path for that task instead of leaving it only in candidates. Use an
+existing skill and its referenced `docs/ai` file when possible: frontend or
+button rules belong behind frontend/design/component triggers; merge rules
+belong behind merge/git triggers; directory-local invariants belong in nested
+`AGENTS.md` files that point to a reference doc.
+
+Keep trigger text narrow and put the actual rule in reference docs. The goal is
+that a future agent making the relevant thing, such as a button, form, dashboard
+control, or merge decision, automatically loads the rule before implementation.
 
 `/dashboard` reviews. The agent should:
 
@@ -82,10 +96,21 @@ After choosing the principle, ask what would enforce it next time: a regression 
 
 Daily maintenance is split into focused automations so one agent does not become a giant context soup.
 
+Use a frontier reasoning parent model for daily learning automations. Triage and
+executor parents make clustering, abstraction, safety, and calibration
+decisions, so prefer `gpt-5.5` with high reasoning while calibration is young.
+Executor-dispatched coding subagents may use focused coding models such as
+`gpt-5.3-codex` for bounded implementation, review, or verification slices.
+
 Each cron invocation is repo-scoped. When an automation has multiple `cwds`,
 the scheduler starts separate runs, one per working directory. A run must operate
 on the current working directory only; it must not inspect, report on, write to,
 or regenerate dashboards for sibling configured repos.
+
+Daily automations should read the canonical global learning-system contract
+from the durable dotfiles master checkout, not from a temporary feature
+worktree. They may also read a repo-local `docs/ai/learning-system.md` as a
+supplement for the current cwd.
 
 ### Triage automation
 
@@ -110,10 +135,11 @@ Executor automation runs daily around 9pm unless it already ran after the user s
 1. Read candidates, auto-action notes, calibration, and any explicit dashboard decisions.
 2. Execute low-risk docs updates directly when the destination and wording are clear.
 3. For focused tests, lint checks, helper guardrails, or skill tweaks, write the failing test or structural check first, implement the smallest fix, verify, and log the prevention artifact.
-4. Use subagents for independent implementation, review, or verification work when there are disjoint files or clearly separable questions.
-5. Leave broad code, architecture, product decisions, global docs, ambiguous evidence, or cross-caller behavior changes for dashboard review.
-6. Append plain-English audit lines to `docs/learnings/auto-actions.md`.
-7. Regenerate the dashboard and report execution results.
+4. Execute required prevention artifacts when they are clear; consider proposed artifacts when they fit the task. If they are code/test/skill/automation work, keep the TDD/review gate.
+5. Use subagents for independent implementation, review, or verification work when there are disjoint files or clearly separable questions.
+6. Leave broad code, architecture, product decisions, global docs, ambiguous evidence, or cross-caller behavior changes for dashboard review.
+7. Append plain-English audit lines to `docs/learnings/auto-actions.md`.
+8. Regenerate the dashboard and report execution results.
 
 If the user says `done` in a dashboard/triage thread, run the executor immediately against the current repo, append a same-day audit marker, and skip the scheduled 9pm executor for that repo.
 
