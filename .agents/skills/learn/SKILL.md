@@ -9,7 +9,7 @@ argument-hint: "[plain-English learning or evidence]"
 
 Read `docs/ai/learning-system.md` before operating or changing this workflow.
 
-Only three user-facing front doors are normal: `/learn` to capture, `/dashboard` to review, and `/learn-init` to initialize. Treat `bin/learn` subcommands as hidden glue for agents and automations, not commands the user should have to remember.
+Only three user-facing front doors are normal: `/learn` to capture, `/dashboard` to review, and `/learn-init` to initialize. Treat the global `learn --repo <repo>` command as hidden glue for agents and automations, not commands the user should have to remember. Do not assume the target repo has repo-local `bin/learn`.
 
 ## Store
 

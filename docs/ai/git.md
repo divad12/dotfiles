@@ -153,11 +153,14 @@ of recreated.
 Announce each capture or skip with the session-visible `🧠 Captured learning:` /
 `🧠 Learning already captured:` one-liner.
 
-Then run:
+Then run the global learning glue against the current repo:
 
 ```bash
-bin/learn --repo "$PWD" check-merge
+learn --repo "$PWD" check-merge
 ```
+
+Use `learn`, not repo-local `bin/learn`; projects with `docs/learnings/`
+do not need to carry the hidden CLI binary.
 
 If high-confidence open learnings are reported, surface them in plain English
 with the user-facing ramification. Ask whether to create the prevention
@@ -167,6 +170,11 @@ artifact.
 This checkpoint prevents a branch from landing with only chat memory of a bug
 class or review finding. It does not replace TDD or code review; it decides
 whether a prevention artifact is needed before landing.
+
+After browser or review-server tools finish, re-run `git status --short` before
+the final commit or target advance. Generated review state can change after an
+apparently clean commit, and missing it means the target branch lands without
+the latest review notes.
 
 ## Merge-Commit Exception
 

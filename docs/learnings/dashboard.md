@@ -148,6 +148,38 @@
 - Requires TDD/review: yes
 - Confidence: high
 - Status: inbox
+### 00e184061921-learning-glue-must-be-global-across-repos
+- Fingerprint: 00e184061921
+- Sources: user-feedback
+- Captured: 2026-05-06
+- Source events: None
+- Scope: agent-system
+- User-facing summary: Learning glue must be global across repos
+- Evidence: A Journology merge session reported that bin/learn was missing, so it could not run the before-landing learning checkpoint.
+- Technical refs: docs/ai/git.md, .agents/skills/learn/SKILL.md, .agents/skills/learn/tests/structural-check.sh
+- Ramification: Agents can land branches without the learning checkpoint in repos that have docs/learnings but do not carry the hidden CLI binary.
+- Suspected pattern: Unknown
+- Recommended fix: Invoke the global learn command with --repo and structurally guard merge docs against repo-local bin/learn assumptions.
+- Prevention artifacts: docs (required), test (required), skill (required)
+- Requires TDD/review: yes
+- Confidence: high
+- Status: inbox
+### 6dd075d24cef-final-status-must-follow-browser-generated-review-state
+- Fingerprint: 6dd075d24cef
+- Sources: user-feedback
+- Captured: 2026-05-06
+- Source events: None
+- Scope: agent-system
+- User-facing summary: Final status must follow browser-generated review state
+- Evidence: A Journology merge session saw the review server/browser write another comment JSON change after the cleaned docs commit.
+- Technical refs: docs/ai/git.md, .agents/skills/learn/tests/structural-check.sh
+- Ramification: The target branch can land without the latest review textarea or comment state even though the agent believed the docs commit was clean.
+- Suspected pattern: Unknown
+- Recommended fix: After browser or review-server tools finish, re-run git status before the final commit or target advance and fold generated review state into the right commit.
+- Prevention artifacts: docs (required), test (required)
+- Requires TDD/review: yes
+- Confidence: high
+- Status: inbox
 
 
 ## candidates.md

@@ -5,7 +5,7 @@
 ## Contract
 
 - Make the learning system feel like a product, not a CLI. Only three user-facing front doors are normal: `/learn`, `/dashboard`, and `/learn-init`.
-- Treat `learn` CLI subcommands as hidden glue for agents and automations. Do not teach the user to operate `capture`, `promote`, `execute`, or `check-merge` unless they ask for internals.
+- Treat the global `learn --repo <repo>` command as hidden glue for agents and automations. Do not assume every participating repo has repo-local `bin/learn`, and do not teach the user to operate `capture`, `promote`, `execute`, or `check-merge` unless they ask for internals.
 - Keep the canonical store in `docs/learnings/`. Raw evidence can be noisy; hot context and promoted guidance must stay curated.
 - Use agents for judgment: clustering, abstraction, calibration, destination choice, and deciding whether a prevention artifact is clear enough to implement.
 - Use binaries only for boring glue: initializing files, appending structured entries, assigning row IDs, serving the dashboard, recording decisions, safe markdown moves, and checks.
@@ -155,7 +155,7 @@ Weekly review can summarize the daily work, but daily maintenance is the default
 - `.agents/skills/learn/SKILL.md` - capture front door.
 - `.agents/skills/dashboard/SKILL.md` - review front door.
 - `.agents/skills/learn-init/SKILL.md` - initialization front door.
-- `bin/learn` - hidden glue for safe file operations and dashboard serving.
+- global `learn` command - hidden glue for safe file operations and dashboard serving; implemented by dotfiles `bin/learn`, invoked with `--repo <repo>`.
 
 ## Verification
 

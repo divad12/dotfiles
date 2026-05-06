@@ -82,6 +82,12 @@ grep -q "Do not maintain a parallel durable backlog" .agents/skills/task-observe
 grep -q "fallback or session audit trail" .agents/skills/task-observer/SKILL.md || { echo "FAIL: task-observer observation fallback"; exit 1; }
 grep -q "task-observer is the ambient sensor" "$DOC" || { echo "FAIL: learning doc task-observer boundary"; exit 1; }
 grep -q "learning store is the durable system" "$DOC" || { echo "FAIL: learning doc durable destination"; exit 1; }
+grep -q "global \`learn --repo <repo>\` command" "$SKILL" || { echo "FAIL: learn skill global CLI contract"; exit 1; }
+grep -q "learn --repo \"\$PWD\" check-merge" docs/ai/git.md || { echo "FAIL: git check-merge uses global learn"; exit 1; }
+! grep -q "bin/learn --repo \"\$PWD\" check-merge" docs/ai/git.md || { echo "FAIL: git check-merge assumes repo-local bin/learn"; exit 1; }
+grep -q "Use \`learn\`, not repo-local \`bin/learn\`" docs/ai/git.md || { echo "FAIL: git explains global learn rationale"; exit 1; }
+grep -q "browser or review-server tools" docs/ai/git.md || { echo "FAIL: git final status after browser/review-server"; exit 1; }
+grep -q "global \`learn --repo <repo>\`" "$DOC" || { echo "FAIL: learning doc global CLI contract"; exit 1; }
 
 if rg -n "capture-learning|/capture-learning" .agents/skills SKILLS.md docs/ai docs/learnings --glob '!**/structural-check.sh'; then
   echo "FAIL: capture-learning reference remains"

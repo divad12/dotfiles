@@ -33,10 +33,10 @@
   <main>
     <section class="triage" aria-label="Dashboard Triage Signals">
       <h2>Dashboard Triage Signals</h2>
-      <ul><li><strong>Needs Review</strong>: 8</li>
-<li><strong>Open Items</strong>: 9</li>
+      <ul><li><strong>Needs Review</strong>: 10</li>
+<li><strong>Open Items</strong>: 11</li>
 <li><strong>Auto Done</strong>: 0</li>
-<li><strong>Raw Inbox</strong>: 9</li>
+<li><strong>Raw Inbox</strong>: 11</li>
 <li><strong>Candidates</strong>: 0</li>
 <li><strong>Aging/Stale</strong>: 0</li>
 <li><strong>Likely Duplicates</strong>: 2</li>
@@ -281,6 +281,58 @@
           </dl>
         </details>
         <label>Note <textarea rows="2" data-note-for="b1ade9e50ec0"></textarea></label>
+      </article>
+
+
+      <article class="entry" data-fingerprint="00e184061921">
+        <header>
+          <div>
+            <p class="meta">inbox.md | inbox | high | docs (required), test (required), skill (required)</p>
+            <h2>Learning glue must be global across repos</h2>
+          </div>
+          <div class="controls"><button type="button" data-action="candidate" data-fingerprint="00e184061921">Candidate</button>
+<button type="button" data-action="promote" data-fingerprint="00e184061921">Promote</button>
+<button type="button" data-action="archive" data-fingerprint="00e184061921">Archive</button>
+<button type="button" data-action="defer" data-fingerprint="00e184061921">Defer</button></div>
+        </header>
+        <p>Agents can land branches without the learning checkpoint in repos that have docs/learnings but do not carry the hidden CLI binary.</p>
+        <details>
+          <summary>Evidence and Technical refs</summary>
+          <dl>
+            <dt>Evidence</dt><dd>A Journology merge session reported that bin/learn was missing, so it could not run the before-landing learning checkpoint.</dd>
+
+            <dt>Technical refs</dt><dd>docs/ai/git.md, .agents/skills/learn/SKILL.md, .agents/skills/learn/tests/structural-check.sh</dd>
+            <dt>Recommended fix</dt><dd>Invoke the global learn command with --repo and structurally guard merge docs against repo-local bin/learn assumptions.</dd>
+
+          </dl>
+        </details>
+        <label>Note <textarea rows="2" data-note-for="00e184061921"></textarea></label>
+      </article>
+
+
+      <article class="entry" data-fingerprint="6dd075d24cef">
+        <header>
+          <div>
+            <p class="meta">inbox.md | inbox | high | docs (required), test (required)</p>
+            <h2>Final status must follow browser-generated review state</h2>
+          </div>
+          <div class="controls"><button type="button" data-action="candidate" data-fingerprint="6dd075d24cef">Candidate</button>
+<button type="button" data-action="promote" data-fingerprint="6dd075d24cef">Promote</button>
+<button type="button" data-action="archive" data-fingerprint="6dd075d24cef">Archive</button>
+<button type="button" data-action="defer" data-fingerprint="6dd075d24cef">Defer</button></div>
+        </header>
+        <p>The target branch can land without the latest review textarea or comment state even though the agent believed the docs commit was clean.</p>
+        <details>
+          <summary>Evidence and Technical refs</summary>
+          <dl>
+            <dt>Evidence</dt><dd>A Journology merge session saw the review server/browser write another comment JSON change after the cleaned docs commit.</dd>
+
+            <dt>Technical refs</dt><dd>docs/ai/git.md, .agents/skills/learn/tests/structural-check.sh</dd>
+            <dt>Recommended fix</dt><dd>After browser or review-server tools finish, re-run git status before the final commit or target advance and fold generated review state into the right commit.</dd>
+
+          </dl>
+        </details>
+        <label>Note <textarea rows="2" data-note-for="6dd075d24cef"></textarea></label>
       </article>
 
   </main>
