@@ -1,131 +1,1579 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Learning Dashboard</title>
   <style>
-    body { margin: 0; font: 14px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; background: #f6f7f8; color: #202124; }
-    header.app { display: flex; justify-content: space-between; gap: 16px; align-items: center; padding: 16px 20px; background: #fff; border-bottom: 1px solid #d7dce0; }
-    h1 { margin: 0; font-size: 22px; }
-    main { max-width: 1180px; margin: 0 auto; padding: 16px; }
-    .entry { background: #fff; border: 1px solid #d7dce0; border-radius: 6px; padding: 14px; margin-bottom: 12px; }
-    .entry header { display: grid; grid-template-columns: 1fr auto; gap: 12px; align-items: start; }
-    h2 { margin: 2px 0 8px; font-size: 17px; }
-    .meta { margin: 0; color: #59636e; font-size: 12px; }
-    .controls { display: flex; flex-wrap: wrap; gap: 6px; justify-content: flex-end; }
-    button { border: 1px solid #9aa4ad; background: #fff; border-radius: 5px; padding: 5px 8px; cursor: pointer; }
-    button:hover { background: #eef3f7; }
-    details { margin-top: 8px; }
-    dt { font-weight: 650; margin-top: 8px; }
-    dd { margin: 2px 0 0; }
-    textarea { width: 100%; box-sizing: border-box; margin-top: 6px; }
-    .calibration { background: #fff; border: 1px solid #d7dce0; border-radius: 6px; padding: 12px; margin-bottom: 12px; }
-    @media (max-width: 760px) { .entry header { grid-template-columns: 1fr; } .controls { justify-content: flex-start; } }
-  </style>
+:root {
+  color-scheme: light;
+  --bg: #fafaf9;
+  --surface: #ffffff;
+  --surface-2: #f4f4f5;
+  --surface-3: #e7e5e4;
+  --border: #e7e5e4;
+  --border-strong: #d4d4d8;
+  --ring: #18181b;
+  --text: #18181b;
+  --text-2: #52525b;
+  --text-3: #a1a1aa;
+  --primary: #18181b;
+  --primary-text: #fafaf9;
+  --primary-hover: #27272a;
+  --high: #15803d;
+  --high-bg: #f0fdf4;
+  --medium: #b45309;
+  --medium-bg: #fffbeb;
+  --low: #71717a;
+  --low-bg: #fafaf9;
+  --required-bg: #fafaf9;
+  --required-border: #d4d4d8;
+  --required-text: #27272a;
+  --proposed-bg: transparent;
+  --proposed-border: #d4d4d8;
+  --proposed-text: #71717a;
+  --archive-bg: #fef2f2;
+  --archive-border: #fecaca;
+  --archive-text: #991b1b;
+  --radius: 10px;
+  --radius-sm: 6px;
+  --radius-pill: 999px;
+}
+
+* { box-sizing: border-box; }
+html, body { height: 100%; }
+body {
+  margin: 0;
+  font-family: -apple-system, BlinkMacSystemFont, "Inter", "SF Pro Text", "Segoe UI", Roboto, system-ui, sans-serif;
+  font-size: 15px;
+  line-height: 1.55;
+  background: var(--bg);
+  color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
+}
+
+button { font: inherit; }
+:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; border-radius: 4px; }
+
+.app {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 36px 24px 8px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  align-items: center;
+  gap: 12px 16px;
+}
+.brand { display: flex; align-items: center; gap: 10px; }
+.brand-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--high);
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--high) 20%, transparent);
+}
+.brand h1 {
+  font-size: 22px;
+  font-weight: 600;
+  letter-spacing: -0.015em;
+  margin: 0;
+  color: var(--text);
+}
+.snapshot {
+  margin: 0;
+  font-size: 13px;
+  color: var(--text-2);
+  grid-column: 1 / 2;
+  grid-row: 2;
+  padding-left: 18px;
+}
+.app-controls {
+  grid-column: 2;
+  grid-row: 1 / 3;
+  display: flex;
+  gap: 8px;
+  align-self: center;
+}
+
+.btn {
+  appearance: none;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  color: var(--text);
+  padding: 7px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.btn:hover { background: var(--surface-2); }
+.btn-primary {
+  background: var(--primary);
+  color: var(--primary-text);
+  border-color: var(--primary);
+}
+.btn-primary:hover { background: var(--primary-hover); border-color: var(--primary-hover); }
+.btn-ghost {
+  background: transparent;
+  border-color: transparent;
+  color: var(--text-2);
+}
+.btn-ghost:hover { background: var(--surface-2); color: var(--text); }
+.btn[data-recorded="true"] {
+  background: var(--surface-2);
+  color: var(--text-3);
+  border-color: var(--border);
+  cursor: default;
+  position: relative;
+}
+.btn[data-recorded="true"]::before {
+  content: "✓ ";
+  color: var(--high);
+}
+
+.tabs {
+  max-width: 980px;
+  margin: 8px auto 0;
+  padding: 0 24px;
+  display: flex;
+  gap: 0;
+  border-bottom: 1px solid var(--border);
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.tabs::-webkit-scrollbar { display: none; }
+.tabs button {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  color: var(--text-2);
+  padding: 10px 16px 12px;
+  font-size: 14px;
+  font-weight: 500;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: -1px;
+  cursor: pointer;
+  white-space: nowrap;
+  letter-spacing: -0.005em;
+  transition: color 0.12s ease, border-color 0.12s ease;
+}
+.tabs button:hover { color: var(--text); }
+.tabs button[aria-selected="true"] {
+  color: var(--text);
+  border-bottom-color: var(--primary);
+}
+.tabs .count {
+  font-variant-numeric: tabular-nums;
+  font-size: 12px;
+  color: var(--text-2);
+  background: var(--surface-2);
+  padding: 0 8px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  border-radius: var(--radius-pill);
+}
+.tabs button[aria-selected="true"] .count { color: var(--text); background: var(--surface-3); }
+
+main {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 16px 24px 80px;
+}
+
+.signals {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  margin: 16px 0 0;
+  font-size: 13px;
+}
+.signals summary {
+  list-style: none;
+  cursor: pointer;
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: var(--text-2);
+  user-select: none;
+}
+.signals summary::-webkit-details-marker { display: none; }
+.signals summary::after {
+  content: "›";
+  color: var(--text-3);
+  font-size: 16px;
+  transition: transform 0.15s ease;
+  transform: rotate(0);
+}
+.signals[open] summary::after { transform: rotate(90deg); }
+.signals summary .hint { color: var(--text-3); font-size: 12px; margin-right: 12px; }
+.signals summary span:first-child { font-weight: 500; color: var(--text); }
+.signal-grid {
+  list-style: none;
+  margin: 0;
+  padding: 0 16px 14px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 4px 24px;
+  border-top: 1px solid var(--border);
+  padding-top: 12px;
+}
+.signal-grid li { color: var(--text-2); font-size: 13px; line-height: 1.5; }
+.signal-grid strong { color: var(--text); font-weight: 500; }
+
+.toolbar {
+  margin: 16px 0 12px;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.search {
+  display: inline-flex;
+  align-items: center;
+  flex: 1 1 280px;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 0 12px;
+  color: var(--text-3);
+  transition: border-color 0.12s ease;
+}
+.search:focus-within { border-color: var(--ring); outline: 2px solid var(--ring); outline-offset: -1px; }
+.search svg { flex-shrink: 0; }
+.search input {
+  appearance: none;
+  background: transparent;
+  border: 0;
+  flex: 1;
+  padding: 8px 8px;
+  color: var(--text);
+  font: inherit;
+  outline: none;
+}
+
+.filter-chips { display: inline-flex; gap: 4px; }
+.chip {
+  appearance: none;
+  background: transparent;
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  font-size: 12.5px;
+  padding: 5px 10px;
+  border-radius: var(--radius-pill);
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  transition: background 0.12s ease, border-color 0.12s ease, color 0.12s ease;
+}
+.chip:hover { background: var(--surface-2); color: var(--text); }
+.chip.is-active, .chip[aria-pressed="true"]:not(.is-inactive) {
+  background: var(--text);
+  color: var(--primary-text);
+  border-color: var(--text);
+}
+.chip.is-active .conf-dot { box-shadow: 0 0 0 1.5px rgba(255,255,255,0.5); }
+.conf-dot { width: 6px; height: 6px; border-radius: 50%; display: inline-block; }
+.conf-dot.conf-high { background: var(--high); }
+.conf-dot.conf-medium { background: var(--medium); }
+.conf-dot.conf-low { background: var(--low); }
+
+.empty {
+  background: var(--surface);
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius);
+  padding: 40px 24px;
+  text-align: center;
+  color: var(--text-2);
+  font-size: 14px;
+}
+
+[data-panel] { display: block; }
+[data-panel][hidden] { display: none; }
+main[data-active-tab="calibration"] .signals,
+main[data-active-tab="calibration"] .toolbar { display: none; }
+
+.entry {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  margin: 8px 0;
+  transition: border-color 0.12s ease, box-shadow 0.12s ease;
+}
+.entry:hover { border-color: var(--border-strong); }
+.entry.is-decided { opacity: 0.62; }
+
+.entry-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.entry-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.entry-title h2 {
+  font-size: 15.5px;
+  margin: 0;
+  font-weight: 600;
+  line-height: 1.4;
+  letter-spacing: -0.005em;
+  color: var(--text);
+}
+.conf {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  background: var(--low);
+  align-self: center;
+  flex-shrink: 0;
+}
+.conf-high { background: var(--high); }
+.conf-medium { background: var(--medium); }
+.conf-low { background: var(--low); }
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+  padding: 2px 8px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--border);
+  color: var(--text-2);
+  background: var(--surface-2);
+}
+.badge-dup { color: #6d28d9; background: #f5f3ff; border-color: #ddd6fe; }
+.badge-age { color: #b45309; background: var(--medium-bg); border-color: #fde68a; }
+.badge-done { color: var(--text-3); background: var(--surface-2); border-color: var(--border); }
+
+.ramification {
+  margin: 6px 0 12px 17px;
+  color: var(--text-2);
+  font-size: 14px;
+  line-height: 1.5;
+}
+
+.entry-meta {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  margin-left: 17px;
+  margin-bottom: 4px;
+}
+.meta-item { color: var(--text-3); font-size: 12px; font-variant-numeric: tabular-nums; }
+.meta-conf-high { color: var(--high); }
+.meta-conf-medium { color: var(--medium); }
+.dot-sep { color: var(--text-3); font-size: 11px; }
+.muted { color: var(--text-3); font-style: normal; }
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 2px 4px 2px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--required-border);
+  background: var(--required-bg);
+  color: var(--required-text);
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: 0.005em;
+}
+.pill .pill-kind {
+  font-size: 10px;
+  font-weight: 500;
+  color: var(--text-3);
+  background: var(--surface-2);
+  padding: 1px 6px;
+  border-radius: var(--radius-pill);
+  text-transform: lowercase;
+}
+.pill-proposed {
+  background: var(--proposed-bg);
+  border-style: dashed;
+  color: var(--proposed-text);
+}
+.pill-archive {
+  background: var(--archive-bg);
+  border-color: var(--archive-border);
+  color: var(--archive-text);
+}
+.pill-archive .pill-kind { background: rgba(153,27,27,0.06); color: var(--archive-text); }
+
+.entry-body {
+  margin-top: 10px;
+}
+.entry-body summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12.5px;
+  color: var(--text-2);
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 8px;
+  margin-left: 9px;
+  border-radius: var(--radius-sm);
+  transition: background 0.12s ease;
+}
+.entry-body summary:hover { background: var(--surface-2); color: var(--text); }
+.entry-body summary::-webkit-details-marker { display: none; }
+.entry-body summary::after {
+  content: "›";
+  color: var(--text-3);
+  font-size: 14px;
+  transition: transform 0.15s ease;
+}
+.entry-body[open] summary::after { transform: rotate(90deg); }
+.entry-body[open] summary .open-text { display: none; }
+.entry-body .close-text { display: none; }
+.entry-body[open] .close-text { display: inline; }
+
+.body {
+  margin: 14px 0 0;
+  padding: 16px 18px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 14px;
+}
+
+.body dl { margin: 0; display: grid; gap: 14px; }
+.body .field dt {
+  font-size: 11.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.07em;
+  color: var(--text-3);
+  font-weight: 600;
+  margin: 0 0 4px;
+}
+.body .field dd { margin: 0; color: var(--text); font-size: 14px; line-height: 1.55; }
+.body .field-list { margin: 4px 0 0; padding-left: 18px; }
+.body .field-list li { margin-bottom: 2px; }
+
+.guardrails-value { font-size: 13px; color: var(--text-2); font-variant-numeric: tabular-nums; }
+
+.prior {
+  background: var(--surface-2);
+  border-radius: var(--radius-sm);
+  padding: 12px 14px;
+  margin-top: 4px;
+}
+.prior dt { font-size: 11.5px !important; }
+.prior dd { padding-top: 4px; }
+.prior-list { margin: 0; padding-left: 18px; font-size: 13px; }
+.prior-list li { margin: 2px 0; color: var(--text); }
+.prior-list strong { font-weight: 500; color: var(--text-2); }
+
+.tech-details { margin-top: -4px; }
+.tech-details > summary {
+  list-style: none;
+  cursor: pointer;
+  user-select: none;
+  font-size: 12px;
+  color: var(--text-2);
+  padding: 6px 10px;
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  transition: background 0.12s ease, color 0.12s ease;
+}
+.tech-details > summary:hover { background: var(--surface-2); color: var(--text); }
+.tech-details > summary::-webkit-details-marker { display: none; }
+.tech-details > summary::after {
+  content: "›";
+  font-size: 13px;
+  color: var(--text-3);
+  transition: transform 0.15s ease;
+}
+.tech-details[open] > summary::after { transform: rotate(90deg); }
+.tech-grid {
+  margin: 8px 0 0;
+  padding: 12px 14px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  display: grid;
+  gap: 10px;
+  grid-template-columns: 1fr;
+}
+@media (min-width: 640px) {
+  .tech-grid { grid-template-columns: 1fr 1fr; }
+}
+.tech-grid div { display: flex; flex-direction: column; gap: 2px; }
+.tech-grid dt {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-3);
+  font-weight: 600;
+}
+.tech-grid dd {
+  margin: 0;
+  font-size: 12.5px;
+  color: var(--text-2);
+  word-break: break-word;
+}
+.tech-grid code {
+  font-family: ui-monospace, SFMono-Regular, "SF Mono", Menlo, monospace;
+  font-size: 11.5px;
+  background: var(--surface-2);
+  padding: 1px 6px;
+  border-radius: 4px;
+  color: var(--text-2);
+}
+
+.note-field { display: block; font-size: 12px; color: var(--text-2); }
+.note-field span { display: block; margin-bottom: 4px; font-weight: 500; }
+.note-field textarea {
+  display: block;
+  width: 100%;
+  appearance: none;
+  background: var(--surface);
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  padding: 8px 10px;
+  font: inherit;
+  font-size: 13px;
+  color: inherit;
+  resize: vertical;
+  min-height: 56px;
+  transition: border-color 0.12s ease;
+}
+.note-field textarea:focus { outline: 2px solid var(--ring); outline-offset: -1px; border-color: var(--ring); }
+
+.more-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 14px;
+}
+.actions .btn { padding: 6px 12px; font-size: 12.5px; }
+.actions .btn-ghost { color: var(--text-2); }
+
+.cal-pane {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 24px;
+  margin-top: 8px;
+}
+.cal-head h2 { font-size: 16px; margin: 0 0 4px; font-weight: 600; }
+.cal-head p { margin: 0 0 18px; color: var(--text-2); font-size: 13px; max-width: 60ch; }
+.cal-pane .rules {
+  list-style: none;
+  margin: 0 0 20px;
+  padding: 0;
+  display: grid;
+  gap: 6px;
+}
+.cal-pane .rules li {
+  background: var(--surface-2);
+  padding: 10px 14px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  color: var(--text);
+  border-left: 2px solid var(--border-strong);
+}
+.cal-note { margin-bottom: 12px; }
+.cal-pane .actions { border-top: none; padding-top: 0; }
+
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: 24px;
+  transform: translateX(-50%) translateY(8px);
+  background: var(--text);
+  color: var(--primary-text);
+  padding: 8px 14px;
+  border-radius: var(--radius-pill);
+  font-size: 13px;
+  opacity: 0;
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  pointer-events: none;
+  z-index: 100;
+  max-width: calc(100vw - 32px);
+}
+.toast.is-on {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+@media (max-width: 720px) {
+  .app { grid-template-columns: 1fr; padding: 24px 18px 6px; }
+  .app-controls { grid-row: auto; grid-column: 1; justify-self: start; }
+  .snapshot { padding-left: 0; }
+  main { padding: 12px 18px 80px; }
+  .tabs { padding: 0 18px; }
+  .entry { padding: 14px 16px; }
+  .ramification, .entry-meta { margin-left: 0; }
+}
+</style>
 </head>
 <body>
   <header class="app">
-    <h1>Learning Dashboard</h1>
-    <button type="button" id="finish">Finish &amp; Execute</button>
-    <button type="button" id="export">Export JSONL</button>
+    <div class="brand">
+      <span class="brand-dot" aria-hidden="true"></span>
+      <h1>Learning Dashboard</h1>
+    </div>
+    <p class="snapshot" aria-live="polite">11 open · 10 high confidence · 2 likely duplicates</p>
+    <div class="app-controls">
+      <button type="button" id="export" class="btn btn-ghost">Export JSONL</button>
+      <button type="button" id="finish" class="btn btn-primary">Finish &amp; Execute</button>
+    </div>
   </header>
+
+  <nav class="tabs" role="tablist" aria-label="Learnings tabs">
+      <button type="button" role="tab" data-tab="inbox" aria-selected="true">Inbox<span class="count">11</span></button>
+      <button type="button" role="tab" data-tab="triaged" aria-selected="false">Triaged<span class="count">0</span></button>
+      <button type="button" role="tab" data-tab="blocked" aria-selected="false">Blocked<span class="count">0</span></button>
+      <button type="button" role="tab" data-tab="done" aria-selected="false">Done<span class="count">0</span></button>
+      <button type="button" role="tab" data-tab="calibration" aria-selected="false">Calibration<span class="count">0</span></button>
+  </nav>
+
   <main>
-    <section class="triage" aria-label="Dashboard Triage Signals">
-      <h2>Dashboard Triage Signals</h2>
-      <ul><li><strong>Needs Review</strong>: 2</li>
-<li><strong>Open Items</strong>: 2</li>
-<li><strong>Auto Done</strong>: 11</li>
-<li><strong>Raw Inbox</strong>: 2</li>
-<li><strong>Candidates</strong>: 0</li>
-<li><strong>Aging/Stale</strong>: 0</li>
-<li><strong>Likely Duplicates</strong>: 0</li>
-<li><strong>Calibration Learned</strong>: None</li>
-<li><strong>Blocked Decisions</strong>: None</li>
-<li><strong>Ask Agent Prompts</strong>: Ask agent: choose archive, candidate, defer, or follow-up for each needs-review item. Ask agent: turn code-related decisions into TDD/review tasks before marking done.</li></ul>
-    </section>
-    <section class="calibration" aria-label="Calibration">
-      <h2>Calibration</h2>
-      <label>Calibration note <textarea id="calibration-note" rows="2"></textarea></label>
-      <button type="button" id="record-calibration" data-action="calibration">Record Calibration</button>
-    </section>
+    <details class="signals" id="signals">
+      <summary>
+        <span>Triage signals</span>
+        <span class="hint">All raw counts</span>
+      </summary>
+      <ul class="signal-grid">
+        <li><strong>Needs Review</strong>: 10</li>
+        <li><strong>Open Items</strong>: 11</li>
+        <li><strong>Auto Done</strong>: 0</li>
+        <li><strong>Raw Inbox</strong>: 11</li>
+        <li><strong>Candidates</strong>: 0</li>
+        <li><strong>Aging/Stale</strong>: 0</li>
+        <li><strong>Likely Duplicates</strong>: 2</li>
+        <li><strong>Calibration Learned</strong>: None</li>
+        <li><strong>Blocked Decisions</strong>: None</li>
+        <li><strong>Ask Agent Prompts</strong>: Ask agent: choose archive, candidate, defer, or follow-up for each needs-review item. Ask agent: turn code-related decisions into TDD/review tasks before marking done.</li>
+      </ul>
+    </details>
 
-      <article class="entry" data-fingerprint="d12111e6daf4">
-        <header>
-          <div>
-            <p class="meta">inbox.md | inbox | high | automation (required), test (required), docs (proposed)</p>
-            <h2>Runtime automation config needs a checked-in source of truth</h2>
+    <div class="toolbar">
+      <label class="search">
+        <svg viewBox="0 0 16 16" width="14" height="14" aria-hidden="true"><path fill="currentColor" d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1 1 0 0 0-.115-.1ZM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/></svg>
+        <input id="search" type="search" autocomplete="off" placeholder="Filter by title, impact, or guardrail…" aria-label="Filter learnings">
+      </label>
+      <div class="filter-chips" role="group" aria-label="Filter by confidence">
+        <button type="button" class="chip is-active" data-conf="all" aria-pressed="true">All</button>
+        <button type="button" class="chip" data-conf="high" aria-pressed="false"><span class="conf-dot conf-high"></span>High</button>
+        <button type="button" class="chip" data-conf="medium" aria-pressed="false"><span class="conf-dot conf-medium"></span>Medium</button>
+        <button type="button" class="chip" data-conf="low" aria-pressed="false"><span class="conf-dot conf-low"></span>Low</button>
+      </div>
+    </div>
+
+      <section data-panel="inbox" role="tabpanel" aria-label="Inbox">
+        <article class="entry" data-fingerprint="83b06990aeb2" data-status="inbox" data-confidence="high" data-aging="0" data-search="keep one canonical learning front door users have to reason about multiple learning surfaces and lose trust when the setup feels like a command-line toolkit instead of a product. skill (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Keep one canonical learning front door</h2>
+              
+            </div>
           </div>
-          <div class="controls"><button type="button" data-action="candidate" data-fingerprint="d12111e6daf4">Candidate</button>
-<button type="button" data-action="promote" data-fingerprint="d12111e6daf4">Promote</button>
-<button type="button" data-action="archive" data-fingerprint="d12111e6daf4">Archive</button>
-<button type="button" data-action="defer" data-fingerprint="d12111e6daf4">Defer</button></div>
-        </header>
-        <p>The scheduled learning system can quietly regress after setup, machine migration, or local edits, and the user cannot trust that corrected automation behavior will persist.</p>
-        <details>
-          <summary>Evidence and Technical refs</summary>
-          <dl>
-            <dt>Evidence</dt><dd>User asked whether the live daily learning executor and triage automation.toml files under ~/.codex/automations were checked into dotfiles or should be symlinked. The live files were local-only plain files, so prompt fixes could drift or disappear outside this machine.</dd>
-
-            <dt>Technical refs</dt><dd>/Users/david/.codex/automations/daily-learning-executor/automation.toml, /Users/david/.codex/automations/daily-learning-triage/automation.toml, /Users/david/Dropbox (Personal)/code/dotfiles/.codex/automations/daily-learning-executor/automation.toml, /Users/david/Dropbox (Personal)/code/dotfiles/symlink.sh, /Users/david/Dropbox (Personal)/code/dotfiles/.agents/skills/learn/tests/structural-check.sh</dd>
-            <dt>Recommended fix</dt><dd>Keep canonical automation.toml files in dotfiles, symlink the live ~/.codex/automations files to them via symlink.sh, and verify the wiring with structural checks.</dd>
-
-          </dl>
-        </details>
-        <label>Note <textarea rows="2" data-note-for="d12111e6daf4"></textarea></label>
-      </article>
-
-
-      <article class="entry" data-fingerprint="02b34308afad">
-        <header>
-          <div>
-            <p class="meta">inbox.md | inbox | high | automation (required), docs (required), test (required)</p>
-            <h2>Successful learning automations must not leave branches dirty</h2>
+          <p class="ramification">Users have to reason about multiple learning surfaces and lose trust when the setup feels like a command-line toolkit instead of a product.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="skill (required)">skill<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">yesterday</span>
           </div>
-          <div class="controls"><button type="button" data-action="candidate" data-fingerprint="02b34308afad">Candidate</button>
-<button type="button" data-action="promote" data-fingerprint="02b34308afad">Promote</button>
-<button type="button" data-action="archive" data-fingerprint="02b34308afad">Archive</button>
-<button type="button" data-action="defer" data-fingerprint="02b34308afad">Defer</button></div>
-        </header>
-        <p>The user has to manually clean up after supposedly hands-off automation, and later agents may mix automation output with unrelated session changes.</p>
-        <details>
-          <summary>Evidence and Technical refs</summary>
-          <dl>
-            <dt>Evidence</dt><dd>The Journology daily learning automations wrote docs/learnings and docs guidance directly to the m3 branch without committing, leaving the integration branch dirty after the scheduled run.</dd>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>User questioned why an old capture wrapper and repo-local README duplicated /learn behavior and warned that duplicate docs drift.</dd>
+          </div>
 
-            <dt>Technical refs</dt><dd>docs/ai/learning-system.md, .codex/automations/daily-learning-triage/automation.toml, .codex/automations/daily-learning-executor/automation.toml, .agents/skills/learn/tests/structural-check.sh</dd>
-            <dt>Recommended fix</dt><dd>Daily automations should check git status before writing, stop on unrelated pre-existing dirt, verify their own changes, and create one local no-push commit when successful.</dd>
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Move useful capture reasoning into /learn and the canonical learning-system guide; keep repo-local READMEs pointer-only.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">skill (required)</dd>
+          </div>
 
-          </dl>
-        </details>
-        <label>Note <textarea rows="2" data-note-for="02b34308afad"></textarea></label>
-      </article>
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>.agents/skills/learn/SKILL.md, docs/ai/learning-system.md, docs/learnings/README.md</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>inbox.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>83b06990aeb2</code></dd></div>
+            </dl>
+          </details>
+              </dl>
+          <label class="note-field">
+            <span>Notes</span>
+            <textarea rows="2" data-note-for="83b06990aeb2" placeholder="Optional context for this decision…"></textarea>
+          </label>
+          <div class="more-actions">
+            <button type="button" class="chip" data-action="block" data-fingerprint="83b06990aeb2">Block</button>
+            <button type="button" class="chip" data-action="follow-up" data-fingerprint="83b06990aeb2">Add follow-up</button>
+            <button type="button" class="chip" data-action="draft-plan" data-fingerprint="83b06990aeb2">Draft plan</button>
+            <button type="button" class="chip" data-action="draft-patch" data-fingerprint="83b06990aeb2">Draft patch</button>
+          </div>
+            </div>
+          </details>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="83b06990aeb2">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="83b06990aeb2">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="83b06990aeb2">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="83b06990aeb2">Snooze</button>
+        </div>
+        </article>
+        <article class="entry" data-fingerprint="65a9dbb0b3b5" data-status="inbox" data-confidence="high" data-aging="0" data-search="verify that required behavior is actually wired users cannot trust a system when agents say it should behave a certain way but no prompt, hook, test, automation, or structural check makes that behavior happen. automation (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Verify that required behavior is actually wired</h2>
+              
+            </div>
+          </div>
+          <p class="ramification">Users cannot trust a system when agents say it should behave a certain way but no prompt, hook, test, automation, or structural check makes that behavior happen.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="automation (required)">automation<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">yesterday</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>User asked whether triage and executor actually read the learning-system doc and explicitly apply the abstraction ladder, revealing that &quot;should do X&quot; language is not enough unless the system is checked for actual wiring.</dd>
+          </div>
 
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>When a workflow depends on a behavior, verify the actual trigger, prompt, hook, test, or structural check that enforces it; add one if it is missing.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">automation (required)</dd>
+          </div>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>/Users/david/.codex/automations/daily-learning-triage/automation.toml, /Users/david/.codex/automations/daily-learning-executor/automation.toml, .agents/skills/learn/tests/structural-check.sh</dd></div>
+            <div><dt>Pattern</dt><dd>Claims about expected behavior drift from actual wiring.</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>inbox.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>65a9dbb0b3b5</code></dd></div>
+            </dl>
+          </details>
+              </dl>
+          <label class="note-field">
+            <span>Notes</span>
+            <textarea rows="2" data-note-for="65a9dbb0b3b5" placeholder="Optional context for this decision…"></textarea>
+          </label>
+          <div class="more-actions">
+            <button type="button" class="chip" data-action="block" data-fingerprint="65a9dbb0b3b5">Block</button>
+            <button type="button" class="chip" data-action="follow-up" data-fingerprint="65a9dbb0b3b5">Add follow-up</button>
+            <button type="button" class="chip" data-action="draft-plan" data-fingerprint="65a9dbb0b3b5">Draft plan</button>
+            <button type="button" class="chip" data-action="draft-patch" data-fingerprint="65a9dbb0b3b5">Draft patch</button>
+          </div>
+            </div>
+          </details>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="65a9dbb0b3b5">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="65a9dbb0b3b5">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="65a9dbb0b3b5">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="65a9dbb0b3b5">Snooze</button>
+        </div>
+        </article>
+        <article class="entry" data-fingerprint="755a268f4869" data-status="inbox" data-confidence="high" data-aging="0" data-search="do not present deterministic ids as semantic judgment users may trust dead plumbing and miss that the real system behavior depends on agentic triage. docs (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Do not present deterministic IDs as semantic judgment</h2>
+              
+            </div>
+          </div>
+          <p class="ramification">Users may trust dead plumbing and miss that the real system behavior depends on agentic triage.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="docs (required)">docs<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">yesterday</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>User pointed out that exact fingerprint matching will almost never dedupe probabilistic agent wording; meaningful duplicate detection and clustering require agent judgment.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Use fingerprints only as row IDs and exact replay guards; make docs, tests, and automation prompts state that semantic dedupe/clustering is agent-owned.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">docs (required)</dd>
+          </div>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>.agents/skills/learn/SKILL.md, docs/ai/learning-system.md, bin/learn</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>inbox.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>755a268f4869</code></dd></div>
+            </dl>
+          </details>
+              </dl>
+          <label class="note-field">
+            <span>Notes</span>
+            <textarea rows="2" data-note-for="755a268f4869" placeholder="Optional context for this decision…"></textarea>
+          </label>
+          <div class="more-actions">
+            <button type="button" class="chip" data-action="block" data-fingerprint="755a268f4869">Block</button>
+            <button type="button" class="chip" data-action="follow-up" data-fingerprint="755a268f4869">Add follow-up</button>
+            <button type="button" class="chip" data-action="draft-plan" data-fingerprint="755a268f4869">Draft plan</button>
+            <button type="button" class="chip" data-action="draft-patch" data-fingerprint="755a268f4869">Draft patch</button>
+          </div>
+            </div>
+          </details>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="755a268f4869">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="755a268f4869">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="755a268f4869">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="755a268f4869">Snooze</button>
+        </div>
+        </article>
+        <article class="entry" data-fingerprint="8fa091b8f04e" data-status="inbox" data-confidence="high" data-aging="0" data-search="observers should route learnings, not become memory stores durable feedback can be missed or split across two backlogs when the ambient observer keeps its own memory instead of routing to the learning store. skill (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Observers should route learnings, not become memory stores</h2>
+              
+            </div>
+          </div>
+          <p class="ramification">Durable feedback can be missed or split across two backlogs when the ambient observer keeps its own memory instead of routing to the learning store.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="skill (required)">skill<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">yesterday</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>User asked whether a different Journology session would remember to capture learnings if only the /learn skill header mentioned capture triggers.</dd>
+          </div>
+          <div class="field">
+            <dt>Additional evidence</dt>
+            <dd><ul class="field-list"><li>User questioned whether task-observer&#x27;s old observation log is still useful now that durable learnings should route through the learning system.</li></ul></dd>
+          </div>
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Keep task-observer as the trigger/sensor, route durable learnings through /learn, and use observation files only as fallback or session audit notes.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">skill (required)</dd>
+          </div>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>.agents/skills/task-observer/SKILL.md, .agents/skills/learn/SKILL.md, .claude/AGENTS.md</dd></div>
+            <div><dt>Pattern</dt><dd>Ambient sensors drift into parallel memory systems.</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>inbox.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>8fa091b8f04e</code></dd></div>
+            </dl>
+          </details>
+              </dl>
+          <label class="note-field">
+            <span>Notes</span>
+            <textarea rows="2" data-note-for="8fa091b8f04e" placeholder="Optional context for this decision…"></textarea>
+          </label>
+          <div class="more-actions">
+            <button type="button" class="chip" data-action="block" data-fingerprint="8fa091b8f04e">Block</button>
+            <button type="button" class="chip" data-action="follow-up" data-fingerprint="8fa091b8f04e">Add follow-up</button>
+            <button type="button" class="chip" data-action="draft-plan" data-fingerprint="8fa091b8f04e">Draft plan</button>
+            <button type="button" class="chip" data-action="draft-patch" data-fingerprint="8fa091b8f04e">Draft patch</button>
+          </div>
+            </div>
+          </details>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="8fa091b8f04e">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="8fa091b8f04e">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="8fa091b8f04e">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="8fa091b8f04e">Snooze</button>
+        </div>
+        </article>
+        <article class="entry" data-fingerprint="23031c089efa" data-status="inbox" data-confidence="high" data-aging="0" data-search="multi-cwd automations must be repo-scoped per run a repo-scoped automation becomes noisy and may hit sandbox/write failures if each run loops across sibling configured repos. automation (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Multi-cwd automations must be repo-scoped per run</h2>
+              
+            </div>
+          </div>
+          <p class="ramification">A repo-scoped automation becomes noisy and may hit sandbox/write failures if each run loops across sibling configured repos.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="automation (required)">automation<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">yesterday</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>User noted that Codex spawns one executor per cwd, so the Journology executor should not inspect or report on dotfiles.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Automation prompts and contracts should state that each cron invocation operates only on its current working directory and must not touch sibling configured repos.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">automation (required)</dd>
+          </div>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>/Users/david/.codex/automations/daily-learning-executor/automation.toml, /Users/david/.codex/automations/daily-learning-triage/automation.toml, docs/ai/learning-system.md</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>inbox.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>23031c089efa</code></dd></div>
+            </dl>
+          </details>
+              </dl>
+          <label class="note-field">
+            <span>Notes</span>
+            <textarea rows="2" data-note-for="23031c089efa" placeholder="Optional context for this decision…"></textarea>
+          </label>
+          <div class="more-actions">
+            <button type="button" class="chip" data-action="block" data-fingerprint="23031c089efa">Block</button>
+            <button type="button" class="chip" data-action="follow-up" data-fingerprint="23031c089efa">Add follow-up</button>
+            <button type="button" class="chip" data-action="draft-plan" data-fingerprint="23031c089efa">Draft plan</button>
+            <button type="button" class="chip" data-action="draft-patch" data-fingerprint="23031c089efa">Draft patch</button>
+          </div>
+            </div>
+          </details>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="23031c089efa">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="23031c089efa">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="23031c089efa">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="23031c089efa">Snooze</button>
+        </div>
+        </article>
+        <article class="entry" data-fingerprint="631e0a957ad5" data-status="inbox" data-confidence="high" data-aging="0" data-search="prevention plans can need companion artifacts agents can auto-promote a docs-looking entry while skipping the test, helper, skill, or automation work that actually prevents the bug. docs (required), test (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Prevention plans can need companion artifacts</h2>
+              
+            </div>
+          </div>
+          <p class="ramification">Agents can auto-promote a docs-looking entry while skipping the test, helper, skill, or automation work that actually prevents the bug.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="docs (required)">docs<span class="pill-kind">required</span></span>
+            <span class="pill pill-required" title="test (required)">test<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">today</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>Journology candidates showed prevention plans often need more than one artifact, such as a test plus docs or a helper plus test.</dd>
+          </div>
+          <div class="field">
+            <dt>Additional evidence</dt>
+            <dd><ul class="field-list"><li>User clarified that the system should store one readable prevention artifact list with required/proposed markers instead of primary and secondary fields.</li></ul></dd>
+          </div>
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Store Prevention artifacts as one list with required/proposed markers and apply TDD/review gates to required code-risk artifacts.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">docs (required), test (required)</dd>
+          </div>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>docs/ai/learning-system.md, .agents/skills/learn/SKILL.md, setup/tests/test_learn_cli.py</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>inbox.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>631e0a957ad5</code></dd></div>
+            </dl>
+          </details>
+              </dl>
+          <label class="note-field">
+            <span>Notes</span>
+            <textarea rows="2" data-note-for="631e0a957ad5" placeholder="Optional context for this decision…"></textarea>
+          </label>
+          <div class="more-actions">
+            <button type="button" class="chip" data-action="block" data-fingerprint="631e0a957ad5">Block</button>
+            <button type="button" class="chip" data-action="follow-up" data-fingerprint="631e0a957ad5">Add follow-up</button>
+            <button type="button" class="chip" data-action="draft-plan" data-fingerprint="631e0a957ad5">Draft plan</button>
+            <button type="button" class="chip" data-action="draft-patch" data-fingerprint="631e0a957ad5">Draft patch</button>
+          </div>
+            </div>
+          </details>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="631e0a957ad5">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="631e0a957ad5">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="631e0a957ad5">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="631e0a957ad5">Snooze</button>
+        </div>
+        </article>
+        <article class="entry" data-fingerprint="f25da97943c6" data-status="inbox" data-confidence="high" data-aging="0" data-search="learning automation parents need frontier judgment models a weaker parent model can miscluster evidence, auto-execute the wrong prevention work, or miss when a decision needs human review. docs (required), automation (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Learning automation parents need frontier judgment models</h2>
+              
+            </div>
+          </div>
+          <p class="ramification">A weaker parent model can miscluster evidence, auto-execute the wrong prevention work, or miss when a decision needs human review.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="docs (required)">docs<span class="pill-kind">required</span></span>
+            <span class="pill pill-required" title="automation (required)">automation<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">today</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>User noted that daily learning automations were defaulting to gpt-5.2, which is too weak for clustering, abstraction, safety, and calibration decisions across many learnings.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Run daily learning triage and executor parents on gpt-5.5 high reasoning while using focused coding models such as gpt-5.3-codex only for bounded executor-dispatched subagents.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">docs (required), automation (required)</dd>
+          </div>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>docs/ai/learning-system.md, /Users/david/.codex/automations/daily-learning-triage/automation.toml, /Users/david/.codex/automations/daily-learning-executor/automation.toml</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>inbox.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>f25da97943c6</code></dd></div>
+            </dl>
+          </details>
+              </dl>
+          <label class="note-field">
+            <span>Notes</span>
+            <textarea rows="2" data-note-for="f25da97943c6" placeholder="Optional context for this decision…"></textarea>
+          </label>
+          <div class="more-actions">
+            <button type="button" class="chip" data-action="block" data-fingerprint="f25da97943c6">Block</button>
+            <button type="button" class="chip" data-action="follow-up" data-fingerprint="f25da97943c6">Add follow-up</button>
+            <button type="button" class="chip" data-action="draft-plan" data-fingerprint="f25da97943c6">Draft plan</button>
+            <button type="button" class="chip" data-action="draft-patch" data-fingerprint="f25da97943c6">Draft patch</button>
+          </div>
+            </div>
+          </details>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="f25da97943c6">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="f25da97943c6">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="f25da97943c6">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="f25da97943c6">Snooze</button>
+        </div>
+        </article>
+        <article class="entry" data-fingerprint="08c2d3bc8cf3" data-status="inbox" data-confidence="medium" data-aging="0" data-search="daily automations should read canonical docs from master scheduled runs can follow stale or disappearing feature-worktree instructions instead of the current canonical learning contract. docs (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-medium" aria-hidden="true" title="Medium confidence"></span>
+              <h2>Daily automations should read canonical docs from master</h2>
+              <span class="badge badge-dup">Lookalike</span>
+            </div>
+          </div>
+          <p class="ramification">Scheduled runs can follow stale or disappearing feature-worktree instructions instead of the current canonical learning contract.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="docs (required)">docs<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-medium">Medium</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">today</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>Daily learning automation prompts were still reading the global learning-system contract from /Users/david/.codex/worktrees/20dc/dotfiles even after the work was being landed to master.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Point daily learning automations at the durable dotfiles master checkout and use repo-local docs only as cwd-specific supplements.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">docs (required)</dd>
+          </div>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>None</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>inbox.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>08c2d3bc8cf3</code></dd></div>
+            </dl>
+          </details>
+              </dl>
+          <label class="note-field">
+            <span>Notes</span>
+            <textarea rows="2" data-note-for="08c2d3bc8cf3" placeholder="Optional context for this decision…"></textarea>
+          </label>
+          <div class="more-actions">
+            <button type="button" class="chip" data-action="block" data-fingerprint="08c2d3bc8cf3">Block</button>
+            <button type="button" class="chip" data-action="follow-up" data-fingerprint="08c2d3bc8cf3">Add follow-up</button>
+            <button type="button" class="chip" data-action="draft-plan" data-fingerprint="08c2d3bc8cf3">Draft plan</button>
+            <button type="button" class="chip" data-action="draft-patch" data-fingerprint="08c2d3bc8cf3">Draft patch</button>
+          </div>
+            </div>
+          </details>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="08c2d3bc8cf3">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="08c2d3bc8cf3">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="08c2d3bc8cf3">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="08c2d3bc8cf3">Snooze</button>
+        </div>
+        </article>
+        <article class="entry" data-fingerprint="b1ade9e50ec0" data-status="inbox" data-confidence="high" data-aging="0" data-search="daily automations should read canonical docs from master scheduled runs can follow stale or disappearing feature-worktree instructions instead of the current canonical learning contract. docs (required), automation (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Daily automations should read canonical docs from master</h2>
+              <span class="badge badge-dup">Lookalike</span>
+            </div>
+          </div>
+          <p class="ramification">Scheduled runs can follow stale or disappearing feature-worktree instructions instead of the current canonical learning contract.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="docs (required)">docs<span class="pill-kind">required</span></span>
+            <span class="pill pill-required" title="automation (required)">automation<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">today</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>Daily learning automation prompts were still reading the global learning-system contract from /Users/david/.codex/worktrees/20dc/dotfiles even after the work was being landed to master.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Point daily learning automations at the durable dotfiles master checkout and use repo-local docs only as cwd-specific supplements.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">docs (required), automation (required)</dd>
+          </div>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>docs/ai/learning-system.md, /Users/david/.codex/automations/daily-learning-triage/automation.toml, /Users/david/.codex/automations/daily-learning-executor/automation.toml</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>inbox.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>b1ade9e50ec0</code></dd></div>
+            </dl>
+          </details>
+              </dl>
+          <label class="note-field">
+            <span>Notes</span>
+            <textarea rows="2" data-note-for="b1ade9e50ec0" placeholder="Optional context for this decision…"></textarea>
+          </label>
+          <div class="more-actions">
+            <button type="button" class="chip" data-action="block" data-fingerprint="b1ade9e50ec0">Block</button>
+            <button type="button" class="chip" data-action="follow-up" data-fingerprint="b1ade9e50ec0">Add follow-up</button>
+            <button type="button" class="chip" data-action="draft-plan" data-fingerprint="b1ade9e50ec0">Draft plan</button>
+            <button type="button" class="chip" data-action="draft-patch" data-fingerprint="b1ade9e50ec0">Draft patch</button>
+          </div>
+            </div>
+          </details>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="b1ade9e50ec0">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="b1ade9e50ec0">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="b1ade9e50ec0">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="b1ade9e50ec0">Snooze</button>
+        </div>
+        </article>
+        <article class="entry" data-fingerprint="00e184061921" data-status="inbox" data-confidence="high" data-aging="0" data-search="learning glue must be global across repos agents can land branches without the learning checkpoint in repos that have docs/learnings but do not carry the hidden cli binary. docs (required), test (required), skill (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Learning glue must be global across repos</h2>
+              
+            </div>
+          </div>
+          <p class="ramification">Agents can land branches without the learning checkpoint in repos that have docs/learnings but do not carry the hidden CLI binary.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="docs (required)">docs<span class="pill-kind">required</span></span>
+            <span class="pill pill-required" title="test (required)">test<span class="pill-kind">required</span></span>
+            <span class="pill pill-required" title="skill (required)">skill<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">today</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>A Journology merge session reported that bin/learn was missing, so it could not run the before-landing learning checkpoint.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Invoke the global learn command with --repo and structurally guard merge docs against repo-local bin/learn assumptions.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">docs (required), test (required), skill (required)</dd>
+          </div>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>docs/ai/git.md, .agents/skills/learn/SKILL.md, .agents/skills/learn/tests/structural-check.sh</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>inbox.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>00e184061921</code></dd></div>
+            </dl>
+          </details>
+              </dl>
+          <label class="note-field">
+            <span>Notes</span>
+            <textarea rows="2" data-note-for="00e184061921" placeholder="Optional context for this decision…"></textarea>
+          </label>
+          <div class="more-actions">
+            <button type="button" class="chip" data-action="block" data-fingerprint="00e184061921">Block</button>
+            <button type="button" class="chip" data-action="follow-up" data-fingerprint="00e184061921">Add follow-up</button>
+            <button type="button" class="chip" data-action="draft-plan" data-fingerprint="00e184061921">Draft plan</button>
+            <button type="button" class="chip" data-action="draft-patch" data-fingerprint="00e184061921">Draft patch</button>
+          </div>
+            </div>
+          </details>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="00e184061921">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="00e184061921">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="00e184061921">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="00e184061921">Snooze</button>
+        </div>
+        </article>
+        <article class="entry" data-fingerprint="6dd075d24cef" data-status="inbox" data-confidence="high" data-aging="0" data-search="final status must follow browser-generated review state the target branch can land without the latest review textarea or comment state even though the agent believed the docs commit was clean. docs (required), test (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Final status must follow browser-generated review state</h2>
+              
+            </div>
+          </div>
+          <p class="ramification">The target branch can land without the latest review textarea or comment state even though the agent believed the docs commit was clean.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="docs (required)">docs<span class="pill-kind">required</span></span>
+            <span class="pill pill-required" title="test (required)">test<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">today</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>A Journology merge session saw the review server/browser write another comment JSON change after the cleaned docs commit.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>After browser or review-server tools finish, re-run git status before the final commit or target advance and fold generated review state into the right commit.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">docs (required), test (required)</dd>
+          </div>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>docs/ai/git.md, .agents/skills/learn/tests/structural-check.sh</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>inbox.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>6dd075d24cef</code></dd></div>
+            </dl>
+          </details>
+              </dl>
+          <label class="note-field">
+            <span>Notes</span>
+            <textarea rows="2" data-note-for="6dd075d24cef" placeholder="Optional context for this decision…"></textarea>
+          </label>
+          <div class="more-actions">
+            <button type="button" class="chip" data-action="block" data-fingerprint="6dd075d24cef">Block</button>
+            <button type="button" class="chip" data-action="follow-up" data-fingerprint="6dd075d24cef">Add follow-up</button>
+            <button type="button" class="chip" data-action="draft-plan" data-fingerprint="6dd075d24cef">Draft plan</button>
+            <button type="button" class="chip" data-action="draft-patch" data-fingerprint="6dd075d24cef">Draft patch</button>
+          </div>
+            </div>
+          </details>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="6dd075d24cef">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="6dd075d24cef">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="6dd075d24cef">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="6dd075d24cef">Snooze</button>
+        </div>
+        </article>
+      </section>
+      <section data-panel="triaged" role="tabpanel" aria-label="Triaged" hidden>
+        <div class="empty">Nothing triaged yet. Adopt or hold an inbox item to send it here.</div>
+      </section>
+      <section data-panel="blocked" role="tabpanel" aria-label="Blocked" hidden>
+        <div class="empty">No blocked items. Anything waiting on TDD or upstream work will surface here.</div>
+      </section>
+      <section data-panel="done" role="tabpanel" aria-label="Done" hidden>
+        <div class="empty">No archived learnings yet. Items you archive will rest here.</div>
+      </section>
+      <section data-panel="calibration" role="tabpanel" aria-label="Calibration" hidden>
+        <div class="cal-pane">
+          <div class="cal-head">
+            <h2>House rules</h2>
+            <p>Calibration shapes how the agent triages future captures. Each line is a rule it should respect.</p>
+          </div>
+        <p class="muted">No house rules captured yet. Add one to teach the agent your taste — wording you prefer, abstraction levels, prevention choices.</p>
+          <label class="note-field cal-note">
+            <span>Add a rule</span>
+            <textarea id="calibration-note" rows="3" placeholder="e.g. Prefer docs candidates before code changes."></textarea>
+          </label>
+          <div class="actions">
+            <button type="button" class="btn btn-primary" id="record-calibration" data-action="calibration">Record rule</button>
+          </div>
+        </div>
+      </section>
   </main>
+
+  <div class="toast" id="toast" role="status" aria-live="polite" hidden></div>
+
   <script>
-    const decisions = [];
-    const pendingSaves = [];
-    function jsonl(decision) { return JSON.stringify(decision) + "\n"; }
-    async function recordDecision(decision) {
-      decisions.push(decision);
-      const save = fetch("/decisions", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(decision)
-        }).catch((error) => {
-        console.warn("Save decisions.jsonl fallback needed", error);
-      });
-      pendingSaves.push(save);
-      await save;
-    }
-    document.addEventListener("click", async (event) => {
-      const button = event.target.closest("button[data-action]");
-      if (!button) return;
-      const fingerprint = button.dataset.fingerprint;
-      const noteBox = document.querySelector(`[data-note-for="${fingerprint}"]`);
-      await recordDecision({ fingerprint, action: button.dataset.action, note: noteBox ? noteBox.value : "" });
+(function () {
+  const decisions = [];
+  const pendingSaves = [];
+  const state = {
+    activeTab: "inbox",
+    activeConfidence: "all",
+    query: "",
+  };
+
+  const toast = document.getElementById("toast");
+  let toastTimer = 0;
+  function showToast(message) {
+    if (!toast) return;
+    toast.hidden = false;
+    toast.textContent = message;
+    requestAnimationFrame(() => toast.classList.add("is-on"));
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.classList.remove("is-on");
+      setTimeout(() => { toast.hidden = true; }, 220);
+    }, 1600);
+  }
+
+  async function recordDecision(decision) {
+    decisions.push(decision);
+    const save = fetch("/decisions", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(decision),
+    }).catch((error) => {
+      console.warn("Save decisions.jsonl fallback needed", error);
     });
-    document.getElementById("export").addEventListener("click", () => {
+    pendingSaves.push(save);
+    await save;
+  }
+
+  function markRecorded(button) {
+    button.dataset.recorded = "true";
+  }
+
+  function markEntryDecided(card, label) {
+    if (!card) return;
+    card.classList.add("is-decided");
+    showToast(label);
+  }
+
+  const ACTION_TOAST = {
+    promote: "Adopted — will land at Finish",
+    candidate: "Triaged — moves to Triaged at Finish",
+    archive: "Archived",
+    defer: "Snoozed",
+    block: "Blocked",
+    "follow-up": "Follow-up noted",
+    "draft-plan": "Plan drafted at Finish",
+    "draft-patch": "Patch drafted at Finish",
+    calibration: "Rule recorded",
+  };
+  const PRIMARY_ACTIONS = new Set(["promote", "candidate", "archive", "defer"]);
+
+  document.addEventListener("click", async (event) => {
+    const button = event.target.closest("button[data-action]");
+    if (!button || button.disabled) return;
+    const action = button.dataset.action;
+    const fingerprint = button.dataset.fingerprint || "global";
+    const card = button.closest(".entry");
+    let note = "";
+    if (action === "calibration") {
+      const calNote = document.getElementById("calibration-note");
+      note = calNote ? calNote.value.trim() : "";
+      if (!note) {
+        showToast("Add a rule first");
+        return;
+      }
+    } else {
+      const noteBox = document.querySelector('[data-note-for="' + fingerprint + '"]');
+      note = noteBox ? noteBox.value : "";
+    }
+    await recordDecision({ fingerprint, action, note });
+    markRecorded(button);
+    if (PRIMARY_ACTIONS.has(action) && card) {
+      markEntryDecided(card, ACTION_TOAST[action] || "Recorded");
+    } else {
+      showToast(ACTION_TOAST[action] || "Recorded");
+    }
+    if (action === "calibration") {
+      const calNote = document.getElementById("calibration-note");
+      if (calNote) calNote.value = "";
+    }
+  });
+
+  // Tabs
+  const mainEl = document.querySelector("main");
+  document.querySelectorAll('[role="tab"]').forEach((tab) => {
+    tab.addEventListener("click", () => {
+      const target = tab.dataset.tab;
+      state.activeTab = target;
+      document.querySelectorAll('[role="tab"]').forEach((t) => {
+        t.setAttribute("aria-selected", t === tab ? "true" : "false");
+      });
+      document.querySelectorAll("[data-panel]").forEach((panel) => {
+        panel.hidden = panel.dataset.panel !== target;
+      });
+      if (mainEl) mainEl.dataset.activeTab = target;
+      tab.scrollIntoView({ block: "nearest", inline: "nearest" });
+    });
+  });
+  if (mainEl) mainEl.dataset.activeTab = "inbox";
+
+  // Filter chips
+  document.querySelectorAll(".filter-chips .chip").forEach((chip) => {
+    chip.addEventListener("click", () => {
+      state.activeConfidence = chip.dataset.conf;
+      document.querySelectorAll(".filter-chips .chip").forEach((c) => {
+        const active = c === chip;
+        c.classList.toggle("is-active", active);
+        c.setAttribute("aria-pressed", active ? "true" : "false");
+      });
+      applyFilters();
+    });
+  });
+
+  // Search
+  const searchInput = document.getElementById("search");
+  if (searchInput) {
+    searchInput.addEventListener("input", () => {
+      state.query = searchInput.value.trim().toLowerCase();
+      applyFilters();
+    });
+  }
+
+  function applyFilters() {
+    document.querySelectorAll(".entry").forEach((card) => {
+      const conf = card.dataset.confidence || "low";
+      const search = card.dataset.search || "";
+      const confOk = state.activeConfidence === "all" || conf === state.activeConfidence;
+      const queryOk = !state.query || search.indexOf(state.query) !== -1;
+      card.hidden = !(confOk && queryOk);
+    });
+  }
+
+  // Export
+  function jsonl(decision) { return JSON.stringify(decision) + "\n"; }
+  const exportBtn = document.getElementById("export");
+  if (exportBtn) {
+    exportBtn.addEventListener("click", () => {
+      if (!decisions.length) {
+        showToast("No decisions to export yet");
+        return;
+      }
       const text = decisions.map(jsonl).join("");
       const blob = new Blob([text], { type: "application/jsonl" });
       const anchor = document.createElement("a");
@@ -133,22 +1581,63 @@
       anchor.download = "decisions.jsonl";
       anchor.click();
       URL.revokeObjectURL(anchor.href);
+      showToast("Exported decisions.jsonl");
     });
-    async function finishReview() {
-      await Promise.allSettled(pendingSaves);
-      await fetch("/finish", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ action: "finish" })
-      });
-    }
-    document.getElementById("finish").addEventListener("click", async () => {
+  }
+
+  async function finishReview() {
+    await Promise.allSettled(pendingSaves);
+    await fetch("/finish", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action: "finish" }),
+    }).catch(() => {});
+  }
+
+  const finishBtn = document.getElementById("finish");
+  if (finishBtn) {
+    finishBtn.addEventListener("click", async () => {
+      finishBtn.disabled = true;
+      finishBtn.textContent = "Finishing…";
       await finishReview();
+      showToast("All decisions executed");
     });
-    document.getElementById("record-calibration").addEventListener("click", async () => {
-      const note = document.getElementById("calibration-note").value;
-      await recordDecision({ fingerprint: "global", action: "calibration", note });
-    });
-  </script>
+  }
+
+  // Keyboard: j/k to navigate cards within active panel, Enter to expand
+  document.addEventListener("keydown", (event) => {
+    if (event.target && /input|textarea/i.test(event.target.tagName || "")) return;
+    if (event.metaKey || event.ctrlKey || event.altKey) return;
+    const visible = Array.from(document.querySelectorAll("[data-panel]:not([hidden]) .entry"))
+      .filter((card) => !card.hidden);
+    if (!visible.length) return;
+    const current = document.activeElement && document.activeElement.closest(".entry");
+    let index = visible.indexOf(current);
+    if (event.key === "j" || event.key === "ArrowDown") {
+      event.preventDefault();
+      index = Math.min(visible.length - 1, index + 1);
+      if (index < 0) index = 0;
+      visible[index].focus({ preventScroll: false });
+      visible[index].scrollIntoView({ block: "nearest" });
+    } else if (event.key === "k" || event.key === "ArrowUp") {
+      event.preventDefault();
+      index = index <= 0 ? 0 : index - 1;
+      visible[index].focus({ preventScroll: false });
+      visible[index].scrollIntoView({ block: "nearest" });
+    } else if (event.key === "Enter" && current) {
+      const body = current.querySelector("details.entry-body");
+      if (body) {
+        event.preventDefault();
+        body.open = !body.open;
+      }
+    }
+  });
+
+  // Make entries focusable for keyboard nav
+  document.querySelectorAll(".entry").forEach((card) => {
+    if (!card.hasAttribute("tabindex")) card.setAttribute("tabindex", "-1");
+  });
+})();
+</script>
 </body>
 </html>
