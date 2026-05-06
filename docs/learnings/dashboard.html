@@ -687,11 +687,12 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
   padding: 10px 12px;
   font: inherit;
   font-size: 14.5px;
-  color: inherit;
+  color: var(--text);
   resize: vertical;
   min-height: 64px;
   transition: border-color 0.12s ease;
 }
+.note-field textarea::placeholder { color: var(--text-3); opacity: 0.7; font-style: italic; }
 .note-field textarea:focus { outline: 2px solid var(--ring); outline-offset: -1px; border-color: var(--ring); }
 
 .more-actions {
@@ -1037,26 +1038,98 @@ body.reviewing { overflow: hidden; }
   gap: 16px;
   background: var(--bg);
 }
-.review-nav {
-  display: flex;
-  gap: 6px;
-}
-.review-nav-btn {
+/* Footer prev/next collapsed in favour of side arrows */
+.review-nav { display: none; }
+
+/* Big edge chevrons */
+.review-side-nav {
   appearance: none;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  width: 40px;
-  height: 38px;
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 1px solid var(--border);
+  width: 48px;
+  height: 56px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 18px;
   color: var(--text-2);
+  font-family: var(--serif);
+  font-size: 32px;
+  font-weight: 400;
+  line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  z-index: 210;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  user-select: none;
 }
-.review-nav-btn:hover:not([disabled]) { background: var(--surface-2); border-color: var(--text-3); color: var(--text); }
-.review-nav-btn[disabled] { opacity: 0.35; cursor: default; }
+.review-side-nav:hover:not([disabled]) {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.review-side-nav[disabled] { opacity: 0.25; cursor: default; }
+.review-side-prev { left: 14px; }
+.review-side-next { right: 14px; }
+.review-side-nav:hover:not([disabled]).review-side-prev { transform: translateY(-50%) translateX(-2px); }
+.review-side-nav:hover:not([disabled]).review-side-next { transform: translateY(-50%) translateX(2px); }
+.review-overlay[hidden] ~ .review-side-nav { display: none; }
+body:not(.reviewing) .review-side-nav { display: none; }
+.review-hint-line {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+}
+.review-hint-line .kbd {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  padding: 1px 5px;
+  background: var(--surface);
+  color: var(--text-2);
+  margin: 0 1px;
+}
+
+/* Tooltips */
+[data-tooltip] { position: relative; }
+[data-tooltip]:hover::after,
+[data-tooltip]:focus-visible::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: var(--primary-text);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.005em;
+  padding: 6px 11px;
+  border-radius: 5px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 220;
+  box-shadow: 0 4px 14px rgba(28,25,22,0.14);
+}
+[data-tooltip]:hover::before,
+[data-tooltip]:focus-visible::before {
+  content: "";
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--text);
+  pointer-events: none;
+  z-index: 220;
+}
 .review-actions {
   display: flex;
   gap: 8px;
@@ -1200,8 +1273,8 @@ body.reviewing { overflow: hidden; }
 
               </dl>
           <label class="note-field">
-            <span>Notes</span>
-            <textarea rows="2" data-note-for="83b06990aeb2" placeholder="Optional context for this decision…"></textarea>
+            <span>Note for the agent</span>
+            <textarea rows="2" data-note-for="83b06990aeb2" placeholder="Leave a thought — the agent reads it next time…"></textarea>
           </label>
           <details class="tech-details">
             <summary>Files &amp; references</summary>
@@ -1221,10 +1294,10 @@ body.reviewing { overflow: hidden; }
             </div>
           </details>
         <div class="actions">
-          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="83b06990aeb2">Adopt</button>
-          <button type="button" class="btn" data-action="candidate" data-fingerprint="83b06990aeb2">Triage</button>
-          <button type="button" class="btn" data-action="archive" data-fingerprint="83b06990aeb2">Archive</button>
-          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="83b06990aeb2">Snooze</button>
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="83b06990aeb2" data-tooltip="Adopt this learning as guidance — apply it going forward.">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="83b06990aeb2" data-tooltip="Move to Triaged for a deeper look or follow-up later.">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="83b06990aeb2" data-tooltip="Drop this — not actionable or already handled.">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="83b06990aeb2" data-tooltip="Decide later — keep in inbox, ask the agent to revisit.">Snooze</button>
         </div>
         </article>
         <article class="entry" data-fingerprint="04e0529e5585" data-status="inbox" data-confidence="high" data-aging="0" data-search="verify that required behavior is actually wired if we say a behavior is required but no prompt, hook, test, automation, or structural check makes it happen, you can&#x27;t trust the system to do what we promise. automation (required)">
@@ -1263,8 +1336,8 @@ body.reviewing { overflow: hidden; }
 
               </dl>
           <label class="note-field">
-            <span>Notes</span>
-            <textarea rows="2" data-note-for="04e0529e5585" placeholder="Optional context for this decision…"></textarea>
+            <span>Note for the agent</span>
+            <textarea rows="2" data-note-for="04e0529e5585" placeholder="Leave a thought — the agent reads it next time…"></textarea>
           </label>
           <details class="tech-details">
             <summary>Files &amp; references</summary>
@@ -1285,10 +1358,10 @@ body.reviewing { overflow: hidden; }
             </div>
           </details>
         <div class="actions">
-          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="04e0529e5585">Adopt</button>
-          <button type="button" class="btn" data-action="candidate" data-fingerprint="04e0529e5585">Triage</button>
-          <button type="button" class="btn" data-action="archive" data-fingerprint="04e0529e5585">Archive</button>
-          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="04e0529e5585">Snooze</button>
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="04e0529e5585" data-tooltip="Adopt this learning as guidance — apply it going forward.">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="04e0529e5585" data-tooltip="Move to Triaged for a deeper look or follow-up later.">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="04e0529e5585" data-tooltip="Drop this — not actionable or already handled.">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="04e0529e5585" data-tooltip="Decide later — keep in inbox, ask the agent to revisit.">Snooze</button>
         </div>
         </article>
         <article class="entry" data-fingerprint="bd3fb5f75282" data-status="inbox" data-confidence="high" data-aging="0" data-search="don&#x27;t dress fingerprints up as semantic judgment if the docs sell fingerprints as semantic dedupe, you&#x27;ll trust dead plumbing and miss that the real work happens during agentic triage. docs (required)">
@@ -1327,8 +1400,8 @@ body.reviewing { overflow: hidden; }
 
               </dl>
           <label class="note-field">
-            <span>Notes</span>
-            <textarea rows="2" data-note-for="bd3fb5f75282" placeholder="Optional context for this decision…"></textarea>
+            <span>Note for the agent</span>
+            <textarea rows="2" data-note-for="bd3fb5f75282" placeholder="Leave a thought — the agent reads it next time…"></textarea>
           </label>
           <details class="tech-details">
             <summary>Files &amp; references</summary>
@@ -1348,10 +1421,10 @@ body.reviewing { overflow: hidden; }
             </div>
           </details>
         <div class="actions">
-          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="bd3fb5f75282">Adopt</button>
-          <button type="button" class="btn" data-action="candidate" data-fingerprint="bd3fb5f75282">Triage</button>
-          <button type="button" class="btn" data-action="archive" data-fingerprint="bd3fb5f75282">Archive</button>
-          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="bd3fb5f75282">Snooze</button>
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="bd3fb5f75282" data-tooltip="Adopt this learning as guidance — apply it going forward.">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="bd3fb5f75282" data-tooltip="Move to Triaged for a deeper look or follow-up later.">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="bd3fb5f75282" data-tooltip="Drop this — not actionable or already handled.">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="bd3fb5f75282" data-tooltip="Decide later — keep in inbox, ask the agent to revisit.">Snooze</button>
         </div>
         </article>
         <article class="entry" data-fingerprint="9f76a57015e7" data-status="inbox" data-confidence="high" data-aging="0" data-search="observers should route learnings, not hoard them if the ambient observer keeps its own backlog instead of routing through /learn, durable feedback ends up split across two stores or lost entirely. skill (required)">
@@ -1390,8 +1463,8 @@ body.reviewing { overflow: hidden; }
 
               </dl>
           <label class="note-field">
-            <span>Notes</span>
-            <textarea rows="2" data-note-for="9f76a57015e7" placeholder="Optional context for this decision…"></textarea>
+            <span>Note for the agent</span>
+            <textarea rows="2" data-note-for="9f76a57015e7" placeholder="Leave a thought — the agent reads it next time…"></textarea>
           </label>
           <details class="tech-details">
             <summary>Files &amp; references</summary>
@@ -1412,10 +1485,10 @@ body.reviewing { overflow: hidden; }
             </div>
           </details>
         <div class="actions">
-          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="9f76a57015e7">Adopt</button>
-          <button type="button" class="btn" data-action="candidate" data-fingerprint="9f76a57015e7">Triage</button>
-          <button type="button" class="btn" data-action="archive" data-fingerprint="9f76a57015e7">Archive</button>
-          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="9f76a57015e7">Snooze</button>
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="9f76a57015e7" data-tooltip="Adopt this learning as guidance — apply it going forward.">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="9f76a57015e7" data-tooltip="Move to Triaged for a deeper look or follow-up later.">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="9f76a57015e7" data-tooltip="Drop this — not actionable or already handled.">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="9f76a57015e7" data-tooltip="Decide later — keep in inbox, ask the agent to revisit.">Snooze</button>
         </div>
         </article>
         <article class="entry" data-fingerprint="b27c9463bf75" data-status="inbox" data-confidence="high" data-aging="0" data-search="multi-cwd automations must stay in their own repo per run without explicit scoping, a repo-scoped automation gets noisy and can hit sandbox or write failures when one run reaches into sibling configured repos. automation (required)">
@@ -1454,8 +1527,8 @@ body.reviewing { overflow: hidden; }
 
               </dl>
           <label class="note-field">
-            <span>Notes</span>
-            <textarea rows="2" data-note-for="b27c9463bf75" placeholder="Optional context for this decision…"></textarea>
+            <span>Note for the agent</span>
+            <textarea rows="2" data-note-for="b27c9463bf75" placeholder="Leave a thought — the agent reads it next time…"></textarea>
           </label>
           <details class="tech-details">
             <summary>Files &amp; references</summary>
@@ -1475,10 +1548,10 @@ body.reviewing { overflow: hidden; }
             </div>
           </details>
         <div class="actions">
-          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="b27c9463bf75">Adopt</button>
-          <button type="button" class="btn" data-action="candidate" data-fingerprint="b27c9463bf75">Triage</button>
-          <button type="button" class="btn" data-action="archive" data-fingerprint="b27c9463bf75">Archive</button>
-          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="b27c9463bf75">Snooze</button>
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="b27c9463bf75" data-tooltip="Adopt this learning as guidance — apply it going forward.">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="b27c9463bf75" data-tooltip="Move to Triaged for a deeper look or follow-up later.">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="b27c9463bf75" data-tooltip="Drop this — not actionable or already handled.">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="b27c9463bf75" data-tooltip="Decide later — keep in inbox, ask the agent to revisit.">Snooze</button>
         </div>
         </article>
         <article class="entry" data-fingerprint="053992e19e3d" data-status="inbox" data-confidence="high" data-aging="0" data-search="prevention plans usually need more than one artifact if the system reads only one prevention artifact, an agent can auto-promote a docs-shaped entry and silently skip the test, helper, skill, or automation work that actually prevents the bug from coming back. docs (required), test (required)">
@@ -1518,8 +1591,8 @@ body.reviewing { overflow: hidden; }
 
               </dl>
           <label class="note-field">
-            <span>Notes</span>
-            <textarea rows="2" data-note-for="053992e19e3d" placeholder="Optional context for this decision…"></textarea>
+            <span>Note for the agent</span>
+            <textarea rows="2" data-note-for="053992e19e3d" placeholder="Leave a thought — the agent reads it next time…"></textarea>
           </label>
           <details class="tech-details">
             <summary>Files &amp; references</summary>
@@ -1539,10 +1612,10 @@ body.reviewing { overflow: hidden; }
             </div>
           </details>
         <div class="actions">
-          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="053992e19e3d">Adopt</button>
-          <button type="button" class="btn" data-action="candidate" data-fingerprint="053992e19e3d">Triage</button>
-          <button type="button" class="btn" data-action="archive" data-fingerprint="053992e19e3d">Archive</button>
-          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="053992e19e3d">Snooze</button>
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="053992e19e3d" data-tooltip="Adopt this learning as guidance — apply it going forward.">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="053992e19e3d" data-tooltip="Move to Triaged for a deeper look or follow-up later.">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="053992e19e3d" data-tooltip="Drop this — not actionable or already handled.">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="053992e19e3d" data-tooltip="Decide later — keep in inbox, ask the agent to revisit.">Snooze</button>
         </div>
         </article>
         <article class="entry" data-fingerprint="60fa957fe0f0" data-status="inbox" data-confidence="high" data-aging="0" data-search="daily learning automations need a frontier judgment model a weak parent model misclusters evidence, auto-executes the wrong prevention work, or misses when a decision needed your eyes on it. docs (required), automation (required)">
@@ -1582,8 +1655,8 @@ body.reviewing { overflow: hidden; }
 
               </dl>
           <label class="note-field">
-            <span>Notes</span>
-            <textarea rows="2" data-note-for="60fa957fe0f0" placeholder="Optional context for this decision…"></textarea>
+            <span>Note for the agent</span>
+            <textarea rows="2" data-note-for="60fa957fe0f0" placeholder="Leave a thought — the agent reads it next time…"></textarea>
           </label>
           <details class="tech-details">
             <summary>Files &amp; references</summary>
@@ -1603,10 +1676,10 @@ body.reviewing { overflow: hidden; }
             </div>
           </details>
         <div class="actions">
-          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="60fa957fe0f0">Adopt</button>
-          <button type="button" class="btn" data-action="candidate" data-fingerprint="60fa957fe0f0">Triage</button>
-          <button type="button" class="btn" data-action="archive" data-fingerprint="60fa957fe0f0">Archive</button>
-          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="60fa957fe0f0">Snooze</button>
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="60fa957fe0f0" data-tooltip="Adopt this learning as guidance — apply it going forward.">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="60fa957fe0f0" data-tooltip="Move to Triaged for a deeper look or follow-up later.">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="60fa957fe0f0" data-tooltip="Drop this — not actionable or already handled.">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="60fa957fe0f0" data-tooltip="Decide later — keep in inbox, ask the agent to revisit.">Snooze</button>
         </div>
         </article>
         <article class="entry" data-fingerprint="08c2d3bc8cf3" data-status="inbox" data-confidence="medium" data-aging="0" data-search="daily automations should read canonical docs from master scheduled runs end up following stale or vanished feature-worktree instructions instead of the canonical learning contract. docs (required)">
@@ -1645,8 +1718,8 @@ body.reviewing { overflow: hidden; }
 
               </dl>
           <label class="note-field">
-            <span>Notes</span>
-            <textarea rows="2" data-note-for="08c2d3bc8cf3" placeholder="Optional context for this decision…"></textarea>
+            <span>Note for the agent</span>
+            <textarea rows="2" data-note-for="08c2d3bc8cf3" placeholder="Leave a thought — the agent reads it next time…"></textarea>
           </label>
           <details class="tech-details">
             <summary>Files &amp; references</summary>
@@ -1666,10 +1739,10 @@ body.reviewing { overflow: hidden; }
             </div>
           </details>
         <div class="actions">
-          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="08c2d3bc8cf3">Adopt</button>
-          <button type="button" class="btn" data-action="candidate" data-fingerprint="08c2d3bc8cf3">Triage</button>
-          <button type="button" class="btn" data-action="archive" data-fingerprint="08c2d3bc8cf3">Archive</button>
-          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="08c2d3bc8cf3">Snooze</button>
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="08c2d3bc8cf3" data-tooltip="Adopt this learning as guidance — apply it going forward.">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="08c2d3bc8cf3" data-tooltip="Move to Triaged for a deeper look or follow-up later.">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="08c2d3bc8cf3" data-tooltip="Drop this — not actionable or already handled.">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="08c2d3bc8cf3" data-tooltip="Decide later — keep in inbox, ask the agent to revisit.">Snooze</button>
         </div>
         </article>
         <article class="entry" data-fingerprint="b1ade9e50ec0" data-status="inbox" data-confidence="high" data-aging="0" data-search="daily automations should read canonical docs from master scheduled runs end up following stale or vanished feature-worktree instructions instead of the canonical learning contract. docs (required), automation (required)">
@@ -1709,8 +1782,8 @@ body.reviewing { overflow: hidden; }
 
               </dl>
           <label class="note-field">
-            <span>Notes</span>
-            <textarea rows="2" data-note-for="b1ade9e50ec0" placeholder="Optional context for this decision…"></textarea>
+            <span>Note for the agent</span>
+            <textarea rows="2" data-note-for="b1ade9e50ec0" placeholder="Leave a thought — the agent reads it next time…"></textarea>
           </label>
           <details class="tech-details">
             <summary>Files &amp; references</summary>
@@ -1730,10 +1803,10 @@ body.reviewing { overflow: hidden; }
             </div>
           </details>
         <div class="actions">
-          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="b1ade9e50ec0">Adopt</button>
-          <button type="button" class="btn" data-action="candidate" data-fingerprint="b1ade9e50ec0">Triage</button>
-          <button type="button" class="btn" data-action="archive" data-fingerprint="b1ade9e50ec0">Archive</button>
-          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="b1ade9e50ec0">Snooze</button>
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="b1ade9e50ec0" data-tooltip="Adopt this learning as guidance — apply it going forward.">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="b1ade9e50ec0" data-tooltip="Move to Triaged for a deeper look or follow-up later.">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="b1ade9e50ec0" data-tooltip="Drop this — not actionable or already handled.">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="b1ade9e50ec0" data-tooltip="Decide later — keep in inbox, ask the agent to revisit.">Snooze</button>
         </div>
         </article>
         <article class="entry" data-fingerprint="9681e329c380" data-status="inbox" data-confidence="high" data-aging="0" data-search="learning glue must work everywhere — global, not repo-local if the learn command isn&#x27;t global, you can land branches in repos that have docs/learnings but no copy of the binary — silently skipping the checkpoint. docs (required), test (required), skill (required)">
@@ -1774,8 +1847,8 @@ body.reviewing { overflow: hidden; }
 
               </dl>
           <label class="note-field">
-            <span>Notes</span>
-            <textarea rows="2" data-note-for="9681e329c380" placeholder="Optional context for this decision…"></textarea>
+            <span>Note for the agent</span>
+            <textarea rows="2" data-note-for="9681e329c380" placeholder="Leave a thought — the agent reads it next time…"></textarea>
           </label>
           <details class="tech-details">
             <summary>Files &amp; references</summary>
@@ -1795,10 +1868,10 @@ body.reviewing { overflow: hidden; }
             </div>
           </details>
         <div class="actions">
-          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="9681e329c380">Adopt</button>
-          <button type="button" class="btn" data-action="candidate" data-fingerprint="9681e329c380">Triage</button>
-          <button type="button" class="btn" data-action="archive" data-fingerprint="9681e329c380">Archive</button>
-          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="9681e329c380">Snooze</button>
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="9681e329c380" data-tooltip="Adopt this learning as guidance — apply it going forward.">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="9681e329c380" data-tooltip="Move to Triaged for a deeper look or follow-up later.">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="9681e329c380" data-tooltip="Drop this — not actionable or already handled.">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="9681e329c380" data-tooltip="Decide later — keep in inbox, ask the agent to revisit.">Snooze</button>
         </div>
         </article>
         <article class="entry" data-fingerprint="5301da11e4f9" data-status="inbox" data-confidence="high" data-aging="0" data-search="re-check git after browser/review tools before the final commit if we don&#x27;t re-check, the target branch can land without the latest review-comment state — the agent believes everything is captured, but it isn&#x27;t. docs (required), test (required)">
@@ -1838,8 +1911,8 @@ body.reviewing { overflow: hidden; }
 
               </dl>
           <label class="note-field">
-            <span>Notes</span>
-            <textarea rows="2" data-note-for="5301da11e4f9" placeholder="Optional context for this decision…"></textarea>
+            <span>Note for the agent</span>
+            <textarea rows="2" data-note-for="5301da11e4f9" placeholder="Leave a thought — the agent reads it next time…"></textarea>
           </label>
           <details class="tech-details">
             <summary>Files &amp; references</summary>
@@ -1859,10 +1932,10 @@ body.reviewing { overflow: hidden; }
             </div>
           </details>
         <div class="actions">
-          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="5301da11e4f9">Adopt</button>
-          <button type="button" class="btn" data-action="candidate" data-fingerprint="5301da11e4f9">Triage</button>
-          <button type="button" class="btn" data-action="archive" data-fingerprint="5301da11e4f9">Archive</button>
-          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="5301da11e4f9">Snooze</button>
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="5301da11e4f9" data-tooltip="Adopt this learning as guidance — apply it going forward.">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="5301da11e4f9" data-tooltip="Move to Triaged for a deeper look or follow-up later.">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="5301da11e4f9" data-tooltip="Drop this — not actionable or already handled.">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="5301da11e4f9" data-tooltip="Decide later — keep in inbox, ask the agent to revisit.">Snooze</button>
         </div>
         </article>
       </section>
@@ -1907,16 +1980,15 @@ body.reviewing { overflow: hidden; }
       </div>
     </div>
     <div class="review-stage" id="review-stage" tabindex="-1"></div>
+    <button type="button" id="review-prev" class="review-side-nav review-side-prev" aria-label="Previous learning">‹</button>
+    <button type="button" id="review-next" class="review-side-nav review-side-next" aria-label="Next learning">›</button>
     <div class="review-footer">
-      <div class="review-nav">
-        <button type="button" id="review-prev" class="review-nav-btn" aria-label="Previous">‹</button>
-        <button type="button" id="review-next" class="review-nav-btn" aria-label="Next">›</button>
-      </div>
+      <p class="review-hint-line">Type a note and press <span class="kbd">→</span> — the agent picks it up next time.</p>
       <div class="review-actions">
-        <button type="button" class="btn btn-primary" data-review-action="promote">Adopt</button>
-        <button type="button" class="btn" data-review-action="candidate">Triage</button>
-        <button type="button" class="btn" data-review-action="archive">Archive</button>
-        <button type="button" class="btn btn-ghost" data-review-action="defer">Snooze</button>
+        <button type="button" class="btn btn-primary" data-review-action="promote" data-tooltip="Adopt this learning as guidance — apply it going forward.">Adopt</button>
+        <button type="button" class="btn" data-review-action="candidate" data-tooltip="Move to Triaged for a deeper look or follow-up later.">Triage</button>
+        <button type="button" class="btn" data-review-action="archive" data-tooltip="Drop this — not actionable or already handled.">Archive</button>
+        <button type="button" class="btn btn-ghost" data-review-action="defer" data-tooltip="Decide later — keep in inbox, ask the agent to revisit.">Snooze</button>
       </div>
     </div>
   </div>
@@ -2253,8 +2325,32 @@ body.reviewing { overflow: hidden; }
     reviewRender();
   }
 
-  function reviewClose() {
+  async function reviewSavePendingNote(card) {
+    if (!card) return false;
+    const noteBox = card.querySelector('[data-note-for]');
+    if (!noteBox) return false;
+    const value = noteBox.value.trim();
+    if (!value) return false;
+    if (noteBox.dataset.lastSaved === value) return false;
+    if (card.classList.contains("is-decided")) return false;
+    await recordDecision({
+      fingerprint: card.dataset.fingerprint,
+      action: "note",
+      note: value,
+    });
+    noteBox.dataset.lastSaved = value;
+    return true;
+  }
+
+  async function reviewSaveCurrentNote() {
+    if (!review.active) return false;
+    const card = review.cards[review.index];
+    return await reviewSavePendingNote(card);
+  }
+
+  async function reviewClose() {
     if (!review.active) return;
+    const saved = await reviewSaveCurrentNote();
     reviewStashCurrent();
     review.stage.innerHTML = "";
     review.cards = [];
@@ -2262,23 +2358,32 @@ body.reviewing { overflow: hidden; }
     window.__reviewActive = false;
     review.overlay.hidden = true;
     document.body.classList.remove("reviewing");
+    if (saved) showToast("Note saved");
   }
 
-  function reviewNext() {
+  async function reviewNext() {
     if (!review.active) return;
+    const saved = await reviewSaveCurrentNote();
     if (review.index >= review.cards.length - 1) {
       reviewShowFinished();
+      if (saved) showToast("Note saved");
       return;
     }
     review.index += 1;
     reviewRender();
+    if (saved) showToast("Note saved");
   }
 
-  function reviewPrev() {
+  async function reviewPrev() {
     if (!review.active) return;
-    if (review.index <= 0) return;
+    const saved = await reviewSaveCurrentNote();
+    if (review.index <= 0) {
+      if (saved) showToast("Note saved");
+      return;
+    }
     review.index -= 1;
     reviewRender();
+    if (saved) showToast("Note saved");
   }
 
   document.getElementById("review-start").addEventListener("click", reviewOpen);

@@ -942,16 +942,15 @@ def _build_dashboard_page(
         '      </div>\n'
         '    </div>\n'
         '    <div class="review-stage" id="review-stage" tabindex="-1"></div>\n'
+        '    <button type="button" id="review-prev" class="review-side-nav review-side-prev" aria-label="Previous learning">‹</button>\n'
+        '    <button type="button" id="review-next" class="review-side-nav review-side-next" aria-label="Next learning">›</button>\n'
         '    <div class="review-footer">\n'
-        '      <div class="review-nav">\n'
-        '        <button type="button" id="review-prev" class="review-nav-btn" aria-label="Previous">‹</button>\n'
-        '        <button type="button" id="review-next" class="review-nav-btn" aria-label="Next">›</button>\n'
-        '      </div>\n'
+        '      <p class="review-hint-line">Type a note and press <span class="kbd">→</span> — the agent picks it up next time.</p>\n'
         '      <div class="review-actions">\n'
-        '        <button type="button" class="btn btn-primary" data-review-action="promote">Adopt</button>\n'
-        '        <button type="button" class="btn" data-review-action="candidate">Triage</button>\n'
-        '        <button type="button" class="btn" data-review-action="archive">Archive</button>\n'
-        '        <button type="button" class="btn btn-ghost" data-review-action="defer">Snooze</button>\n'
+        '        <button type="button" class="btn btn-primary" data-review-action="promote" data-tooltip="Adopt this learning as guidance — apply it going forward.">Adopt</button>\n'
+        '        <button type="button" class="btn" data-review-action="candidate" data-tooltip="Move to Triaged for a deeper look or follow-up later.">Triage</button>\n'
+        '        <button type="button" class="btn" data-review-action="archive" data-tooltip="Drop this — not actionable or already handled.">Archive</button>\n'
+        '        <button type="button" class="btn btn-ghost" data-review-action="defer" data-tooltip="Decide later — keep in inbox, ask the agent to revisit.">Snooze</button>\n'
         '      </div>\n'
         '    </div>\n'
         '  </div>\n'
@@ -1069,10 +1068,10 @@ def _render_card(entry: dict[str, object], summary_counts: dict[str, int]) -> st
     else:
         primary_actions = (
             '        <div class="actions">\n'
-            f'          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="{fingerprint}">Adopt</button>\n'
-            f'          <button type="button" class="btn" data-action="candidate" data-fingerprint="{fingerprint}">Triage</button>\n'
-            f'          <button type="button" class="btn" data-action="archive" data-fingerprint="{fingerprint}">Archive</button>\n'
-            f'          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="{fingerprint}">Snooze</button>\n'
+            f'          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="{fingerprint}" data-tooltip="Adopt this learning as guidance — apply it going forward.">Adopt</button>\n'
+            f'          <button type="button" class="btn" data-action="candidate" data-fingerprint="{fingerprint}" data-tooltip="Move to Triaged for a deeper look or follow-up later.">Triage</button>\n'
+            f'          <button type="button" class="btn" data-action="archive" data-fingerprint="{fingerprint}" data-tooltip="Drop this — not actionable or already handled.">Archive</button>\n'
+            f'          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="{fingerprint}" data-tooltip="Decide later — keep in inbox, ask the agent to revisit.">Snooze</button>\n'
             "        </div>"
         )
         more_actions = (
@@ -1085,8 +1084,8 @@ def _render_card(entry: dict[str, object], summary_counts: dict[str, int]) -> st
         )
         notes_block = (
             '          <label class="note-field">\n'
-            '            <span>Notes</span>\n'
-            f'            <textarea rows="2" data-note-for="{fingerprint}" placeholder="Optional context for this decision…"></textarea>\n'
+            '            <span>Note for the agent</span>\n'
+            f'            <textarea rows="2" data-note-for="{fingerprint}" placeholder="Leave a thought — the agent reads it next time…"></textarea>\n'
             "          </label>"
         )
 
@@ -1918,11 +1917,12 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
   padding: 10px 12px;
   font: inherit;
   font-size: 14.5px;
-  color: inherit;
+  color: var(--text);
   resize: vertical;
   min-height: 64px;
   transition: border-color 0.12s ease;
 }
+.note-field textarea::placeholder { color: var(--text-3); opacity: 0.7; font-style: italic; }
 .note-field textarea:focus { outline: 2px solid var(--ring); outline-offset: -1px; border-color: var(--ring); }
 
 .more-actions {
@@ -2268,26 +2268,98 @@ body.reviewing { overflow: hidden; }
   gap: 16px;
   background: var(--bg);
 }
-.review-nav {
-  display: flex;
-  gap: 6px;
-}
-.review-nav-btn {
+/* Footer prev/next collapsed in favour of side arrows */
+.review-nav { display: none; }
+
+/* Big edge chevrons */
+.review-side-nav {
   appearance: none;
-  background: var(--surface);
-  border: 1px solid var(--border-strong);
-  width: 40px;
-  height: 38px;
+  position: fixed;
+  top: 50%;
+  transform: translateY(-50%);
+  background: transparent;
+  border: 1px solid var(--border);
+  width: 48px;
+  height: 56px;
   border-radius: var(--radius-sm);
   cursor: pointer;
-  font-size: 18px;
   color: var(--text-2);
+  font-family: var(--serif);
+  font-size: 32px;
+  font-weight: 400;
+  line-height: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  z-index: 210;
+  transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease, transform 0.15s ease;
+  user-select: none;
 }
-.review-nav-btn:hover:not([disabled]) { background: var(--surface-2); border-color: var(--text-3); color: var(--text); }
-.review-nav-btn[disabled] { opacity: 0.35; cursor: default; }
+.review-side-nav:hover:not([disabled]) {
+  background: var(--surface);
+  color: var(--text);
+  border-color: var(--border-strong);
+}
+.review-side-nav[disabled] { opacity: 0.25; cursor: default; }
+.review-side-prev { left: 14px; }
+.review-side-next { right: 14px; }
+.review-side-nav:hover:not([disabled]).review-side-prev { transform: translateY(-50%) translateX(-2px); }
+.review-side-nav:hover:not([disabled]).review-side-next { transform: translateY(-50%) translateX(2px); }
+.review-overlay[hidden] ~ .review-side-nav { display: none; }
+body:not(.reviewing) .review-side-nav { display: none; }
+.review-hint-line {
+  font-family: var(--mono);
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--text-3);
+}
+.review-hint-line .kbd {
+  display: inline-block;
+  font-family: var(--mono);
+  font-size: 10.5px;
+  border: 1px solid var(--border-strong);
+  border-bottom-width: 2px;
+  border-radius: 3px;
+  padding: 1px 5px;
+  background: var(--surface);
+  color: var(--text-2);
+  margin: 0 1px;
+}
+
+/* Tooltips */
+[data-tooltip] { position: relative; }
+[data-tooltip]:hover::after,
+[data-tooltip]:focus-visible::after {
+  content: attr(data-tooltip);
+  position: absolute;
+  bottom: calc(100% + 10px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: var(--text);
+  color: var(--primary-text);
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 400;
+  letter-spacing: 0.005em;
+  padding: 6px 11px;
+  border-radius: 5px;
+  white-space: nowrap;
+  pointer-events: none;
+  z-index: 220;
+  box-shadow: 0 4px 14px rgba(28,25,22,0.14);
+}
+[data-tooltip]:hover::before,
+[data-tooltip]:focus-visible::before {
+  content: "";
+  position: absolute;
+  bottom: calc(100% + 4px);
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: var(--text);
+  pointer-events: none;
+  z-index: 220;
+}
 .review-actions {
   display: flex;
   gap: 8px;
@@ -2669,8 +2741,32 @@ _DASHBOARD_SCRIPT = r"""
     reviewRender();
   }
 
-  function reviewClose() {
+  async function reviewSavePendingNote(card) {
+    if (!card) return false;
+    const noteBox = card.querySelector('[data-note-for]');
+    if (!noteBox) return false;
+    const value = noteBox.value.trim();
+    if (!value) return false;
+    if (noteBox.dataset.lastSaved === value) return false;
+    if (card.classList.contains("is-decided")) return false;
+    await recordDecision({
+      fingerprint: card.dataset.fingerprint,
+      action: "note",
+      note: value,
+    });
+    noteBox.dataset.lastSaved = value;
+    return true;
+  }
+
+  async function reviewSaveCurrentNote() {
+    if (!review.active) return false;
+    const card = review.cards[review.index];
+    return await reviewSavePendingNote(card);
+  }
+
+  async function reviewClose() {
     if (!review.active) return;
+    const saved = await reviewSaveCurrentNote();
     reviewStashCurrent();
     review.stage.innerHTML = "";
     review.cards = [];
@@ -2678,23 +2774,32 @@ _DASHBOARD_SCRIPT = r"""
     window.__reviewActive = false;
     review.overlay.hidden = true;
     document.body.classList.remove("reviewing");
+    if (saved) showToast("Note saved");
   }
 
-  function reviewNext() {
+  async function reviewNext() {
     if (!review.active) return;
+    const saved = await reviewSaveCurrentNote();
     if (review.index >= review.cards.length - 1) {
       reviewShowFinished();
+      if (saved) showToast("Note saved");
       return;
     }
     review.index += 1;
     reviewRender();
+    if (saved) showToast("Note saved");
   }
 
-  function reviewPrev() {
+  async function reviewPrev() {
     if (!review.active) return;
-    if (review.index <= 0) return;
+    const saved = await reviewSaveCurrentNote();
+    if (review.index <= 0) {
+      if (saved) showToast("Note saved");
+      return;
+    }
     review.index -= 1;
     reviewRender();
+    if (saved) showToast("Note saved");
   }
 
   document.getElementById("review-start").addEventListener("click", reviewOpen);
