@@ -5,6 +5,7 @@
 ## Contract
 
 - Make the learning system feel like a product, not a CLI. Only three user-facing front doors are normal: `/learn`, `/dashboard`, and `/learn-init`.
+- Captured entries must read like a teammate explaining what happened, not a crime report. Never write "User …" / "The user …"; address the reader directly ("you", "we", or just the situation), use everyday verbs, and state ramifications as concrete consequences. Full voice rules and contrast examples live in `.agents/skills/learn/SKILL.md` under "Voice".
 - Treat the global `learn --repo <repo>` command as hidden glue for agents and automations. Do not assume every participating repo has repo-local `bin/learn`, and do not teach the user to operate `capture`, `promote`, `execute`, or `check-merge` unless they ask for internals.
 - Keep the canonical store in `docs/learnings/`. Raw evidence can be noisy; hot context and promoted guidance must stay curated.
 - Use agents for judgment: clustering, abstraction, calibration, destination choice, and deciding whether a prevention artifact is clear enough to implement.

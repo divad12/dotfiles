@@ -17,7 +17,34 @@ Use the current repo's `docs/learnings/` store. If it does not exist, ask whethe
 
 ## Capture
 
-Capture raw evidence broadly, but write the entry at the highest actionable pattern level. Include what the user sees, loses, feels, or risks.
+Capture raw evidence broadly, but write the entry at the highest actionable pattern level. Include what's at stake for the human reading this later — what they will see, lose, feel, or risk.
+
+### Voice
+
+Write captures the way a thoughtful teammate would talk to the user about what just happened. Plain English, direct address, concrete.
+
+- Address the human directly — "you", "we", or just describe the situation. **Never write "User …" or "The user …"** — that third-person crime-report tone is what makes the dashboard feel like a CLI dump. The only "user" of this learning store is the person reading it.
+- Prefer everyday verbs: "asked" not "questioned why", "said" not "stated", "wanted" not "indicated a desire", "tried X and got Y" not "encountered an unexpected outcome", "noticed" not "noted that".
+- Lead with the situation, then the lesson. Keep technical specifics (file names, commands, error text) verbatim — the voice change is about narration, not removing detail.
+- Ramification is what's at stake for **the user** if this isn't fixed: "your forms can save broken data", "you'll trust the green checkmark when the build is actually red", "merges will silently lose work". State a concrete consequence, not an abstraction.
+
+Voice contrast — same evidence, before and after:
+
+> Bad: "User questioned why an old capture wrapper and repo-local README duplicated /learn behavior and warned that duplicate docs drift."
+>
+> Good: "You pointed out that an old capture wrapper and a repo README still duplicated what /learn does — and duplicate docs always drift apart."
+
+> Bad: "Users have to reason about multiple learning surfaces and lose trust when the setup feels like a command-line toolkit instead of a product."
+>
+> Good: "When the setup feels like a CLI toolkit instead of a product, you stop trusting it."
+
+> Bad: "User noted that Codex spawns one executor per cwd, so the Journology executor should not inspect or report on dotfiles."
+>
+> Good: "You noticed Codex spawns one executor per cwd — which means each run has to stay in its own repo and not peek at sibling configured ones."
+
+If the captured `--summary` / `--evidence` / `--ramification` text reads as third-person bureaucratese, rewrite it before passing it to `learn capture`.
+
+### Abstraction
 
 Use the abstraction ladder from `docs/ai/learning-system.md`: start with the specific incident, identify the class of bug, then capture the highest principle that is still actionable. If a claim says a workflow "should" do something, verify the actual trigger, prompt, hook, test, structural check, or code path that makes it happen.
 

@@ -2200,8 +2200,26 @@ body.reviewing { overflow: hidden; }
   max-width: none;
 }
 .review-stage .entry.review-active .guardrails-value { font-size: 14.5px; }
-.review-stage .entry.review-active .note-field { display: none; }
-.review-stage .entry.review-active .more-actions { display: none; }
+.review-stage .entry.review-active .note-field {
+  display: block;
+  margin: 4px 0 0;
+  padding-top: 24px;
+  border-top: 1px dashed var(--rule);
+}
+.review-stage .entry.review-active .note-field span {
+  font-size: 11.5px;
+  letter-spacing: 0.16em;
+}
+.review-stage .entry.review-active .note-field textarea {
+  font-size: 15.5px;
+  min-height: 92px;
+  padding: 14px 16px;
+  line-height: 1.55;
+}
+.review-stage .entry.review-active .more-actions {
+  display: flex;
+  margin-top: 14px;
+}
 .review-stage .entry.review-active > .actions { display: none; }
 .review-stage .entry.review-active .tech-details > summary { font-size: 12.5px; }
 .review-stage .entry.review-active .tech-details { margin-top: 8px; }
@@ -2663,7 +2681,9 @@ _DASHBOARD_SCRIPT = r"""
     const card = review.cards[review.index];
     if (!card) return;
     const fingerprint = card.dataset.fingerprint;
-    await recordDecision({ fingerprint, action, note: "" });
+    const noteBox = card.querySelector('[data-note-for="' + fingerprint + '"]');
+    const note = noteBox ? noteBox.value.trim() : "";
+    await recordDecision({ fingerprint, action, note });
     // Mirror the decided visual state on the underlying card
     card.classList.add("is-decided");
     review.actionsRow.querySelectorAll("[data-review-action]").forEach((b) => {
