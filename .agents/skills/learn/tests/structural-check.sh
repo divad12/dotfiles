@@ -95,8 +95,12 @@ if rg -n "capture-learning|/capture-learning" .agents/skills SKILLS.md docs/ai d
 fi
 
 AUTOMATION_HOME="${CODEX_HOME:-$HOME/.codex}/automations"
+CANONICAL_AUTOMATION_HOME=".codex/automations"
 TRIAGE_AUTOMATION="$AUTOMATION_HOME/daily-learning-triage/automation.toml"
 EXECUTOR_AUTOMATION="$AUTOMATION_HOME/daily-learning-executor/automation.toml"
+test -f "$CANONICAL_AUTOMATION_HOME/daily-learning-triage/automation.toml" || { echo "FAIL: triage automation canonical copy missing"; exit 1; }
+test -f "$CANONICAL_AUTOMATION_HOME/daily-learning-executor/automation.toml" || { echo "FAIL: executor automation canonical copy missing"; exit 1; }
+grep -q ".codex/automations" symlink.sh || { echo "FAIL: symlink.sh mirrors codex automations"; exit 1; }
 if test -f "$TRIAGE_AUTOMATION"; then
   grep -q "docs/ai/learning-system.md" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage reads canonical learning doc"; exit 1; }
   grep -q "Abstraction Ladder" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage applies abstraction ladder"; exit 1; }
@@ -107,6 +111,9 @@ if test -f "$EXECUTOR_AUTOMATION"; then
   grep -q "docs/ai/learning-system.md" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor reads canonical learning doc"; exit 1; }
   grep -q "Abstraction Ladder" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor applies abstraction ladder"; exit 1; }
   grep -q "current working directory only" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor scoped to current cwd"; exit 1; }
+  grep -q "Autopick the top one or two obvious high-leverage next actions" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor autopicks obvious prevention work"; exit 1; }
+  grep -q "Ask the user only for true product choices" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor avoids micro-decision handoff"; exit 1; }
+  grep -q "CEO-style summary" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor reports decision-ready summary"; exit 1; }
   ! grep -q "For each configured repo" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor must not loop configured repos"; exit 1; }
 fi
 

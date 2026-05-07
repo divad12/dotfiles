@@ -58,9 +58,21 @@ if [ -d "$dir/.agents" ]; then
 fi
 
 # .codex/ - Codex owns this directory. Mirror the shared global instructions
-# so Codex loads the same token-delegation and adaptive-docs contracts.
+# and checked-in automation definitions. Runtime state such as sessions,
+# plugins, worktrees, and automation memory stays local.
 mkdir -p "$HOME/.codex"
 link_path "$dir/.claude/AGENTS.md" "$HOME/.codex/AGENTS.md"
+if [ -d "$dir/.codex/automations" ]; then
+    mkdir -p "$HOME/.codex/automations"
+    for automation in "$dir"/.codex/automations/*; do
+        [ -d "$automation" ] || continue
+        name="$(basename "$automation")"
+        mkdir -p "$HOME/.codex/automations/$name"
+        if [ -f "$automation/automation.toml" ]; then
+            link_path "$automation/automation.toml" "$HOME/.codex/automations/$name/automation.toml"
+        fi
+    done
+fi
 
 # macOS LaunchAgents - symlink each plist individually since ~/Library
 # is a system dir we can't replace wholesale. After symlinking, (re)load

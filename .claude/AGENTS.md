@@ -121,6 +121,9 @@ Why: without the ramification, findings read like engineering todos and I cannot
 - File:line citations are references, not the explanation.
 - If there is no product impact, say: "No user-facing impact - this is internal."
 - If you cannot state the impact, re-read before surfacing.
+- When user input is needed, brief like a CEO decision memo: the decision needed, the recommended choice, the user/business impact, the tradeoff or risk, and what happens if we wait or do nothing.
+- Include only context that changes the decision. Leave out internal taxonomy, raw logs, implementation trivia, and low-value options.
+- If the evidence makes one path clearly useful and reversible, take it instead of asking. Ask only when the choice changes product behavior, priority, cost, risk, or user experience.
 
 ## Code Hard Rules
 

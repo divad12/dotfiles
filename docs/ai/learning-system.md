@@ -11,8 +11,9 @@
 - Use binaries only for boring glue: initializing files, appending structured entries, assigning row IDs, serving the dashboard, recording decisions, safe markdown moves, and checks.
 - Store prevention work as one readable list: `Prevention artifacts: docs (required), test (required), skill (proposed)`. Required artifacts describe the prevention work needed; proposed artifacts are worthwhile ideas to consider. The executor decides what is executable now.
 - Fingerprint matching is not semantic dedupe. It is only a row identity and exact replay guard. Agents do all meaningful duplicate detection, semantic clustering, and pattern formation.
-- Daily agentic automation should sweep participating repos, cluster new evidence, execute low-risk/high-clarity prevention work, regenerate dashboards, and report what needs human review.
+- Daily agentic automation should sweep participating repos, cluster new evidence, autopick the top one or two obvious high-leverage prevention actions, execute or prototype low-risk/high-clarity work, regenerate dashboards, and report only true product tradeoffs or review needs.
 - Code, tests, helpers, skills, architecture, and global guidance still require TDD/review discipline. Automation may implement focused, high-clarity fixes only when it can write the failing test or structural check first and verify the result.
+- Do not make the user choose micro-targets for broad learning patterns. Use evidence recency, repetition, user-facing impact, and reversibility to choose the next target yourself; ask the user only when the decision changes product behavior or priority.
 - task-observer is the ambient sensor, not a second memory system. The learning store is the durable system; observation files are fallback/session audit only.
 
 ## User Front Doors
@@ -133,13 +134,16 @@ For the current repo:
 Executor automation runs daily around 9pm unless it already ran after the user said `done`. It acts on triaged, high-confidence, narrow work.
 
 1. Read candidates, auto-action notes, calibration, and any explicit dashboard decisions.
-2. Execute low-risk docs updates directly when the destination and wording are clear.
-3. For focused tests, lint checks, helper guardrails, or skill tweaks, write the failing test or structural check first, implement the smallest fix, verify, and log the prevention artifact.
-4. Execute required prevention artifacts when they are clear; consider proposed artifacts when they fit the task. If they are code/test/skill/automation work, keep the TDD/review gate.
-5. Use subagents for independent implementation, review, or verification work when there are disjoint files or clearly separable questions.
-6. Leave broad code, architecture, product decisions, global docs, ambiguous evidence, or cross-caller behavior changes for dashboard review.
-7. Append plain-English audit lines to `docs/learnings/auto-actions.md`.
-8. Regenerate the dashboard and report execution results.
+2. Autopick the top one or two next actions from high-confidence evidence. Prefer items that are repeated, recent, user-visible, reversible, and able to prevent several candidate patterns at once.
+3. Execute low-risk docs updates directly when the destination and wording are clear.
+4. For focused tests, lint checks, helper guardrails, or skill tweaks, write the failing test or structural check first, implement the smallest fix, verify, and log the prevention artifact.
+5. When a useful fix is too broad for safe code changes, create the smallest concrete prototype, draft plan, characterization test, grep check, or harness checklist that names the owner surface and next verification command. This counts as progress; do not block on asking the user to pick the surface.
+6. Execute required prevention artifacts when they are clear; consider proposed artifacts when they fit the task. If they are code/test/skill/automation work, keep the TDD/review gate.
+7. Use subagents for independent implementation, review, or verification work when there are disjoint files or clearly separable questions.
+8. Ask the user only for true product choices, such as whether a warning should block an action, whether a behavior should change, or which business priority wins. Do not ask the user to choose routine test targets, owner files, or implementation sequence when the evidence makes one path obviously useful.
+9. Leave broad code, architecture, product decisions, global docs, ambiguous evidence, or cross-caller behavior changes for dashboard review only after recording the clearest next prototype or testable slice.
+10. Append plain-English audit lines to `docs/learnings/auto-actions.md`.
+11. Regenerate the dashboard and report execution results grouped by outcome: executed, prototyped, verified, and needs product decision.
 
 If the user says `done` in a dashboard/triage thread, run the executor immediately against the current repo, append a same-day audit marker, and skip the scheduled 9pm executor for that repo.
 
