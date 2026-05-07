@@ -12,7 +12,9 @@
 - Use binaries only for boring glue: initializing files, appending structured entries, assigning row IDs, serving the dashboard, recording decisions, safe markdown moves, and checks.
 - Store prevention work as one readable list: `Prevention artifacts: docs (required), test (required), skill (proposed)`. Required artifacts describe the prevention work needed; proposed artifacts are worthwhile ideas to consider. The executor decides what is executable now.
 - Fingerprint matching is not semantic dedupe. It is only a row identity and exact replay guard. Agents do all meaningful duplicate detection, semantic clustering, and pattern formation.
-- Daily agentic automation should sweep participating repos, cluster new evidence, autopick the top one or two obvious high-leverage prevention actions, execute or prototype low-risk/high-clarity work, regenerate dashboards, and report only true product tradeoffs or review needs.
+- Daily agentic automation should sweep participating repos, cluster new evidence, autopick the top one or two obvious high-leverage prevention actions, execute or prototype low-risk/high-clarity work, regenerate dashboards, and report what changed plus only true product tradeoffs or review needs.
+- Review is optional calibration, not a daily approval gate. Do not make the user process a large dashboard every day before useful work happens; act by default and let later feedback tune future runs.
+- Let abstractions emerge from batches of evidence. Raw bugs are useful samples; cluster them when several examples point to the same class, or when one high-risk incident has an obvious prevention surface. Do not manufacture one guidance line per bug.
 - Code, tests, helpers, skills, architecture, and global guidance still require TDD/review discipline. Automation may implement focused, high-clarity fixes only when it can write the failing test or structural check first and verify the result.
 - Do not make the user choose micro-targets for broad learning patterns. Use evidence recency, repetition, user-facing impact, and reversibility to choose the next target yourself; ask the user only when the decision changes product behavior or priority.
 - task-observer is the ambient sensor, not a second memory system. The learning store is the durable system; observation files are fallback/session audit only.
@@ -96,7 +98,7 @@ control, or merge decision, automatically loads the rule before implementation.
 
 ## Automation
 
-Daily maintenance is split into focused automations so one agent does not become a giant context soup.
+Daily maintenance is split into focused automations so one agent does not become a giant context soup. The default posture is hands-off: the system collects samples, acts on clear clusters, commits successful changes locally, and tells the user what happened afterward.
 
 Use a frontier reasoning parent model for daily learning automations. Triage and
 executor parents make clustering, abstraction, safety, and calibration
@@ -130,20 +132,20 @@ For the current repo:
 
 1. Read the local repo guidance and `docs/learnings/` store.
 2. Inspect new or changed raw evidence referenced by inbox entries.
-3. Cluster related entries into pattern-level candidates when the connection is clear.
+3. Preserve raw bug samples until there is enough evidence for a natural pattern. Create sample-backed clusters when multiple entries share a class, or when a single high-risk issue has a clear prevention surface. Do not manufacture one guidance line per bug.
 4. Merge duplicates by appending evidence instead of creating more dashboard rows.
 5. Archive obvious test-data-only, stale, or non-durable entries.
 6. Create candidate action notes or draft plans for clear prevention artifacts.
 7. Append plain-English audit lines to `docs/learnings/auto-actions.md`.
 8. Do not attempt to serve a live dashboard from automation runs — sandboxed contexts block binding 127.0.0.1, and the live surface is owned by the user. Regenerate `docs/learnings/dashboard.md` and `dashboard.html` and end the report with a one-liner telling the user to run `learn live` in a terminal tab whenever they want to review (the URL stays at `http://127.0.0.1:60000`).
-9. Tell the user they can say `done` after review to run executor automation now and skip the scheduled 9pm executor.
+9. Treat the dashboard as optional calibration. Surface it when it helps, but do not ask for daily review unless a true product decision, risky action, or blocked item needs the user's judgment.
 
 ### Executor automation
 
-Executor automation runs daily around 9pm unless it already ran after the user said `done`. It acts on triaged, high-confidence, narrow work.
+Executor automation runs daily around 9pm unless it already ran after the user said `done`. It acts on triaged, high-confidence, narrow work. Do not wait for a daily dashboard review before acting on clear work.
 
 1. Read candidates, auto-action notes, calibration, and any explicit dashboard decisions.
-2. Autopick the top one or two next actions from high-confidence evidence. Prefer items that are repeated, recent, user-visible, reversible, and able to prevent several candidate patterns at once.
+2. Act by default. Autopick the top one or two next actions from high-confidence evidence. Prefer items that are repeated, recent, user-visible, reversible, and able to prevent several candidate patterns at once.
 3. Execute low-risk docs updates directly when the destination and wording are clear.
 4. For focused tests, lint checks, helper guardrails, or skill tweaks, write the failing test or structural check first, implement the smallest fix, verify, and log the prevention artifact.
 5. When a useful fix is too broad for safe code changes, create the smallest concrete prototype, draft plan, characterization test, grep check, or harness checklist that names the owner surface and next verification command. This counts as progress; do not block on asking the user to pick the surface.

@@ -8,23 +8,23 @@ First read the canonical global learning-system contract at /Users/david/Dropbox
 
 Before writing anything, run git status --short. If the worktree is dirty at the start, classify the dirty paths. You may consume explicit dashboard decision files such as docs/learnings/decisions.jsonl, but otherwise report the dirty paths and stop before writing; do not mix automation output with unrelated user/session changes and do not stage unrelated pre-existing work.
 
-In the current repo, first inspect docs/learnings/auto-actions.md for a same-day marker like `manual-executor-ran: YYYY-MM-DD`; if present, skip execution for this repo and report that the 9pm run was skipped because the user already said `done` and executor ran manually. Otherwise inspect docs/learnings/candidates.md, inbox.md, calibration.md, decisions.jsonl, auto-actions.md, and candidate action notes/draft plans from triage.
+In the current repo, inspect docs/learnings/candidates.md, inbox.md, calibration.md, decisions.jsonl, auto-actions.md, and candidate action notes/draft plans from triage. If docs/learnings/auto-actions.md has a same-day `manual-executor-ran: YYYY-MM-DD` marker, skip execution and report that this repo already ran today.
 
-Use the Abstraction Ladder from the learning-system contract only to verify that each proposed action is tied to the highest still-actionable principle and a clear prevention artifact; do not invent broad new meaning during execution. Interpret `Prevention artifacts: docs (required), test (required), skill (proposed)` as the artifact list: required means needed to prevent recurrence, proposed means worth considering.
+Act by default. Do not wait for a daily dashboard review, user calibration pass, or routine owner-surface choice before making useful progress. Ask the user only for true product choices, such as whether behavior should change, whether a warning should block an action, which business priority wins, or whether to accept meaningful cost/risk.
 
-Autopick the top one or two obvious high-leverage next actions from high-confidence evidence. Prefer actions that are repeated, recent, user-visible, reversible, and prevent several candidate patterns at once. Do not ask the user to choose routine owner surfaces, test targets, or implementation sequence when the evidence makes one path clearly useful.
+Use the Abstraction Ladder from the learning-system contract only to verify that each proposed action is tied to the highest still-actionable principle and a clear prevention artifact. Prefer sample-backed clusters over one-off abstractions: repeated, recent, user-visible patterns should beat isolated curiosities. Interpret `Prevention artifacts: docs (required), test (required), skill (proposed)` as the artifact list: required means needed to prevent recurrence, proposed means worth considering.
+
+Autopick the top one or two obvious high-leverage next actions from high-confidence evidence. Prefer actions that are repeated, recent, user-visible, reversible, and prevent several candidate patterns at once. If no prevention fix is safe yet, create the smallest evidence-gathering step, prototype, draft plan, characterization test, grep check, or harness checklist that will make the next run smarter.
 
 Execute only high-confidence narrow work. Safe lanes: learning-file updates, low-risk docs updates with precise wording, and focused prevention artifacts such as tests, lint/grep checks, helper guardrails, or skill structural checks when you can write the failing test or structural check first, implement the smallest fix, and verify.
 
-When useful prevention is too broad for safe code changes, create the smallest concrete prototype, draft plan, characterization test, grep check, or harness checklist that names the owner surface and next verification command. Record this as prototyped progress, not as a user-blocking micro-decision. Ask the user only for true product choices, such as whether behavior should change, whether a warning should block an action, which business priority wins, or whether to accept meaningful cost/risk.
-
 Use subagents for independent implementation, review, or verification slices when write scopes are disjoint or questions are separable. Prefer gpt-5.3-codex for bounded specialized coding subagents when model selection is available; keep broad judgment, clustering, safety, and final integration decisions in the parent executor. Tell subagents they are not alone in the codebase, must not revert others' edits, must respect token-delegation rules, and must list changed files.
 
-Do not silently make broad product behavior changes, architecture changes, global instruction changes, root AGENTS.md changes, risky shared skill changes, ambiguous code changes, or cross-caller behavior changes. If those are needed, leave dashboard review only after recording the clearest next prototype or testable slice.
+Do not silently make broad product behavior changes, architecture changes, global instruction changes, root AGENTS.md changes, risky shared skill changes, ambiguous code changes, or cross-caller behavior changes. If those are needed, record the clearest next prototype or testable slice and report the true decision needed.
 
 Regenerate docs/learnings/dashboard.md and dashboard.html for the current repo. Append plain-English audit lines to docs/learnings/auto-actions.md for every action and verification result. Verify with git diff --check and any focused project checks required by touched code/tests/skills. If files changed and verification passed, stage only files changed by this automation plus explicit dashboard decision files it consumed, then create one local commit such as `docs(learnings): apply daily executor`; report the commit hash. Do not push. Do not leave a successful run dirty. If verification fails, do not commit; report the dirty paths and failed checks.
 
-End with a concise CEO-style summary for the current repo only, grouped by outcome: executed, prototyped, verified, local commit hash or skip reason, needs product decision, dashboard path, and the one thing the user should focus on if any input is truly needed.'''
+End with a concise CEO-style summary for the current repo only, grouped by outcome: executed, prototyped, verified, local commit hash or skip reason, needs product decision, dashboard path, and the one thing the user should focus on only if input is truly needed.'''
 status = "ACTIVE"
 rrule = "FREQ=DAILY;BYHOUR=21;BYMINUTE=0;BYSECOND=0"
 model = "gpt-5.5"
@@ -32,4 +32,4 @@ reasoning_effort = "high"
 execution_environment = "local"
 cwds = ["/Users/david/Dropbox (Personal)/code/dotfiles", "/Users/david/Dropbox (Personal)/code/journology"]
 created_at = 1778014699759
-updated_at = 1778121891958
+updated_at = 1778190399121

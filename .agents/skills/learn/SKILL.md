@@ -84,7 +84,7 @@ Real entries already in the canonical voice. Match this shape and rhythm — the
 
 ### Abstraction
 
-Use the abstraction ladder from `docs/ai/learning-system.md`: start with the specific incident, identify the class of bug, then capture the highest principle that is still actionable. If a claim says a workflow "should" do something, verify the actual trigger, prompt, hook, test, structural check, or code path that makes it happen.
+Use the abstraction ladder from `docs/ai/learning-system.md`, but do not force a polished rule out of every single bug. Raw bugs are useful samples. When several samples point to the same class, cluster them into the highest still-actionable principle; when there is only one sample, capture it directly only if the prevention surface is already clear or the risk is high. If a claim says a workflow "should" do something, verify the actual trigger, prompt, hook, test, structural check, or code path that makes it happen.
 
 After identifying the principle, note what would enforce it next time: a regression test, lint rule, schema/contract scan, shared helper, checklist, docs update, skill tweak, or automation.
 
@@ -144,7 +144,9 @@ The dashboard must show triage signals for Needs Review, Open Items, Auto Done, 
 
 ## Agentic Maintenance
 
-Daily maintenance is split into Triage automation and Executor automation. Triage runs around 5pm: it clusters new learnings, merges duplicate evidence, archives obvious junk, prepares candidate actions, and surfaces a live dashboard/app link for review. Executor runs around 9pm: it acts only on high-confidence narrow work, updates low-risk docs, or implements focused prevention artifacts when it can follow TDD/review.
+Daily maintenance is split into Triage automation and Executor automation. Triage runs around 5pm: it clusters new learnings when the samples support a natural pattern, merges duplicate evidence, archives obvious junk, and prepares candidate actions. Executor runs around 9pm: it acts by default on high-confidence narrow work, updates low-risk docs, or implements focused prevention artifacts when it can follow TDD/review.
+
+The dashboard is optional calibration, not a daily approval gate. Do not make the user process a large review queue before useful work happens; do your best, commit successful automation changes locally, and report what changed. Ask only for true product choices or risky/blocked work.
 
 If the user says `done` after reviewing the triage dashboard, run executor automation immediately for that repo, append a same-day audit marker, and skip the scheduled 9pm executor for that repo.
 

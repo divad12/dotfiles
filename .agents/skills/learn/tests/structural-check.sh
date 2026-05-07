@@ -43,6 +43,9 @@ grep -q "Only three user-facing front doors" "$DOC" || { echo "FAIL: learning do
 grep -q "The Abstraction Ladder" "$DOC" || { echo "FAIL: abstraction ladder moved to canonical doc"; exit 1; }
 grep -q "Fingerprint matching is not semantic dedupe" "$DOC" || { echo "FAIL: learning doc fingerprint boundary"; exit 1; }
 grep -q "Daily maintenance is split" "$DOC" || { echo "FAIL: learning doc daily automation"; exit 1; }
+grep -q "Review is optional calibration, not a daily approval gate" "$DOC" || { echo "FAIL: learning doc hands-off review contract"; exit 1; }
+grep -q "Let abstractions emerge from batches of evidence" "$DOC" || { echo "FAIL: learning doc sample-backed clustering contract"; exit 1; }
+grep -q "Do not manufacture one guidance line per bug" "$DOC" || { echo "FAIL: learning doc no per-bug abstraction churn"; exit 1; }
 grep -q "Use a frontier reasoning parent model" "$DOC" || { echo "FAIL: learning automation model policy"; exit 1; }
 grep -q "gpt-5.5.*high reasoning" "$DOC" || { echo "FAIL: learning automation parent model"; exit 1; }
 grep -q "gpt-5.3-codex" "$DOC" || { echo "FAIL: learning automation subagent model"; exit 1; }
@@ -105,8 +108,12 @@ test -f "$CANONICAL_AUTOMATION_HOME/daily-learning-triage/automation.toml" || { 
 test -f "$CANONICAL_AUTOMATION_HOME/daily-learning-executor/automation.toml" || { echo "FAIL: executor automation canonical copy missing"; exit 1; }
 grep -q ".codex/automations" symlink.sh || { echo "FAIL: symlink.sh mirrors codex automations"; exit 1; }
 if test -f "$TRIAGE_AUTOMATION"; then
+  test -L "$TRIAGE_AUTOMATION" || { echo "FAIL: triage automation live file should symlink to dotfiles"; exit 1; }
   grep -q "docs/ai/learning-system.md" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage reads canonical learning doc"; exit 1; }
   grep -q "Abstraction Ladder" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage applies abstraction ladder"; exit 1; }
+  grep -q "sample-backed clusters" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage clusters from samples"; exit 1; }
+  grep -q "Do not manufacture one guidance line per bug" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage avoids per-bug guidance churn"; exit 1; }
+  grep -q "dashboard is optional calibration" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage treats dashboard as optional"; exit 1; }
   grep -q "current working directory only" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage scoped to current cwd"; exit 1; }
   grep -q "git status --short" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage checks dirty worktree"; exit 1; }
   grep -q "create one local commit" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage commits successful changes"; exit 1; }
@@ -114,8 +121,11 @@ if test -f "$TRIAGE_AUTOMATION"; then
   ! grep -q "For each configured repo" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage must not loop configured repos"; exit 1; }
 fi
 if test -f "$EXECUTOR_AUTOMATION"; then
+  test -L "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor automation live file should symlink to dotfiles"; exit 1; }
   grep -q "docs/ai/learning-system.md" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor reads canonical learning doc"; exit 1; }
   grep -q "Abstraction Ladder" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor applies abstraction ladder"; exit 1; }
+  grep -q "Act by default" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor hands-off action contract"; exit 1; }
+  grep -q "Do not wait for a daily dashboard review" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor no daily review gate"; exit 1; }
   grep -q "current working directory only" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor scoped to current cwd"; exit 1; }
   grep -q "git status --short" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor checks dirty worktree"; exit 1; }
   grep -q "create one local commit" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor commits successful changes"; exit 1; }
