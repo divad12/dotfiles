@@ -36,9 +36,36 @@ EXACT_PROMPT_RE = re.compile(
     r"\b(verbatim|exact lines?|line numbers?|quote exact|exact code|complete source|full source|exact contents|print exact)\b",
     re.IGNORECASE,
 )
+NEGATED_EXACT_PROMPT_RE = re.compile(
+    r"\b(?:do\s+not|don['’]?t|dont|without|no|not|never)\b"
+    r"(?:(?![.;!?\n]).){0,120}"
+    r"\b("
+    r"verbatim|exact|source|code|text|contents?|lines?|line[- ]numbered|"
+    r"line\s+numbers?|complete\s+source|full\s+source|print|quote|show|"
+    r"reproduce|include|provide|ask(?:ing)?\s+for"
+    r")\b",
+    re.IGNORECASE,
+)
 CONTROL_BASENAMES = {"AGENTS.md", "CLAUDE.md", "PROGRESS.md", "SKILL.md"}
 SENSITIVE_BASENAMES = {".env", ".env.local"}
 GENERATED_SEGMENTS = {"graphify-out", "node_modules"}
+CONTROL_SEGMENTS = {".git"}
+BINARY_EXTENSIONS = {
+    ".avif",
+    ".bin",
+    ".gif",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".mov",
+    ".mp4",
+    ".pdf",
+    ".png",
+    ".tar",
+    ".webp",
+    ".zip",
+}
+CHUNK_BYPASS_LINES = 800
 
 
 def command_values(record):
@@ -138,6 +165,28 @@ def row_files(row):
     return [path for path in (row.get("files") or "").split(",") if path]
 
 
+def clause_prefix(text, index):
+    start = 0
+    for marker in (".", ";", "!", "?", "\n"):
+        marker_index = text.rfind(marker, 0, index)
+        if marker_index >= start:
+            start = marker_index + 1
+    return text[start:index]
+
+
+def is_negated_exact_prompt_match(text, match):
+    return bool(NEGATED_EXACT_PROMPT_RE.search(clause_prefix(text, match.end())))
+
+
+def is_exact_prompt(text):
+    normalized = (text or "").replace("'\"'\"'", "'")
+    for match in EXACT_PROMPT_RE.finditer(normalized):
+        if is_negated_exact_prompt_match(normalized, match):
+            continue
+        return True
+    return False
+
+
 def summarize_over_delegations(rows, limit):
     line_cache = {}
     exact_prompts = []
@@ -148,7 +197,7 @@ def summarize_over_delegations(rows, limit):
         invocation = row.get("invocation") or ""
         files = row_files(row)
         counts = [line_count(path, row.get("cwd", ""), line_cache) for path in files]
-        if EXACT_PROMPT_RE.search(invocation):
+        if is_exact_prompt(invocation):
             exact_prompts.append((row, counts))
         if len(files) == 1 and counts and counts[0] is not None and counts[0] <= 400 and not row.get("target"):
             single_small.append((row, counts))
@@ -215,6 +264,7 @@ def path_names(paths, limit=3):
 def describe_guard_event(event):
     parts = [
         timestamp_label(event.get("ts")),
+        event.get("source") or "unknown-source",
         event.get("reason") or "unknown",
         event.get("tool") or "unknown-tool",
         path_names(event.get("paths") or []),
@@ -275,8 +325,45 @@ def direct_read_paths(command):
     return paths
 
 
+def is_narrow_direct_read_command(command, max_lines=200):
+    if command.startswith("Read "):
+        return False
+    if re.search(r"(^|[;&|]\s*)cat\s+", command):
+        return False
+
+    sed_ranges = re.findall(r"\bsed\s+-n\s+['\"]?(\d+),(\d+)p['\"]?", command)
+    if sed_ranges:
+        return all(max(0, int(end) - int(start) + 1) <= max_lines for start, end in sed_ranges)
+
+    head_tail_limits = re.findall(r"\b(?:head|tail)\b(?:\s+-n\s+|\s+-)(\d+)", command)
+    if head_tail_limits:
+        return all(int(limit) <= max_lines for limit in head_tail_limits)
+
+    if re.search(r"\b(head|tail)\s+", command):
+        return True
+    return False
+
+
 def command_segments(command):
-    return [segment.strip() for segment in re.split(r"\s*(?:&&|\|\||;)\s*", command) if segment.strip()]
+    try:
+        lexer = shlex.shlex(command, posix=True, punctuation_chars="|&;")
+        lexer.whitespace_split = True
+        tokens = list(lexer)
+    except (TypeError, ValueError):
+        return [segment.strip() for segment in re.split(r"\s*(?:&&|\|\||;)\s*", command) if segment.strip()]
+
+    segments = []
+    current = []
+    for token in tokens:
+        if token in {"&&", "||", ";", "|"}:
+            if current:
+                segments.append(" ".join(shlex.quote(part) for part in current))
+                current = []
+            continue
+        current.append(token)
+    if current:
+        segments.append(" ".join(shlex.quote(part) for part in current))
+    return segments
 
 
 def shell_tokens(command):
@@ -296,6 +383,8 @@ def looks_like_path_token(token):
     if token in {"echo", "git", "grep", "sed", "nl", "ls", "wc", "readlink"}:
         return False
     basename = os.path.basename(token.rstrip(","))
+    if re.fullmatch(r"\d+(?:\.\d+)+", basename):
+        return False
     return "/" in token or "." in basename or basename in {"Dockerfile", "Gemfile", "Makefile", "Rakefile"}
 
 
@@ -329,10 +418,19 @@ def is_exempt_direct_read_path(path):
     if path.startswith("http://") or path.startswith("https://"):
         return True
     basename = os.path.basename(path)
+    suffix = Path(basename).suffix.lower()
     if basename in CONTROL_BASENAMES or basename in SENSITIVE_BASENAMES:
         return True
+    if suffix in BINARY_EXTENSIONS:
+        return True
     parts = set(Path(path).parts)
-    if "docs" in parts or parts & GENERATED_SEGMENTS:
+    if "docs" in parts or parts & GENERATED_SEGMENTS or parts & CONTROL_SEGMENTS:
+        return True
+    if ".agents" in parts and ("observations" in parts or "skills" in parts):
+        return True
+    if ".codex" in parts and ("automations" in parts or "skills" in parts):
+        return True
+    if ".claude" in parts and ("skills" in parts or basename in {"launch.json", "settings.json", "settings.local.json"}):
         return True
     if path.startswith("/private/tmp/") or path.startswith("/tmp/"):
         return True
@@ -349,6 +447,7 @@ def scan_log(path):
     except OSError:
         return result
 
+    delegated_seen = False
     for line in lines:
         try:
             record = json.loads(line)
@@ -357,11 +456,49 @@ def scan_log(path):
         for command, _cwd in command_values(record):
             if ASK_INTERN_RE.search(command):
                 result["ask_intern"] += 1
+                delegated_seen = True
             if DIRECT_READ_RE.search(command) and not ASK_INTERN_RE.search(command):
+                if delegated_seen and is_narrow_direct_read_command(command):
+                    continue
                 for path in direct_read_paths(command):
                     if not is_exempt_direct_read_path(path):
                         result["direct_reads"].append((command, path))
     return result
+
+
+def safe_int(value):
+    try:
+        return int(value)
+    except (TypeError, ValueError):
+        return 0
+
+
+def possible_chunk_read_bypasses(guard_events):
+    chunks = defaultdict(lambda: {"count": 0, "total": 0, "source": "unknown", "last_ts": 0})
+    for event in guard_events:
+        if event.get("action") != "tracked":
+            continue
+        paths = event.get("paths") or []
+        if len(paths) != 1:
+            continue
+        path = paths[0]
+        if is_exempt_direct_read_path(path):
+            continue
+        read_lines = safe_int(event.get("read_lines"))
+        if read_lines <= 0:
+            continue
+        key = (event.get("session") or "", path)
+        chunks[key]["count"] += 1
+        chunks[key]["total"] += read_lines
+        chunks[key]["source"] = event.get("source") or chunks[key]["source"]
+        chunks[key]["last_ts"] = max(chunks[key]["last_ts"], safe_int(event.get("ts")))
+
+    findings = []
+    for (_session, path), data in chunks.items():
+        if data["count"] >= 2 and data["total"] >= CHUNK_BYPASS_LINES:
+            findings.append((data["last_ts"], path, data["count"], data["total"], data["source"]))
+    findings.sort()
+    return findings
 
 
 def main():
@@ -379,6 +516,7 @@ def main():
     events = load_events(Path(args.events).expanduser(), since_days=args.since_days)
     guard_events = load_jsonl_events(Path(args.guard_events).expanduser(), since_days=args.since_days)
     guard_blocked = [event for event in guard_events if event.get("action") == "blocked"]
+    chunk_bypasses = possible_chunk_read_bypasses(guard_events)
     if args.log_root:
         log_roots = [Path(p).expanduser() for p in args.log_root]
     elif args.log:
@@ -420,6 +558,9 @@ def main():
         print("recent read-guard blocks:")
         for event in guard_blocked[-args.guard_limit :]:
             print(f"- {describe_guard_event(event)}")
+    print(f"possible chunk-read bypasses: {len(chunk_bypasses)}")
+    for _ts, path, count, total, source in chunk_bypasses[-args.guard_limit :]:
+        print(f"- {source} {path}: {count} chunks, {total} total lines")
     if args.since_days is not None:
         print(f"session log window: last {args.since_days:g} days")
     print(f"session logs scanned: {len(logs)}")

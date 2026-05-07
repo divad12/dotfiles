@@ -73,21 +73,74 @@ After `--target`, review the output and edit only what needs fixing.
 - Claude Code read-guard log: `~/.config/ask-intern/read-guard/events.jsonl`
 - `ask-intern --stats` includes recent failure counts by reason, such as `missing_file`, `missing_api_key`, `api_error`, or `empty_response`.
 - The event log records source (`claude`, `codex`, or `unknown`), status, reason, model, cwd, file paths, target path, latency, and the exact `ask-intern` invocation for early debugging.
-- The read-guard log records every catch with reason, paths, source tool, original hook input (`Read` `file_path`/`offset`/`limit` or Bash `command`), and computed line/count estimates when available.
+- The read-guard log records every catch with reason, paths, inferred agent source (`claude`, `codex`, or `unknown`), source tool, original hook input (`Read` `file_path`/`offset`/`limit` or Bash `command`), and computed line/count estimates when available.
 - Source is inferred from `ASK_INTERN_SOURCE`, agent-specific environment variables, working directory, and process ancestry; old rows are backfilled from `cwd` when obvious and otherwise remain `unknown`.
 - The invocation field may include prompt text. Keep this while tuning adoption, then remove or redact it once common failure modes are understood.
-- `ask-intern-audit` flags likely over-delegation patterns such as exact/verbatim-code prompts, single small-file calls, and docs/control-only calls. Exact source text should come from direct small reads or narrow snippets, not from `ask-intern`.
-- `ask-intern` hard-denies exact/verbatim source requests before any API call and logs `exact_source_request`. Use direct `rg`/`sed`/narrow `Read` snippets for exact text; set `--allow-exact-source` or `ASK_INTERN_ALLOW_EXACT_SOURCE=1` only for deliberate manual debugging.
+- `ask-intern-audit` flags likely over-delegation patterns such as exact/verbatim-code prompts, single small-file calls, and docs/control-only calls. It filters docs/control/generated/temp/binary reads and also reports possible chunk-read bypasses when one session reads the same non-exempt file in repeated large chunks. Exact source text should come from direct small reads or narrow snippets, not from `ask-intern`.
+- `ask-intern` hard-denies exact/verbatim source requests before any API call and logs `exact_source_request`; the matcher is negation-aware, so prompts like "do not quote exact code" are allowed. Use direct `rg`/`sed`/narrow `Read` snippets for exact text; set `--allow-exact-source` or `ASK_INTERN_ALLOW_EXACT_SOURCE=1` only for deliberate manual debugging.
 - Successful read-mode calls print a short stderr reminder that exact code and line numbers should come from direct narrow snippets after the summary.
 - Missing temp/log files are treated as stale optional context and skipped with a warning; missing project/source files still fail so the agent corrects guessed paths.
 - Adoption audit: `ask-intern-audit` scans the event log, read-guard catches, and Claude/Codex JSONL logs. It reports recent guard blocks, suspicious direct reads, and likely missed delegations. Use `ask-intern-audit --since-days 1` for recent sessions, or `ask-intern-audit --log path/to/session.jsonl` to inspect a specific session.
+
+## Daily Adoption Audit Runbook
+
+Run this when tuning `ask-intern` adoption or reviewing the last day of Claude/Codex behavior.
+
+1. Capture the dashboard:
+
+```bash
+ask-intern --stats
+ask-intern-audit --since-days 1 --guard-limit 20
+```
+
+2. Review false positives:
+
+- `exact_source_request` failures where the prompt said not to quote exact code.
+- `read-guard` blocks on docs/control files, small exact snippets, or generated/temp files that should be exempt.
+- `possible over-delegations` where the work was a single small file, docs/control-only, or needed exact text rather than a summary.
+
+3. Review false negatives:
+
+- `likely missed delegations` sessions with 3+ broad direct reads and no `ask-intern`.
+- `possible chunk-read bypasses` where one file was read in repeated large chunks.
+- Top direct-read paths that are real source files rather than docs, hooks, generated output, `.git`, or observation/control files.
+
+4. Inspect the transcript only after the dashboard points to a concrete candidate:
+
+```bash
+ask-intern-audit --since-days 1 --log path/to/session.jsonl --guard-limit 20
+```
+
+Classify each candidate as:
+
+- False positive: the guard/audit pushed delegation when direct reading was better.
+- False negative: the agent read broad context that should have been delegated.
+- Expected: the direct read was docs/control/exact-snippet work, or `ask-intern` was correctly used first.
+
+5. Improve in this order:
+
+- Add or update a regression test that captures the failure mode.
+- Prefer hook/audit fixes over prose when the pattern is mechanically detectable.
+- Update `AGENTS.md` or skill prompts only for judgment/routing problems that tooling cannot see.
+- Re-run the focused tests and `ask-intern-audit --since-days 1` before committing.
+
+Daily summary format:
+
+```text
+ask-intern daily audit
+- calls: <total> (<claude>, <codex>)
+- false positives fixed/proposed: <count> - <one-line examples>
+- false negatives fixed/proposed: <count> - <one-line examples>
+- noisy diagnostics still ignored: <count> - <why>
+- next tooling/doc change: <concrete recommendation>
+```
 
 ## Claude Code Read Guard
 
 `~/bin/ask-intern-guard` is installed as a `PreToolUse` hook for `Read|Bash` in `~/.claude/settings.json`. It blocks broad direct reads before Claude Code spends context:
 
 - whole-file reads of any non-instruction file over 400 lines
-- cumulative broad reads over 800 lines across 3+ distinct non-instruction context files, counting only files/ranges of roughly 120+ lines
+- cumulative broad reads over 800 lines across 3+ distinct non-instruction context files, counting only files/ranges of roughly 200+ lines
 - Bash commands that directly read enough file content to cross that cumulative budget
 
 The hook allows small files, narrow `Read` chunks with `offset`/`limit`, and shape probes such as `wc -l` or small `head`/`tail` reads. It ignores required instruction/project documentation files (`AGENTS.md`, `CLAUDE.md`, `PROGRESS.md`, `SKILL.md`, any path segment named `docs`) and resets the session counter when Claude runs `ask-intern`. Tune the cumulative budget with `ASK_INTERN_GUARD_MAX_CUMULATIVE_LINES` and the small-file floor with `ASK_INTERN_GUARD_MIN_CUMULATIVE_FILE_LINES`. Set `ASK_INTERN_GUARD_DISABLED=1` to bypass it, or `ASK_INTERN_GUARD_MODE=warn` to allow reads with an advisory while tuning.

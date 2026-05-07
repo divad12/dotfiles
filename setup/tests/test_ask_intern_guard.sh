@@ -23,6 +23,9 @@ small_page="$work/page.tsx"
 medium_a="$work/medium-a.ts"
 medium_b="$work/medium-b.ts"
 medium_c="$work/medium-c.ts"
+snippet_a="$work/snippet-a.ts"
+snippet_b="$work/snippet-b.ts"
+snippet_c="$work/snippet-c.ts"
 edge_a="$work/edge-a.ts"
 edge_b="$work/edge-b.ts"
 large="$work/large.py"
@@ -40,6 +43,9 @@ printf '' >"$small_page"
 printf '' >"$medium_a"
 printf '' >"$medium_b"
 printf '' >"$medium_c"
+printf '' >"$snippet_a"
+printf '' >"$snippet_b"
+printf '' >"$snippet_c"
 printf '' >"$edge_a"
 printf '' >"$edge_b"
 printf '<!-- agent-control: direct-read -->\n' >"$marked_control"
@@ -57,6 +63,11 @@ while [ "$i" -lt 401 ]; do
     printf 'medium a %s\n' "$i" >>"$medium_a"
     printf 'medium b %s\n' "$i" >>"$medium_b"
     printf 'medium c %s\n' "$i" >>"$medium_c"
+  fi
+  if [ "$i" -lt 170 ]; then
+    printf 'snippet a %s\n' "$i" >>"$snippet_a"
+    printf 'snippet b %s\n' "$i" >>"$snippet_b"
+    printf 'snippet c %s\n' "$i" >>"$snippet_c"
   fi
   if [ "$i" -lt 400 ]; then
     printf 'edge a %s\n' "$i" >>"$edge_a"
@@ -127,6 +138,10 @@ run_hook "$(read_json "$medium_a" s10)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(read_json "$medium_b" s10)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(read_json "$small_page" s10)" >/tmp/guard.out 2>/tmp/guard.err
 
+run_hook "$(read_json "$snippet_a" s14)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$snippet_b" s14)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$snippet_c" s14)" >/tmp/guard.out 2>/tmp/guard.err
+
 run_hook "$(read_json "$edge_a" s13)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(read_json "$edge_b" s13)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(read_json "$small_page" s13)" >/tmp/guard.out 2>/tmp/guard.err
@@ -168,6 +183,10 @@ run_hook "$(read_json "$small_a" s5)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(read_json "$small_b" s5)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(bash_json "cat > '$commit_msg' << 'CMSGEOF'; commit body; CMSGEOF; git commit -F '$commit_msg' 2>&1 | tail -5" s5)" >/tmp/guard.out 2>/tmp/guard.err
 
+claude_cwd="$work/.claude/worktrees/example"
+mkdir -p "$claude_cwd"
+run_hook "$(printf '{"session_id":"%s","cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Read","tool_input":{"file_path":"%s"}}' "s15" "$claude_cwd" "$medium_a")" >/tmp/guard.out 2>/tmp/guard.err
+
 events="$home/.config/ask-intern/read-guard/events.jsonl"
 if ! grep -q '"tool_input": {"file_path":' "$events"; then
   echo "read guard events did not log original Read tool input" >&2
@@ -195,6 +214,10 @@ if ! grep -q '"distinct_files": 3' "$events"; then
 fi
 if ! grep -q '"tool_input": {"command": "cat ' "$events"; then
   echo "read guard events did not log original Bash command in tool input" >&2
+  exit 1
+fi
+if ! grep -q '"source": "claude"' "$events"; then
+  echo "read guard events did not log inferred agent source" >&2
   exit 1
 fi
 

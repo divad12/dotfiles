@@ -83,6 +83,16 @@ EXACT_SOURCE_RE = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+NEGATED_EXACT_SOURCE_RE = re.compile(
+    r"\b(?:do\s+not|don['’]?t|dont|without|no|not|never)\b"
+    r"(?:(?![.;!?\n]).){0,120}"
+    r"\b("
+    r"verbatim|exact|source|code|text|contents?|lines?|line[- ]numbered|"
+    r"line\s+numbers?|complete\s+source|full\s+source|full\s+implementation|"
+    r"imports|print|quote|show|reproduce|include|provide|ask(?:ing)?\s+for"
+    r")\b",
+    re.IGNORECASE,
+)
 EVENT_FIELDS = [
     "timestamp",
     "source",
@@ -138,8 +148,26 @@ def has_optional_missing_file(row):
     return any(is_optional_missing_file(path) for path in files)
 
 
+def clause_prefix(text, index):
+    start = 0
+    for marker in (".", ";", "!", "?", "\n"):
+        marker_index = text.rfind(marker, 0, index)
+        if marker_index >= start:
+            start = marker_index + 1
+    return text[start:index]
+
+
+def is_negated_exact_source_match(text, match):
+    return bool(NEGATED_EXACT_SOURCE_RE.search(clause_prefix(text, match.end())))
+
+
 def is_exact_source_request(prompt):
-    return bool(EXACT_SOURCE_RE.search(prompt or ""))
+    text = prompt or ""
+    for match in EXACT_SOURCE_RE.finditer(text):
+        if is_negated_exact_source_match(text, match):
+            continue
+        return True
+    return False
 
 
 def infer_source_from_text(*values):

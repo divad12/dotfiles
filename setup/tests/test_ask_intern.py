@@ -228,6 +228,29 @@ class AskInternConfigTest(unittest.TestCase):
         self.assertIn(str(source_file), events)
         self.assertIn("Show me the EXACT code with line numbers", events)
 
+    def test_exact_source_guard_allows_negated_exact_code_instructions(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            module = load_ask_intern(Path(tmp))
+
+        allowed = [
+            "Summarize the structure. Do not quote exact code.",
+            "Don't reproduce exact code; just describe the relevant behavior.",
+            "Do not include exact/verbatim code, full source, or line-numbered snippets.",
+            "Summarize risks without asking for exact lines.",
+            "No exact source text; point me to approximate ranges.",
+            "Names only, not exact code.",
+        ]
+        denied = [
+            "Show me the exact code with line numbers.",
+            "Print the file.",
+            "Quote exact lines 20-40.",
+        ]
+
+        for prompt in allowed:
+            self.assertFalse(module.is_exact_source_request(prompt), prompt)
+        for prompt in denied:
+            self.assertTrue(module.is_exact_source_request(prompt), prompt)
+
     def test_exact_source_guard_can_be_overridden(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)

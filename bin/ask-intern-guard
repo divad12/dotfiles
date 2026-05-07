@@ -26,7 +26,7 @@ from pathlib import Path
 DEFAULT_MIN_DISTINCT = 3
 DEFAULT_MAX_LINES = 400
 DEFAULT_MAX_CUMULATIVE_LINES = 800
-DEFAULT_MIN_CUMULATIVE_FILE_LINES = 120
+DEFAULT_MIN_CUMULATIVE_FILE_LINES = 200
 DEFAULT_PROBE_MAX_LINES = 40
 DEFAULT_ALLOW_TTL_SECONDS = 3600
 CONTROL_MARKER = "agent-control: direct-read"
@@ -124,6 +124,34 @@ def tool_input_summary(record):
     return summary
 
 
+def infer_source_from_text(*values):
+    text = " ".join(str(value or "") for value in values).lower()
+    if ".codex" in text or "/codex/" in text or "codex.app" in text:
+        return "codex"
+    if ".claude" in text or "/claude/" in text or "claude" in text:
+        return "claude"
+    return "unknown"
+
+
+def detect_source(record, cwd="", command=""):
+    explicit = os.environ.get("ASK_INTERN_SOURCE", "").strip().lower()
+    if explicit:
+        return explicit
+    env_hint = " ".join(
+        f"{key}={value}"
+        for key, value in os.environ.items()
+        if "CODEX" in key or "CLAUDE" in key or "ANTHROPIC" in key
+    )
+    source = infer_source_from_text(env_hint, cwd, command, json.dumps(record or {}, sort_keys=True))
+    if source != "unknown":
+        return source
+    if "CODEX_" in env_hint:
+        return "codex"
+    if "ANTHROPIC" in env_hint:
+        return "claude"
+    return "unknown"
+
+
 def log_event(
     session_id,
     action,
@@ -140,6 +168,7 @@ def log_event(
     event = {
         "ts": int(time.time()),
         "session": session_hash(session_id) if session_id else "",
+        "source": detect_source(record, cwd, command),
         "action": action,
         "reason": reason,
         "paths": paths or [],

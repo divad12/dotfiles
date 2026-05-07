@@ -96,6 +96,145 @@ class AskInternAuditTest(unittest.TestCase):
         self.assertIn("session-missed.jsonl", result.stdout)
         self.assertIn("alpha.md", result.stdout)
 
+    def test_negated_exact_source_prompt_is_not_reported_as_over_delegation(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            events = tmpdir / "events.tsv"
+            now = time.strftime("%Y-%m-%d %H:%M:%S")
+            events.write_text(
+                "\n".join(
+                    [
+                        "timestamp\tsource\tstatus\treason\tmodel\tfile_count\ttarget\tlatency_s\tcwd\tfiles\tinvocation",
+                        f"{now}\tclaude\tsuccess\tok\tdeepseek/deepseek-v4-flash\t1\t\t1.00\t/repo\treview.html\task-intern -f review.html 'Don'\"'\"'t reproduce exact code; just describe it'",
+                        f"{now}\tcodex\tfailure\texact_source_request\tdeepseek/deepseek-v4-flash\t1\t\t0.00\t/repo\tapp.ts\task-intern -f app.ts \"Show me the exact code\"",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    str(SCRIPT),
+                    "--events",
+                    str(events),
+                    "--log-root",
+                    str(tmpdir / "missing-logs"),
+                    "--since-days",
+                    "1",
+                ],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("- exact/verbatim prompts: 1", result.stdout)
+        self.assertIn("Show me the exact code", result.stdout)
+        self.assertNotIn("reproduce exact code", result.stdout)
+
+    def test_filters_docs_generated_binary_and_temp_direct_reads(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            events = tmpdir / "events.tsv"
+            now = time.strftime("%Y-%m-%d %H:%M:%S")
+            events.write_text(
+                "timestamp\tsource\tstatus\treason\tmodel\tfile_count\ttarget\tlatency_s\tcwd\tfiles\tinvocation\n",
+                encoding="utf-8",
+            )
+            session = tmpdir / "session-noise.jsonl"
+            session.write_text(
+                "\n".join(
+                    [
+                        '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"cat docs/spec.md\\"}"}}',
+                        '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"cat graphify-out/wiki/index.md\\"}"}}',
+                        '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"cat assets/screenshot.png\\"}"}}',
+                        '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"cat /tmp/generated.txt\\"}"}}',
+                        '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"cat .git/rebase-merge/done\\"}"}}',
+                        '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"cat ~/.agents/observations/project/log.md\\"}"}}',
+                        '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"git commit -m \\\\\\"fix grep|head under pipefail\\\\\\"\\"}"}}',
+                        '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"cat src/large.ts\\"}"}}',
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    str(SCRIPT),
+                    "--events",
+                    str(events),
+                    "--log",
+                    str(session),
+                    "--since-days",
+                    "1",
+                    "--min-direct-reads",
+                    "1",
+                ],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("suspicious direct reads: 1", result.stdout)
+        self.assertIn("src/large.ts", result.stdout)
+        self.assertNotIn("screenshot.png", result.stdout)
+
+    def test_reports_possible_chunk_read_bypasses_from_guard_logs(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            events = tmpdir / "events.tsv"
+            guard_events = tmpdir / "guard.jsonl"
+            now = int(time.time())
+            events.write_text(
+                "timestamp\tsource\tstatus\treason\tmodel\tfile_count\ttarget\tlatency_s\tcwd\tfiles\tinvocation\n",
+                encoding="utf-8",
+            )
+            guard_events.write_text(
+                "\n".join(
+                    [
+                        json_line({"ts": now, "session": "abc", "action": "tracked", "paths": ["/repo/src/app.tsx"], "read_lines": 450}),
+                        json_line({"ts": now, "session": "abc", "action": "tracked", "paths": ["/repo/src/app.tsx"], "read_lines": 420}),
+                        json_line({"ts": now, "session": "abc", "action": "tracked", "paths": ["/repo/docs/plan.md"], "read_lines": 900}),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    str(SCRIPT),
+                    "--events",
+                    str(events),
+                    "--guard-events",
+                    str(guard_events),
+                    "--log-root",
+                    str(tmpdir / "missing-logs"),
+                    "--since-days",
+                    "1",
+                ],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("possible chunk-read bypasses: 1", result.stdout)
+        self.assertIn("/repo/src/app.tsx", result.stdout)
+        self.assertNotIn("/repo/docs/plan.md", result.stdout)
+
+
+def json_line(value):
+    import json
+
+    return json.dumps(value, sort_keys=True)
+
 
 if __name__ == "__main__":
     unittest.main()
