@@ -44,6 +44,44 @@ Voice contrast — same evidence, before and after:
 
 If the captured `--summary` / `--evidence` / `--ramification` text reads as third-person bureaucratese, rewrite it before passing it to `learn capture`.
 
+#### Reference samples
+
+Real entries already in the canonical voice. Match this shape and rhythm — the agent should be able to drop a new capture in this list and have it read indistinguishable from the rest.
+
+**Sample — Keep one canonical learning front door**
+- Evidence: You pointed out that an old capture wrapper and a repo-local README were both duplicating /learn behavior — and duplicate docs always drift apart over time.
+- Ramification: When the setup feels like a CLI toolkit with parallel docs, you stop trusting it as a product.
+- Suggested fix: Move useful capture reasoning into /learn and docs/ai/learning-system.md; keep repo-local READMEs as pointer-only files.
+
+**Sample — Verify that required behavior is actually wired**
+- Evidence: You asked whether triage and executor actually read the learning-system doc and apply the abstraction ladder, surfacing that "should do X" in prose is empty unless something concrete enforces it.
+- Ramification: If we say a behavior is required but no prompt, hook, test, automation, or structural check makes it happen, you can't trust the system to do what we promise.
+- Suggested fix: When a workflow depends on a behavior, point at the trigger, prompt, hook, test, or structural check that enforces it — and add one if it's missing.
+
+**Sample — Learning glue must work everywhere — global, not repo-local**
+- Evidence: During a Journology merge, a session reported that bin/learn was missing, so it couldn't run the before-landing learning checkpoint at all.
+- Ramification: If the learn command isn't global, you can land branches in repos that have docs/learnings but no copy of the binary — silently skipping the checkpoint.
+- Suggested fix: Always invoke the global learn command with --repo, and structurally guard the merge docs against assuming a repo-local bin/learn exists.
+
+**Sample — Observers should route learnings, not hoard them**
+- Evidence: You asked whether a different Journology session would remember to capture learnings if only the /learn skill header mentioned the triggers — and whether task-observer's old observation log is still pulling its weight now that durable learnings route through the learning system.
+- Ramification: If the ambient observer keeps its own backlog instead of routing through /learn, durable feedback ends up split across two stores or lost entirely.
+- Suggested fix: Keep task-observer as the trigger and sensor, route durable learnings through /learn into docs/learnings/, and use observation files only as session audit fallback.
+
+**Sample — Re-check git after browser/review tools before the final commit**
+- Evidence: During a Journology merge the review server/browser wrote another comment-JSON change after the commit you thought was the final clean docs one.
+- Ramification: If we don't re-check, the target branch can land without the latest review-comment state — the agent believes everything is captured, but it isn't.
+- Suggested fix: After any browser or review-server tool runs, re-run git status before the final commit or branch advance, and fold any generated review state into the right commit.
+
+#### Common slips to avoid
+
+- "User noticed / The user said" → use **you** or just describe the situation.
+- "Users have to / Users may" → name **the user** or **we**, with a concrete consequence.
+- "Should be configured / Could lead to" → say what actually happens: "if we skip this, the merge lands without X."
+- Generic stakes ("this could cause confusion") → specific stakes ("you'll trust a green checkmark on a build that was actually red").
+- Buzzword verbs (utilize, leverage, ensure, facilitate) → plain ones (use, lean on, make sure, help).
+- Treating the recommended fix as a synopsis of evidence — it's an instruction. Start with a verb the future agent can act on: *Move*, *Add*, *Trace*, *Always invoke*, *Re-run*.
+
 ### Abstraction
 
 Use the abstraction ladder from `docs/ai/learning-system.md`: start with the specific incident, identify the class of bug, then capture the highest principle that is still actionable. If a claim says a workflow "should" do something, verify the actual trigger, prompt, hook, test, structural check, or code path that makes it happen.
