@@ -19,6 +19,14 @@ STORE_FILES = {
     "auto-actions.md": "# Learning Auto-Actions\n\n",
     "decisions.jsonl": "",
     "note-drafts.json": "{}\n",
+    ".gitignore": (
+        "# Generated and ephemeral files managed by `learn`.\n"
+        "# Sources of truth (inbox.md, candidates.md, calibration.md,\n"
+        "# auto-actions.md, archive/) stay tracked.\n"
+        "dashboard.html\n"
+        "decisions.jsonl\n"
+        "note-drafts.json\n"
+    ),
 }
 
 

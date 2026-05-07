@@ -1,0 +1,6 @@
+# Generated and ephemeral files managed by `learn`.
+# Sources of truth (inbox.md, candidates.md, calibration.md,
+# auto-actions.md, archive/) stay tracked.
+dashboard.html
+decisions.jsonl
+note-drafts.json
