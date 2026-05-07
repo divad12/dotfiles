@@ -6,7 +6,7 @@ prompt = '''Act as the daily learning executor automation. This is the action ph
 
 First read the canonical global learning-system contract at /Users/david/Dropbox (Personal)/code/dotfiles/docs/ai/learning-system.md; when the current repo also has docs/ai/learning-system.md, read that as a repo-specific supplement. The contract is the source of truth; this prompt is only the scheduler wrapper.
 
-Before writing anything, run git status --short. If the worktree is dirty at the start, classify the dirty paths. You may consume explicit dashboard decision files such as docs/learnings/decisions.jsonl, but otherwise report the dirty paths and stop before writing; do not mix automation output with unrelated user/session changes and do not stage unrelated pre-existing work.
+At the start, run git status --short and record baseline dirty paths. Proceed with useful non-overlapping work even when the repo is already dirty. Do not touch or stage those baseline dirty paths; if the only useful action overlaps a baseline dirty file, choose another useful action or report that specific overlap. You may consume explicit dashboard decision files such as docs/learnings/decisions.jsonl, but otherwise leave pre-existing dirty work alone.
 
 In the current repo, inspect docs/learnings/candidates.md, inbox.md, calibration.md, decisions.jsonl, auto-actions.md, and candidate action notes/draft plans from triage. If docs/learnings/auto-actions.md has a same-day `manual-executor-ran: YYYY-MM-DD` marker, skip execution and report that this repo already ran today.
 
@@ -22,7 +22,7 @@ Use subagents for independent implementation, review, or verification slices whe
 
 Do not silently make broad product behavior changes, architecture changes, global instruction changes, root AGENTS.md changes, risky shared skill changes, ambiguous code changes, or cross-caller behavior changes. If those are needed, record the clearest next prototype or testable slice and report the true decision needed.
 
-Regenerate docs/learnings/dashboard.md and dashboard.html for the current repo. Append plain-English audit lines to docs/learnings/auto-actions.md for every action and verification result. Verify with git diff --check and any focused project checks required by touched code/tests/skills. If files changed and verification passed, stage only files changed by this automation plus explicit dashboard decision files it consumed, then create one local commit such as `docs(learnings): apply daily executor`; report the commit hash. Do not push. Do not leave a successful run dirty. If verification fails, do not commit; report the dirty paths and failed checks.
+Regenerate docs/learnings/dashboard.md and dashboard.html for the current repo. Append plain-English audit lines to docs/learnings/auto-actions.md for every action and verification result. Verify automation-owned changes with git diff --check -- <paths changed by this automation> and any focused project checks required by touched code/tests/skills. If verification fails because of automation changes, fix the failure and rerun verification. If files changed and verification passed, stage only files changed by this automation plus explicit dashboard decision files it consumed, then create one local commit such as `docs(learnings): apply daily executor`; report the commit hash. Do not push. Do not leave a successful run dirty.
 
 End with a concise CEO-style summary for the current repo only, grouped by outcome: executed, prototyped, verified, local commit hash or skip reason, needs product decision, dashboard path, and the one thing the user should focus on only if input is truly needed.'''
 status = "ACTIVE"
@@ -32,4 +32,4 @@ reasoning_effort = "high"
 execution_environment = "local"
 cwds = ["/Users/david/Dropbox (Personal)/code/dotfiles", "/Users/david/Dropbox (Personal)/code/journology"]
 created_at = 1778014699759
-updated_at = 1778190399121
+updated_at = 1778197900000

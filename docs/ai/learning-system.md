@@ -112,12 +112,15 @@ on the current working directory only; it must not inspect, report on, write to,
 or regenerate dashboards for sibling configured repos.
 
 Do not leave successful automation runs dirty. At the start of each run, inspect
-`git status --short`; if unrelated changes are already present, report the
-dirty paths and stop before writing. The executor may consume explicit dashboard
-decision files such as `docs/learnings/decisions.jsonl`, but it must not stage
-unrelated pre-existing work. After a successful run with changes, verify, stage
-only files changed by the automation, create one local commit, and report the
-commit hash. Do not push.
+`git status --short` and snapshot baseline dirty paths. Proceed with useful
+non-overlapping work, but leave baseline dirty files untouched and unstaged. If
+the only useful action requires editing an already-dirty file, choose another
+useful action or report that specific overlap; do not trample the user's work.
+The executor may consume explicit dashboard decision files such as
+`docs/learnings/decisions.jsonl`, but it must not stage unrelated pre-existing
+work. After a successful run with changes, verify automation-owned paths and
+focused checks, stage only files changed by the automation, create one local commit, and report the commit hash. If verification fails, fix verification failures caused by its own changes and rerun verification before committing.
+Do not push.
 
 Daily automations should read the canonical global learning-system contract
 from the durable dotfiles master checkout, not from a temporary feature
