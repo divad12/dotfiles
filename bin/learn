@@ -2543,7 +2543,40 @@ _DASHBOARD_SCRIPT = r"""
     scheduleDraftSave(fp, target.value);
   });
 
+  const ACTION_TOAST = {
+    promote: "Adopted — will land at Finish",
+    candidate: "Triaged — moves to Triaged at Finish",
+    archive: "Archived",
+    defer: "Snoozed",
+    block: "Blocked",
+    "follow-up": "Follow-up noted",
+    "draft-plan": "Plan drafted at Finish",
+    "draft-patch": "Patch drafted at Finish",
+    calibration: "Rule recorded",
+  };
+  const PRIMARY_ACTIONS = new Set(["promote", "candidate", "archive", "defer"]);
+
   async function recordDecision(decision) {
+    // Adopt/Triage/Archive/Snooze are mutually exclusive on a given card.
+    // Drop any prior primary decisions for this fingerprint from the local
+    // queue so Export JSONL doesn't include the superseded ones. The server
+    // does the same on disk in POST /decisions.
+    if (
+      decision &&
+      PRIMARY_ACTIONS.has(decision.action) &&
+      decision.fingerprint &&
+      decision.fingerprint !== "global"
+    ) {
+      for (let i = decisions.length - 1; i >= 0; i--) {
+        const prior = decisions[i];
+        if (
+          prior.fingerprint === decision.fingerprint &&
+          PRIMARY_ACTIONS.has(prior.action)
+        ) {
+          decisions.splice(i, 1);
+        }
+      }
+    }
     decisions.push(decision);
     const save = fetch("/decisions", {
       method: "POST",
@@ -2571,18 +2604,31 @@ _DASHBOARD_SCRIPT = r"""
     showToast(label);
   }
 
-  const ACTION_TOAST = {
-    promote: "Adopted — will land at Finish",
-    candidate: "Triaged — moves to Triaged at Finish",
-    archive: "Archived",
-    defer: "Snoozed",
-    block: "Blocked",
-    "follow-up": "Follow-up noted",
-    "draft-plan": "Plan drafted at Finish",
-    "draft-patch": "Patch drafted at Finish",
-    calibration: "Rule recorded",
-  };
-  const PRIMARY_ACTIONS = new Set(["promote", "candidate", "archive", "defer"]);
+  // Mark a primary action button (Adopt/Triage/Archive/Snooze) as recorded
+  // and clear the recorded state on the *other* primary buttons in the same
+  // card. Keeps the inline view and the focus-mode footer in sync.
+  function markPrimaryRecorded(card, action) {
+    if (!card) return;
+    card.querySelectorAll('.actions button[data-action]').forEach((btn) => {
+      if (!PRIMARY_ACTIONS.has(btn.dataset.action)) return;
+      if (btn.dataset.action === action) {
+        btn.dataset.recorded = "true";
+      } else {
+        delete btn.dataset.recorded;
+      }
+    });
+    if (window.__reviewActive && review.cards[review.index] === card) {
+      review.actionsRow.querySelectorAll('[data-review-action]').forEach((btn) => {
+        if (!PRIMARY_ACTIONS.has(btn.dataset.reviewAction)) return;
+        if (btn.dataset.reviewAction === action) {
+          btn.dataset.recorded = "true";
+        } else {
+          delete btn.dataset.recorded;
+        }
+      });
+    }
+    card.classList.add("is-decided");
+  }
 
   document.addEventListener("click", async (event) => {
     const button = event.target.closest("button[data-action]");
@@ -2603,10 +2649,11 @@ _DASHBOARD_SCRIPT = r"""
       note = noteBox ? noteBox.value : "";
     }
     await recordDecision({ fingerprint, action, note });
-    markRecorded(button);
     if (PRIMARY_ACTIONS.has(action) && card) {
-      markEntryDecided(card, ACTION_TOAST[action] || "Recorded");
+      markPrimaryRecorded(card, action);
+      showToast(ACTION_TOAST[action] || "Recorded");
     } else {
+      markRecorded(button);
       showToast(ACTION_TOAST[action] || "Recorded");
     }
     if (action === "calibration") {
@@ -2938,15 +2985,11 @@ _DASHBOARD_SCRIPT = r"""
     const noteBox = card.querySelector('[data-note-for="' + fingerprint + '"]');
     const note = noteBox ? noteBox.value.trim() : "";
     await recordDecision({ fingerprint, action, note });
-    // Mirror the decided visual state on the underlying card
-    card.classList.add("is-decided");
-    review.actionsRow.querySelectorAll("[data-review-action]").forEach((b) => {
-      b.disabled = true;
-      b.dataset.recorded = "true";
-    });
-    // Also mark inline action button on the card
-    const inline = card.querySelector('.actions [data-action="' + action + '"]');
-    if (inline) inline.dataset.recorded = "true";
+    if (PRIMARY_ACTIONS.has(action)) {
+      markPrimaryRecorded(card, action);
+    } else {
+      btn.dataset.recorded = "true";
+    }
     showToast(ACTION_TOAST[action] || "Recorded");
     // Auto-advance to next undecided after a short pause
     setTimeout(() => {
@@ -3079,7 +3122,39 @@ def serve_dashboard(store: Path, host: str, port: int, execute_on_finish: bool) 
             length = int(self.headers.get("Content-Length", "0"))
             payload = self.rfile.read(length)
             decision = json.loads(payload.decode("utf-8"))
-            with (store / "decisions.jsonl").open("a") as handle:
+            decisions_path = store / "decisions.jsonl"
+            primary_actions = {"promote", "candidate", "archive", "defer"}
+            action = decision.get("action", "")
+            fingerprint = decision.get("fingerprint", "")
+            # Adopt/Triage/Archive/Snooze for a given fingerprint are
+            # mutually exclusive — when a new one lands, drop any prior
+            # primary decisions for that fingerprint from the queue so
+            # the executor doesn't replay contradictory intents.
+            if (
+                action in primary_actions
+                and fingerprint
+                and fingerprint != "global"
+                and decisions_path.exists()
+            ):
+                kept: list[str] = []
+                for line in decisions_path.read_text().splitlines():
+                    stripped = line.strip()
+                    if not stripped:
+                        continue
+                    try:
+                        existing = json.loads(stripped)
+                    except json.JSONDecodeError:
+                        kept.append(stripped)
+                        continue
+                    if (
+                        existing.get("fingerprint") == fingerprint
+                        and existing.get("action") in primary_actions
+                    ):
+                        continue
+                    kept.append(stripped)
+                content = "\n".join(kept) + ("\n" if kept else "")
+                decisions_path.write_text(content)
+            with decisions_path.open("a") as handle:
                 handle.write(json.dumps(decision, sort_keys=True) + "\n")
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
