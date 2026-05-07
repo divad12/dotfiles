@@ -2,9 +2,10 @@
 """
 Claude Code PreToolUse helper for Graphify.
 
-When a project already has graphify-out/graph.json, nudge broad search commands
-toward the graph/report before raw grep-style exploration. This complements
-ask-intern-guard: Graphify finds the map, ask-intern summarizes selected files.
+When GRAPHIFY_GUARD_NUDGES=1 and a project already has graphify-out/graph.json,
+nudge broad search commands toward the graph/report before raw grep-style
+exploration. By default this hook only logs explicit graphify commands; Graphify
+is an opt-in map, not an always-on reminder.
 """
 
 import json
@@ -40,8 +41,34 @@ def state_dir():
     return path
 
 
+def config_bool(name, default=False):
+    value = os.environ.get(name)
+    if value is None:
+        return default
+    return value.lower() in {"1", "true", "yes", "on"}
+
+
 def session_hash(session_id):
     return hashlib.sha256(session_id.encode("utf-8")).hexdigest()[:16] if session_id else ""
+
+
+def nudge_state_path():
+    return state_dir() / "nudges.json"
+
+
+def load_nudge_state():
+    try:
+        data = json.loads(nudge_state_path().read_text(encoding="utf-8"))
+    except (FileNotFoundError, json.JSONDecodeError, OSError):
+        return {}
+    return data if isinstance(data, dict) else {}
+
+
+def save_nudge_state(state):
+    path = nudge_state_path()
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(state, sort_keys=True) + "\n", encoding="utf-8")
+    os.replace(tmp, path)
 
 
 def tool_input_summary(record):
@@ -152,6 +179,24 @@ def graph_root(cwd):
     return None
 
 
+def should_nudge(record, root):
+    if not config_bool("GRAPHIFY_GUARD_NUDGES"):
+        return False
+    if config_bool("GRAPHIFY_GUARD_REPEAT_NUDGES"):
+        return True
+
+    key = f"{session_hash(record.get('session_id', ''))}:{Path(root).resolve()}"
+    state = load_nudge_state()
+    if key in state:
+        return False
+    state[key] = int(time.time())
+    try:
+        save_nudge_state(state)
+    except OSError:
+        pass
+    return True
+
+
 def main():
     record = read_input()
     if record.get("tool_name") != "Bash":
@@ -175,6 +220,8 @@ def main():
 
     root = graph_root(record.get("cwd", ""))
     if root is None:
+        return
+    if not should_nudge(record, root):
         return
 
     report = root / "graphify-out" / "GRAPH_REPORT.md"

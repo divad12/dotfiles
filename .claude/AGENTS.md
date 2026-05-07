@@ -75,6 +75,7 @@ When the user types `/graphify`, invoke the `graphify` skill before doing anythi
 - Read root `PROGRESS.md` at session start.
 - At session start, before broad codebase exploration, check whether the first context-gathering step is `ask-intern`-shaped: large files, multiple medium/large files, long logs, diffs, transcripts, or repetitive draft generation. Use the `ask-intern` skill if helpful.
 - Use context7, or the agent's equivalent docs MCP, for code generation, setup/configuration, and library/API docs. Resolve and fetch docs without waiting for an explicit ask.
+- After completing requested file changes and verification, commit your own changes without asking unless the user explicitly says not to. Stage only files changed for the current task and leave unrelated dirty files alone.
 - **Adaptive docs.** Read the matching file BEFORE relevant work and announce `📖 Loading context: <path>.md`.
   - Per-project: if the project has `docs/ai/`, treat it as source of truth.
   - Global (`~/dotfiles/docs/ai/`):

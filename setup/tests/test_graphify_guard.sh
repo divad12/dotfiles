@@ -34,7 +34,8 @@ EOF
 bash_json() {
   command="$1"
   cwd="${2:-$work}"
-  printf '{"session_id":"s1","cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"%s"}}' "$cwd" "$command"
+  session="${3:-s1}"
+  printf '{"session_id":"%s","cwd":"%s","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"%s"}}' "$session" "$cwd" "$command"
 }
 
 read_json() {
@@ -42,6 +43,12 @@ read_json() {
 }
 
 run_hook "$(bash_json "rg auth src")" >/tmp/graphify-guard.out
+if [ -s /tmp/graphify-guard.out ]; then
+  echo "graphify guard should not nudge broad search by default" >&2
+  exit 1
+fi
+
+GRAPHIFY_GUARD_NUDGES=1 run_hook "$(bash_json "rg auth src")" >/tmp/graphify-guard.out
 if ! grep -q "graphify-out/GRAPH_REPORT.md" /tmp/graphify-guard.out; then
   echo "graphify guard did not point search toward GRAPH_REPORT.md" >&2
   exit 1
@@ -57,7 +64,13 @@ fi
 
 mkdir -p "$work/graphify-out/wiki"
 printf '# Graphify Wiki\n' >"$work/graphify-out/wiki/index.md"
-run_hook "$(bash_json "rg auth src")" >/tmp/graphify-guard.out
+GRAPHIFY_GUARD_NUDGES=1 run_hook "$(bash_json "rg login src")" >/tmp/graphify-guard.out
+if [ -s /tmp/graphify-guard.out ]; then
+  echo "graphify guard should only nudge once per session/root" >&2
+  exit 1
+fi
+
+GRAPHIFY_GUARD_NUDGES=1 run_hook "$(bash_json "rg auth src" "$work" "s2")" >/tmp/graphify-guard.out
 if ! grep -q "graphify-out/wiki/index.md" /tmp/graphify-guard.out; then
   echo "graphify guard did not point search toward wiki/index.md when wiki exists" >&2
   exit 1

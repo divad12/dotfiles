@@ -13,6 +13,9 @@
   practical.
 - Treat the local target branch as the landing authority. Do not use
   `origin/<target>` to decide whether a rebase or merge is needed.
+- After completing requested file changes and verification, commit your own
+  changes without asking unless the user explicitly says not to. Stage only
+  files changed for the current task and leave unrelated dirty files alone.
 - Use a merge commit only as a narrow exception: after history cleanup, rebasing
   the branch is still more error-prone than resolving conflicts once.
 - Tell the user before choosing a history tradeoff. The ramification is what

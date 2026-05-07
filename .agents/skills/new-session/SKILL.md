@@ -6,7 +6,7 @@ user-invocable: true
 
 # New Session
 
-Set up a worktree with everything needed to run the dev server: env files, `node_modules` symlink, and a unique port that won't conflict with the main repo or other worktrees.
+Set up a worktree with everything needed to run the dev server: env files, `node_modules` symlink, `graphify-out` snapshot when available, and a unique port that won't conflict with the main repo or other worktrees.
 
 ## Steps
 
@@ -22,9 +22,10 @@ Set up a worktree with everything needed to run the dev server: env files, `node
 
 3. **Run setup.sh** from the worktree:
    ```bash
-   bash "$(git worktree list | awk 'NR==1 {print $1}')/.claude/skills/new-session/setup.sh"
+   MAIN_REPO=$(git worktree list --porcelain | sed -n '1s/^worktree //p')
+   bash "$MAIN_REPO/.claude/skills/new-session/setup.sh"
    ```
-   The script copies env files (`.env`, `.env.local`, `.env.production.local`) from the main repo, symlinks `node_modules`, picks a random unused port in 3001-9999, and writes `.claude/launch.json`. It prints the assigned port to stdout.
+   The script copies env files (`.env`, `.env.local`, `.env.production.local`) from the main repo, symlinks `node_modules`, copies a local `graphify-out` snapshot when the main repo has generated graph output, picks a random unused port in 3001-9999, and writes `.claude/launch.json`. It prints the assigned port to stdout.
 
    If the script lives in `~/.claude/skills/new-session/setup.sh` instead (because this is a fresh machine without the project copy), invoke that path directly.
 

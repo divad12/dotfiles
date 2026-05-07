@@ -1,5 +1,5 @@
 #!/bin/bash
-# new-session setup: symlink node_modules, copy env files, pick a unique port.
+# new-session setup: symlink node_modules, copy env/graphify-out files, pick a unique port.
 # Run from inside a worktree (the worktree must already exist).
 #
 # Usage: ./setup.sh
@@ -9,7 +9,7 @@ set -euo pipefail
 
 # 1. Resolve main repo root from the current worktree.
 WORKTREE=$(git rev-parse --show-toplevel)
-MAIN_REPO=$(git worktree list | awk 'NR==1 {print $1}')
+MAIN_REPO=$(git worktree list --porcelain | sed -n '1s/^worktree //p')
 
 if [ "$WORKTREE" = "$MAIN_REPO" ]; then
   echo "Error: $WORKTREE is the main repo, not a worktree." >&2
@@ -23,7 +23,23 @@ for f in .env .env.local .env.production.local; do
   [ -f "$MAIN_REPO/$f" ] && [ ! -f "$f" ] && cp "$MAIN_REPO/$f" ./
 done
 
-# 3. Symlink node_modules from main repo.
+# 3. Copy generated Graphify output from the main repo.
+#
+# graphify-out is intentionally gitignored, so plain git worktrees do not get
+# the wiki/report files that Graphify-aware agents look for. Copy a snapshot
+# when the main repo already has it; leave any worktree-local graphify-out alone
+# so parallel sessions never compete over shared mutable graph state.
+if [ -d "$MAIN_REPO/graphify-out" ] && [ ! -e graphify-out ]; then
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a --exclude 'graph.html' "$MAIN_REPO/graphify-out/" ./graphify-out/
+  else
+    mkdir -p graphify-out
+    cp -R "$MAIN_REPO/graphify-out/." ./graphify-out/
+    rm -f ./graphify-out/graph.html
+  fi
+fi
+
+# 4. Symlink node_modules from main repo.
 #
 # Two ways this can go wrong with absolute paths:
 #   1. $MAIN_REPO came from `git worktree list` which canonicalises paths;
@@ -49,17 +65,25 @@ if [ ! -e node_modules ]; then
   fi
 fi
 
-# 4. Pick a random unused port in 3001-9999 (3000 reserved for main repo).
-# lsof check is enough at session start - HMR-induced false negatives only
-# matter for staleness detection, which we no longer do.
-for _ in $(seq 1 20); do
-  PORT=$(( 3001 + RANDOM % 6999 ))
-  if ! lsof -ti:"$PORT" >/dev/null 2>&1; then
-    break
-  fi
-done
+# 5. Pick or preserve a port in 3001-9999 (3000 reserved for main repo).
+# Preserve an existing launch port so rerunning setup to refresh symlinks does
+# not silently move the dev server URL.
+PORT=""
+if [ -f .claude/launch.json ]; then
+  PORT=$(awk -F'[^0-9]+' '/"port"[[:space:]]*:/ { for (i = 1; i <= NF; i++) if ($i ~ /^[0-9]+$/) { print $i; exit } }' .claude/launch.json || true)
+fi
+if [ -z "$PORT" ]; then
+  # lsof check is enough at session start - HMR-induced false negatives only
+  # matter for staleness detection, which we no longer do.
+  for _ in $(seq 1 20); do
+    PORT=$(( 3001 + RANDOM % 6999 ))
+    if ! lsof -ti:"$PORT" >/dev/null 2>&1; then
+      break
+    fi
+  done
+fi
 
-# 5. Write launch.json.
+# 6. Write launch.json.
 mkdir -p .claude
 cat > .claude/launch.json <<JSON
 {
