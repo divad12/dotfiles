@@ -2505,6 +2505,35 @@ _DASHBOARD_SCRIPT = r"""
     }
   })();
 
+  // Hydrate queued decisions so refresh keeps the dimmed-card / ✓ / note state
+  (async () => {
+    try {
+      const response = await fetch("/decisions");
+      if (!response.ok) return;
+      const queued = await response.json();
+      if (!Array.isArray(queued)) return;
+      queued.forEach((decision) => {
+        if (!decision || !decision.fingerprint || decision.fingerprint === "global") return;
+        decisions.push(decision);
+        const card = document.querySelector('.entry[data-fingerprint="' + decision.fingerprint + '"]');
+        if (!card) return;
+        const inlineBtn = card.querySelector('.actions [data-action="' + decision.action + '"]');
+        if (inlineBtn) inlineBtn.dataset.recorded = "true";
+        const moreBtn = card.querySelector('.more-actions [data-action="' + decision.action + '"]');
+        if (moreBtn) moreBtn.dataset.recorded = "true";
+        if (decision.note) {
+          const noteBox = card.querySelector('[data-note-for="' + decision.fingerprint + '"]');
+          if (noteBox && !noteBox.value) noteBox.value = decision.note;
+        }
+        if (PRIMARY_ACTIONS.has(decision.action)) {
+          card.classList.add("is-decided");
+        }
+      });
+    } catch (error) {
+      // No server / file:// — visual state will be empty.
+    }
+  })();
+
   // Debounced save on input
   document.addEventListener("input", (event) => {
     const target = event.target;
@@ -2972,6 +3001,25 @@ def serve_dashboard(store: Path, host: str, port: int, execute_on_finish: bool) 
                 self.send_header("Content-Length", str(len(data)))
                 self.end_headers()
                 self.wfile.write(data)
+                return
+            if self.path == "/decisions":
+                decisions_path = store / "decisions.jsonl"
+                queued: list[dict[str, str]] = []
+                if decisions_path.exists():
+                    for line in decisions_path.read_text().splitlines():
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            queued.append(json.loads(line))
+                        except json.JSONDecodeError:
+                            continue
+                body = json.dumps(queued).encode("utf-8")
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Content-Length", str(len(body)))
+                self.end_headers()
+                self.wfile.write(body)
                 return
             if self.path not in {"/", "/dashboard.html"}:
                 self.send_error(404)
