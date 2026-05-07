@@ -617,6 +617,22 @@ def command_dashboard(args: argparse.Namespace) -> int:
     return 0
 
 
+def command_live(args: argparse.Namespace) -> int:
+    store = init_store(args.repo)
+    write_dashboard(store)
+    try:
+        serve_dashboard(store, "127.0.0.1", args.port, True)
+    except OSError as exc:
+        if exc.errno in (48, 98):
+            print(
+                f"Port {args.port} is already in use — another `learn live` is "
+                f"probably running. Pass --port <other> or close the running one."
+            )
+            return 1
+        raise
+    return 0
+
+
 def write_dashboard(store: Path) -> None:
     sections = ["# Learning Dashboard", ""]
     for path in open_entry_paths(store):
@@ -3224,6 +3240,17 @@ def build_parser() -> argparse.ArgumentParser:
     dashboard_parser.add_argument("--host", default="127.0.0.1")
     dashboard_parser.add_argument("--port", type=int, default=8000)
     dashboard_parser.set_defaults(func=command_dashboard)
+
+    live_parser = subparsers.add_parser(
+        "live",
+        help=(
+            "Open the live review dashboard on localhost. Defaults to "
+            "127.0.0.1:60000 with finish-and-execute enabled — leave it "
+            "running in a tab and reload after each automation."
+        ),
+    )
+    live_parser.add_argument("--port", type=int, default=60000)
+    live_parser.set_defaults(func=command_live)
 
     execute_parser = subparsers.add_parser("execute")
     execute_parser.set_defaults(func=command_execute)
