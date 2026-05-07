@@ -3061,18 +3061,14 @@ def serve_dashboard(store: Path, host: str, port: int, execute_on_finish: bool) 
                 self.wfile.write(data)
                 return
             if self.path == "/decisions":
-                decisions_path = store / "decisions.jsonl"
-                queued: list[dict[str, str]] = []
-                if decisions_path.exists():
-                    for line in decisions_path.read_text().splitlines():
-                        line = line.strip()
-                        if not line:
-                            continue
-                        try:
-                            queued.append(json.loads(line))
-                        except json.JSONDecodeError:
-                            continue
-                body = json.dumps(queued).encode("utf-8")
+                queued = read_queued_decisions(store)
+                deduped = dedupe_primary_decisions(queued)
+                if deduped != queued:
+                    # Self-heal stale state: rewrite the file so future reads,
+                    # Finish & Execute, and the next page hydration all see
+                    # the clean queue.
+                    write_queued_decisions(store, deduped)
+                body = json.dumps(deduped).encode("utf-8")
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
                 self.send_header("Cache-Control", "no-store, must-revalidate")
@@ -3196,14 +3192,75 @@ def command_execute(args: argparse.Namespace) -> int:
     return 0
 
 
-def execute_pending_decisions(store: Path) -> None:
-    decisions = store / "decisions.jsonl"
-    for line in decisions.read_text().splitlines():
-        if not line.strip():
+PRIMARY_DECISION_ACTIONS: frozenset[str] = frozenset(
+    {"promote", "candidate", "archive", "defer"}
+)
+
+
+def dedupe_primary_decisions(
+    queued: list[dict[str, object]],
+) -> list[dict[str, object]]:
+    """Collapse multiple primary decisions per fingerprint to the latest one.
+
+    Adopt/Triage/Archive/Snooze for a given fingerprint are mutually
+    exclusive — the entry only goes one place. Older queue rows from
+    before the dedupe fix landed (and any future stale state) get
+    superseded by the most recent primary decision for that fingerprint.
+    Non-primary actions (note, follow-up, draft, block, calibration)
+    are additive and pass through unchanged.
+    """
+    last_primary_index: dict[str, int] = {}
+    for index, decision in enumerate(queued):
+        action = str(decision.get("action", ""))
+        fingerprint = str(decision.get("fingerprint", ""))
+        if (
+            action in PRIMARY_DECISION_ACTIONS
+            and fingerprint
+            and fingerprint != "global"
+        ):
+            last_primary_index[fingerprint] = index
+    filtered: list[dict[str, object]] = []
+    for index, decision in enumerate(queued):
+        action = str(decision.get("action", ""))
+        fingerprint = str(decision.get("fingerprint", ""))
+        if action in PRIMARY_DECISION_ACTIONS and fingerprint and fingerprint != "global":
+            if last_primary_index.get(fingerprint) != index:
+                continue
+        filtered.append(decision)
+    return filtered
+
+
+def read_queued_decisions(store: Path) -> list[dict[str, object]]:
+    decisions_path = store / "decisions.jsonl"
+    queued: list[dict[str, object]] = []
+    if not decisions_path.exists():
+        return queued
+    for line in decisions_path.read_text().splitlines():
+        line = line.strip()
+        if not line:
             continue
-        decision = json.loads(line)
+        try:
+            queued.append(json.loads(line))
+        except json.JSONDecodeError:
+            continue
+    return queued
+
+
+def write_queued_decisions(store: Path, decisions: list[dict[str, object]]) -> None:
+    decisions_path = store / "decisions.jsonl"
+    if not decisions:
+        decisions_path.write_text("")
+        return
+    content = "\n".join(json.dumps(d, sort_keys=True) for d in decisions) + "\n"
+    decisions_path.write_text(content)
+
+
+def execute_pending_decisions(store: Path) -> None:
+    decisions_path = store / "decisions.jsonl"
+    queued = dedupe_primary_decisions(read_queued_decisions(store))
+    for decision in queued:
         execute_decision(store, decision)
-    decisions.write_text("")
+    decisions_path.write_text("")
 
 
 def execute_decision(store: Path, decision: dict[str, str]) -> None:
