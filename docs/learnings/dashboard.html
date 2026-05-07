@@ -1186,7 +1186,7 @@ body:not(.reviewing) .review-side-nav { display: none; }
       <span class="brand-dot" aria-hidden="true"></span>
       <h1>Learning Dashboard</h1>
     </div>
-    <p class="snapshot" aria-live="polite">13 open · 12 high confidence</p>
+    <p class="snapshot" aria-live="polite">15 open · 14 high confidence</p>
     <div class="app-controls">
       <button type="button" id="export" class="btn btn-ghost">Export JSONL</button>
       <button type="button" id="finish" class="btn btn-primary">Finish &amp; Execute</button>
@@ -1195,10 +1195,10 @@ body:not(.reviewing) .review-side-nav { display: none; }
   </header>
 
   <nav class="tabs" role="tablist" aria-label="Learnings tabs">
-      <button type="button" role="tab" data-tab="inbox" aria-selected="true">Inbox<span class="count">13</span></button>
+      <button type="button" role="tab" data-tab="inbox" aria-selected="true">Inbox<span class="count">15</span></button>
       <button type="button" role="tab" data-tab="triaged" aria-selected="false">Triaged<span class="count">0</span></button>
       <button type="button" role="tab" data-tab="blocked" aria-selected="false">Blocked<span class="count">0</span></button>
-      <button type="button" role="tab" data-tab="done" aria-selected="false">Done<span class="count">0</span></button>
+      <button type="button" role="tab" data-tab="done" aria-selected="false">Done<span class="count">11</span></button>
       <button type="button" role="tab" data-tab="calibration" aria-selected="false">Calibration<span class="count">0</span></button>
   </nav>
 
@@ -1209,10 +1209,10 @@ body:not(.reviewing) .review-side-nav { display: none; }
         <span class="hint">All raw counts</span>
       </summary>
       <ul class="signal-grid">
-        <li><strong>Needs Review</strong>: 12</li>
-        <li><strong>Open Items</strong>: 13</li>
-        <li><strong>Auto Done</strong>: 0</li>
-        <li><strong>Raw Inbox</strong>: 13</li>
+        <li><strong>Needs Review</strong>: 14</li>
+        <li><strong>Open Items</strong>: 15</li>
+        <li><strong>Auto Done</strong>: 11</li>
+        <li><strong>Raw Inbox</strong>: 15</li>
         <li><strong>Candidates</strong>: 0</li>
         <li><strong>Aging/Stale</strong>: 0</li>
         <li><strong>Likely Duplicates</strong>: 0</li>
@@ -1237,12 +1237,142 @@ body:not(.reviewing) .review-side-nav { display: none; }
     </div>
 
       <section data-panel="inbox" role="tabpanel" aria-label="Inbox">
+        <article class="entry" data-fingerprint="d12111e6daf4" data-status="inbox" data-confidence="high" data-aging="0" data-search="runtime automation config needs a checked-in source of truth the scheduled learning system can quietly regress after setup, machine migration, or local edits, and the user cannot trust that corrected automation behavior will persist. automation (required), test (required), docs (proposed)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Runtime automation config needs a checked-in source of truth</h2>
+              
+            </div>
+          </div>
+          <p class="ramification">The scheduled learning system can quietly regress after setup, machine migration, or local edits, and the user cannot trust that corrected automation behavior will persist.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="automation (required)">automation<span class="pill-kind">required</span></span>
+            <span class="pill pill-required" title="test (required)">test<span class="pill-kind">required</span></span>
+            <span class="pill pill-proposed" title="docs (proposed)">docs<span class="pill-kind">proposed</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">yesterday</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>User asked whether the live daily learning executor and triage automation.toml files under ~/.codex/automations were checked into dotfiles or should be symlinked. The live files were local-only plain files, so prompt fixes could drift or disappear outside this machine.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Keep canonical automation.toml files in dotfiles, symlink the live ~/.codex/automations files to them via symlink.sh, and verify the wiring with structural checks.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">automation (required), test (required), docs (proposed)</dd>
+          </div>
+
+              </dl>
+          <label class="note-field">
+            <span>Note for the agent</span>
+            <textarea rows="2" data-note-for="d12111e6daf4" placeholder="Leave a thought — the agent reads it next time…"></textarea>
+          </label>
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>/Users/david/.codex/automations/daily-learning-executor/automation.toml, /Users/david/.codex/automations/daily-learning-triage/automation.toml, /Users/david/Dropbox (Personal)/code/dotfiles/.codex/automations/daily-learning-executor/automation.toml, /Users/david/Dropbox (Personal)/code/dotfiles/symlink.sh, /Users/david/Dropbox (Personal)/code/dotfiles/.agents/skills/learn/tests/structural-check.sh</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>inbox.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>d12111e6daf4</code></dd></div>
+            </dl>
+          </details>
+          <div class="more-actions">
+            <button type="button" class="chip" data-action="block" data-fingerprint="d12111e6daf4">Block</button>
+            <button type="button" class="chip" data-action="follow-up" data-fingerprint="d12111e6daf4">Add follow-up</button>
+            <button type="button" class="chip" data-action="draft-plan" data-fingerprint="d12111e6daf4">Draft plan</button>
+            <button type="button" class="chip" data-action="draft-patch" data-fingerprint="d12111e6daf4">Draft patch</button>
+          </div>
+            </div>
+          </details>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="d12111e6daf4" data-tooltip="Adopt this learning as guidance — apply it going forward.">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="d12111e6daf4" data-tooltip="Move to Triaged for a deeper look or follow-up later.">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="d12111e6daf4" data-tooltip="Drop this — not actionable or already handled.">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="d12111e6daf4" data-tooltip="Decide later — keep in inbox, ask the agent to revisit.">Snooze</button>
+        </div>
+        </article>
+        <article class="entry" data-fingerprint="02b34308afad" data-status="inbox" data-confidence="high" data-aging="0" data-search="successful learning automations must not leave branches dirty the user has to manually clean up after supposedly hands-off automation, and later agents may mix automation output with unrelated session changes. automation (required), docs (required), test (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Successful learning automations must not leave branches dirty</h2>
+              
+            </div>
+          </div>
+          <p class="ramification">The user has to manually clean up after supposedly hands-off automation, and later agents may mix automation output with unrelated session changes.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="automation (required)">automation<span class="pill-kind">required</span></span>
+            <span class="pill pill-required" title="docs (required)">docs<span class="pill-kind">required</span></span>
+            <span class="pill pill-required" title="test (required)">test<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">yesterday</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>The Journology daily learning automations wrote docs/learnings and docs guidance directly to the m3 branch without committing, leaving the integration branch dirty after the scheduled run.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Daily automations should check git status before writing, stop on unrelated pre-existing dirt, verify their own changes, and create one local no-push commit when successful.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">automation (required), docs (required), test (required)</dd>
+          </div>
+
+              </dl>
+          <label class="note-field">
+            <span>Note for the agent</span>
+            <textarea rows="2" data-note-for="02b34308afad" placeholder="Leave a thought — the agent reads it next time…"></textarea>
+          </label>
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>docs/ai/learning-system.md, .codex/automations/daily-learning-triage/automation.toml, .codex/automations/daily-learning-executor/automation.toml, .agents/skills/learn/tests/structural-check.sh</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>inbox.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>02b34308afad</code></dd></div>
+            </dl>
+          </details>
+          <div class="more-actions">
+            <button type="button" class="chip" data-action="block" data-fingerprint="02b34308afad">Block</button>
+            <button type="button" class="chip" data-action="follow-up" data-fingerprint="02b34308afad">Add follow-up</button>
+            <button type="button" class="chip" data-action="draft-plan" data-fingerprint="02b34308afad">Draft plan</button>
+            <button type="button" class="chip" data-action="draft-patch" data-fingerprint="02b34308afad">Draft patch</button>
+          </div>
+            </div>
+          </details>
+        <div class="actions">
+          <button type="button" class="btn btn-primary" data-action="promote" data-fingerprint="02b34308afad" data-tooltip="Adopt this learning as guidance — apply it going forward.">Adopt</button>
+          <button type="button" class="btn" data-action="candidate" data-fingerprint="02b34308afad" data-tooltip="Move to Triaged for a deeper look or follow-up later.">Triage</button>
+          <button type="button" class="btn" data-action="archive" data-fingerprint="02b34308afad" data-tooltip="Drop this — not actionable or already handled.">Archive</button>
+          <button type="button" class="btn btn-ghost" data-action="defer" data-fingerprint="02b34308afad" data-tooltip="Decide later — keep in inbox, ask the agent to revisit.">Snooze</button>
+        </div>
+        </article>
         <article class="entry" data-fingerprint="83b06990aeb2" data-status="inbox" data-confidence="high" data-aging="0" data-search="keep one canonical learning front door when the setup feels like a cli toolkit with parallel docs, you stop trusting it as a product. skill (required)">
           <div class="entry-head">
             <div class="entry-title">
               <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
               <h2>Keep one canonical learning front door</h2>
-              
+              <span class="badge badge-dup">Lookalike</span>
             </div>
           </div>
           <p class="ramification">When the setup feels like a CLI toolkit with parallel docs, you stop trusting it as a product.</p>
@@ -1305,7 +1435,7 @@ body:not(.reviewing) .review-side-nav { display: none; }
             <div class="entry-title">
               <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
               <h2>Verify that required behavior is actually wired</h2>
-              
+              <span class="badge badge-dup">Lookalike</span>
             </div>
           </div>
           <p class="ramification">If we say a behavior is required but no prompt, hook, test, automation, or structural check makes it happen, you can&#x27;t trust the system to do what we promise.</p>
@@ -2073,7 +2203,606 @@ body:not(.reviewing) .review-side-nav { display: none; }
         <div class="empty">No blocked items. Anything waiting on TDD or upstream work will surface here.</div>
       </section>
       <section data-panel="done" role="tabpanel" aria-label="Done" hidden>
-        <div class="empty">No archived learnings yet. Items you archive will rest here.</div>
+        <article class="entry" data-fingerprint="00e184061921" data-status="archived" data-confidence="high" data-aging="0" data-search="learning glue must be global across repos agents can land branches without the learning checkpoint in repos that have docs/learnings but do not carry the hidden cli binary. docs (required), test (required), skill (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Learning glue must be global across repos</h2>
+              <span class="badge badge-done">Done</span>
+            </div>
+          </div>
+          <p class="ramification">Agents can land branches without the learning checkpoint in repos that have docs/learnings but do not carry the hidden CLI binary.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="docs (required)">docs<span class="pill-kind">required</span></span>
+            <span class="pill pill-required" title="test (required)">test<span class="pill-kind">required</span></span>
+            <span class="pill pill-required" title="skill (required)">skill<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">yesterday</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>A Journology merge session reported that bin/learn was missing, so it could not run the before-landing learning checkpoint.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Invoke the global learn command with --repo and structurally guard merge docs against repo-local bin/learn assumptions.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">docs (required), test (required), skill (required)</dd>
+          </div>
+          <div class="field prior">
+            <dt>Previous decisions</dt>
+            <dd><ul class="prior-list"><li><strong>Decision note</strong>: triage 2026-05-06: global learn --repo glue is already in git/learning docs, learn skill, and structural check; cluster: productized learning front door</li></ul></dd>
+          </div>
+              </dl>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>docs/ai/git.md, .agents/skills/learn/SKILL.md, .agents/skills/learn/tests/structural-check.sh</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>archive/00e184061921-learning-glue-must-be-global-across-repos.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>00e184061921</code></dd></div>
+            </dl>
+          </details>
+
+            </div>
+          </details>
+
+        </article>
+        <article class="entry" data-fingerprint="08c2d3bc8cf3" data-status="archived" data-confidence="medium" data-aging="0" data-search="daily automations should read canonical docs from master scheduled runs can follow stale or disappearing feature-worktree instructions instead of the current canonical learning contract. docs (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-medium" aria-hidden="true" title="Medium confidence"></span>
+              <h2>Daily automations should read canonical docs from master</h2>
+              <span class="badge badge-dup">Lookalike</span><span class="badge badge-done">Done</span>
+            </div>
+          </div>
+          <p class="ramification">Scheduled runs can follow stale or disappearing feature-worktree instructions instead of the current canonical learning contract.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="docs (required)">docs<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-medium">Medium</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">yesterday</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>Daily learning automation prompts were still reading the global learning-system contract from /Users/david/.codex/worktrees/20dc/dotfiles even after the work was being landed to master.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Point daily learning automations at the durable dotfiles master checkout and use repo-local docs only as cwd-specific supplements.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">docs (required)</dd>
+          </div>
+          <div class="field prior">
+            <dt>Previous decisions</dt>
+            <dd><ul class="prior-list"><li><strong>Decision note</strong>: triage 2026-05-06: duplicate of b1ade9e50ec0 with less complete refs; merged as duplicate evidence into canonical-doc-path cluster</li></ul></dd>
+          </div>
+              </dl>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>None</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>archive/08c2d3bc8cf3-daily-automations-should-read-canonical-docs-from-master.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>08c2d3bc8cf3</code></dd></div>
+            </dl>
+          </details>
+
+            </div>
+          </details>
+
+        </article>
+        <article class="entry" data-fingerprint="23031c089efa" data-status="archived" data-confidence="high" data-aging="0" data-search="multi-cwd automations must be repo-scoped per run a repo-scoped automation becomes noisy and may hit sandbox/write failures if each run loops across sibling configured repos. automation (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Multi-cwd automations must be repo-scoped per run</h2>
+              <span class="badge badge-done">Done</span>
+            </div>
+          </div>
+          <p class="ramification">A repo-scoped automation becomes noisy and may hit sandbox/write failures if each run loops across sibling configured repos.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="automation (required)">automation<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">2 days ago</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>User noted that Codex spawns one executor per cwd, so the Journology executor should not inspect or report on dotfiles.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Automation prompts and contracts should state that each cron invocation operates only on its current working directory and must not touch sibling configured repos.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">automation (required)</dd>
+          </div>
+          <div class="field prior">
+            <dt>Previous decisions</dt>
+            <dd><ul class="prior-list"><li><strong>Decision note</strong>: triage 2026-05-06: repo-scoped automation is already in triage/executor prompts and structural check; cluster: workflow guarantees must be wired and verified</li></ul></dd>
+          </div>
+              </dl>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>/Users/david/.codex/automations/daily-learning-executor/automation.toml, /Users/david/.codex/automations/daily-learning-triage/automation.toml, docs/ai/learning-system.md</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>archive/23031c089efa-multi-cwd-automations-must-be-repo-scoped-per-run.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>23031c089efa</code></dd></div>
+            </dl>
+          </details>
+
+            </div>
+          </details>
+
+        </article>
+        <article class="entry" data-fingerprint="631e0a957ad5" data-status="archived" data-confidence="high" data-aging="0" data-search="prevention plans can need companion artifacts agents can auto-promote a docs-looking entry while skipping the test, helper, skill, or automation work that actually prevents the bug. docs (required), test (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Prevention plans can need companion artifacts</h2>
+              <span class="badge badge-done">Done</span>
+            </div>
+          </div>
+          <p class="ramification">Agents can auto-promote a docs-looking entry while skipping the test, helper, skill, or automation work that actually prevents the bug.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="docs (required)">docs<span class="pill-kind">required</span></span>
+            <span class="pill pill-required" title="test (required)">test<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">yesterday</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>Journology candidates showed prevention plans often need more than one artifact, such as a test plus docs or a helper plus test.</dd>
+          </div>
+          <div class="field">
+            <dt>Additional evidence</dt>
+            <dd><ul class="field-list"><li>User clarified that the system should store one readable prevention artifact list with required/proposed markers instead of primary and secondary fields.</li></ul></dd>
+          </div>
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Store Prevention artifacts as one list with required/proposed markers and apply TDD/review gates to required code-risk artifacts.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">docs (required), test (required)</dd>
+          </div>
+          <div class="field prior">
+            <dt>Previous decisions</dt>
+            <dd><ul class="prior-list"><li><strong>Decision note</strong>: triage 2026-05-06: readable required/proposed prevention artifact list is already in docs, skill, and structural check; cluster: prevention artifacts as enforceable contracts</li></ul></dd>
+          </div>
+              </dl>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>docs/ai/learning-system.md, .agents/skills/learn/SKILL.md, setup/tests/test_learn_cli.py</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>archive/631e0a957ad5-prevention-plans-can-need-companion-artifacts.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>631e0a957ad5</code></dd></div>
+            </dl>
+          </details>
+
+            </div>
+          </details>
+
+        </article>
+        <article class="entry" data-fingerprint="65a9dbb0b3b5" data-status="archived" data-confidence="high" data-aging="0" data-search="verify that required behavior is actually wired users cannot trust a system when agents say it should behave a certain way but no prompt, hook, test, automation, or structural check makes that behavior happen. automation (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Verify that required behavior is actually wired</h2>
+              <span class="badge badge-dup">Lookalike</span><span class="badge badge-done">Done</span>
+            </div>
+          </div>
+          <p class="ramification">Users cannot trust a system when agents say it should behave a certain way but no prompt, hook, test, automation, or structural check makes that behavior happen.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="automation (required)">automation<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">2 days ago</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>User asked whether triage and executor actually read the learning-system doc and explicitly apply the abstraction ladder, revealing that &quot;should do X&quot; language is not enough unless the system is checked for actual wiring.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>When a workflow depends on a behavior, verify the actual trigger, prompt, hook, test, or structural check that enforces it; add one if it is missing.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">automation (required)</dd>
+          </div>
+          <div class="field prior">
+            <dt>Previous decisions</dt>
+            <dd><ul class="prior-list"><li><strong>Decision note</strong>: triage 2026-05-06: already covered by automation prompts plus structural check; cluster: workflow guarantees must be wired and verified</li></ul></dd>
+          </div>
+              </dl>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>/Users/david/.codex/automations/daily-learning-triage/automation.toml, /Users/david/.codex/automations/daily-learning-executor/automation.toml, .agents/skills/learn/tests/structural-check.sh</dd></div>
+            <div><dt>Pattern</dt><dd>Claims about expected behavior drift from actual wiring.</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>archive/65a9dbb0b3b5-verify-that-required-behavior-is-actually-wired.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>65a9dbb0b3b5</code></dd></div>
+            </dl>
+          </details>
+
+            </div>
+          </details>
+
+        </article>
+        <article class="entry" data-fingerprint="6dd075d24cef" data-status="archived" data-confidence="high" data-aging="0" data-search="final status must follow browser-generated review state the target branch can land without the latest review textarea or comment state even though the agent believed the docs commit was clean. docs (required), test (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Final status must follow browser-generated review state</h2>
+              <span class="badge badge-done">Done</span>
+            </div>
+          </div>
+          <p class="ramification">The target branch can land without the latest review textarea or comment state even though the agent believed the docs commit was clean.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="docs (required)">docs<span class="pill-kind">required</span></span>
+            <span class="pill pill-required" title="test (required)">test<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">yesterday</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>A Journology merge session saw the review server/browser write another comment JSON change after the cleaned docs commit.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>After browser or review-server tools finish, re-run git status before the final commit or target advance and fold generated review state into the right commit.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">docs (required), test (required)</dd>
+          </div>
+          <div class="field prior">
+            <dt>Previous decisions</dt>
+            <dd><ul class="prior-list"><li><strong>Decision note</strong>: triage 2026-05-06: final git status after browser/review-server state is already in git docs and structural check; cluster: landing state must include generated review state</li></ul></dd>
+          </div>
+              </dl>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>docs/ai/git.md, .agents/skills/learn/tests/structural-check.sh</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>archive/6dd075d24cef-final-status-must-follow-browser-generated-review-state.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>6dd075d24cef</code></dd></div>
+            </dl>
+          </details>
+
+            </div>
+          </details>
+
+        </article>
+        <article class="entry" data-fingerprint="755a268f4869" data-status="archived" data-confidence="high" data-aging="0" data-search="do not present deterministic ids as semantic judgment users may trust dead plumbing and miss that the real system behavior depends on agentic triage. docs (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Do not present deterministic IDs as semantic judgment</h2>
+              <span class="badge badge-done">Done</span>
+            </div>
+          </div>
+          <p class="ramification">Users may trust dead plumbing and miss that the real system behavior depends on agentic triage.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="docs (required)">docs<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">2 days ago</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>User pointed out that exact fingerprint matching will almost never dedupe probabilistic agent wording; meaningful duplicate detection and clustering require agent judgment.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Use fingerprints only as row IDs and exact replay guards; make docs, tests, and automation prompts state that semantic dedupe/clustering is agent-owned.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">docs (required)</dd>
+          </div>
+          <div class="field prior">
+            <dt>Previous decisions</dt>
+            <dd><ul class="prior-list"><li><strong>Decision note</strong>: triage 2026-05-06: semantic dedupe vs fingerprint identity is already stated in docs and skill contract; cluster: agent-owned clustering</li></ul></dd>
+          </div>
+              </dl>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>.agents/skills/learn/SKILL.md, docs/ai/learning-system.md, bin/learn</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>archive/755a268f4869-do-not-present-deterministic-ids-as-semantic-judgment.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>755a268f4869</code></dd></div>
+            </dl>
+          </details>
+
+            </div>
+          </details>
+
+        </article>
+        <article class="entry" data-fingerprint="83b06990aeb2" data-status="archived" data-confidence="high" data-aging="0" data-search="keep one canonical learning front door users have to reason about multiple learning surfaces and lose trust when the setup feels like a command-line toolkit instead of a product. skill (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Keep one canonical learning front door</h2>
+              <span class="badge badge-dup">Lookalike</span><span class="badge badge-done">Done</span>
+            </div>
+          </div>
+          <p class="ramification">Users have to reason about multiple learning surfaces and lose trust when the setup feels like a command-line toolkit instead of a product.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="skill (required)">skill<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">2 days ago</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>User questioned why an old capture wrapper and repo-local README duplicated /learn behavior and warned that duplicate docs drift.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Move useful capture reasoning into /learn and the canonical learning-system guide; keep repo-local READMEs pointer-only.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">skill (required)</dd>
+          </div>
+          <div class="field prior">
+            <dt>Previous decisions</dt>
+            <dd><ul class="prior-list"><li><strong>Decision note</strong>: triage 2026-05-06: already covered by canonical /learn front-door contract, pointer-only README, and structural check; cluster: productized learning front door</li></ul></dd>
+          </div>
+              </dl>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>.agents/skills/learn/SKILL.md, docs/ai/learning-system.md, docs/learnings/README.md</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>archive/83b06990aeb2-keep-one-canonical-learning-front-door.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>83b06990aeb2</code></dd></div>
+            </dl>
+          </details>
+
+            </div>
+          </details>
+
+        </article>
+        <article class="entry" data-fingerprint="8fa091b8f04e" data-status="archived" data-confidence="high" data-aging="0" data-search="observers should route learnings, not become memory stores durable feedback can be missed or split across two backlogs when the ambient observer keeps its own memory instead of routing to the learning store. skill (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Observers should route learnings, not become memory stores</h2>
+              <span class="badge badge-done">Done</span>
+            </div>
+          </div>
+          <p class="ramification">Durable feedback can be missed or split across two backlogs when the ambient observer keeps its own memory instead of routing to the learning store.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="skill (required)">skill<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">2 days ago</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>User asked whether a different Journology session would remember to capture learnings if only the /learn skill header mentioned capture triggers.</dd>
+          </div>
+          <div class="field">
+            <dt>Additional evidence</dt>
+            <dd><ul class="field-list"><li>User questioned whether task-observer&#x27;s old observation log is still useful now that durable learnings should route through the learning system.</li></ul></dd>
+          </div>
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Keep task-observer as the trigger/sensor, route durable learnings through /learn, and use observation files only as fallback or session audit notes.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">skill (required)</dd>
+          </div>
+          <div class="field prior">
+            <dt>Previous decisions</dt>
+            <dd><ul class="prior-list"><li><strong>Decision note</strong>: triage 2026-05-06: task-observer now routes durable learnings to the learning store and reserves observations for fallback; cluster: observer as sensor</li></ul></dd>
+          </div>
+              </dl>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>.agents/skills/task-observer/SKILL.md, .agents/skills/learn/SKILL.md, .claude/AGENTS.md</dd></div>
+            <div><dt>Pattern</dt><dd>Ambient sensors drift into parallel memory systems.</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>archive/8fa091b8f04e-observers-should-route-learnings--not-become-memory-stores.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>8fa091b8f04e</code></dd></div>
+            </dl>
+          </details>
+
+            </div>
+          </details>
+
+        </article>
+        <article class="entry" data-fingerprint="b1ade9e50ec0" data-status="archived" data-confidence="high" data-aging="0" data-search="daily automations should read canonical docs from master scheduled runs can follow stale or disappearing feature-worktree instructions instead of the current canonical learning contract. docs (required), automation (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Daily automations should read canonical docs from master</h2>
+              <span class="badge badge-dup">Lookalike</span><span class="badge badge-done">Done</span>
+            </div>
+          </div>
+          <p class="ramification">Scheduled runs can follow stale or disappearing feature-worktree instructions instead of the current canonical learning contract.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="docs (required)">docs<span class="pill-kind">required</span></span>
+            <span class="pill pill-required" title="automation (required)">automation<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">yesterday</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>Daily learning automation prompts were still reading the global learning-system contract from /Users/david/.codex/worktrees/20dc/dotfiles even after the work was being landed to master.</dd>
+          </div>
+          <div class="field">
+            <dt>Additional evidence</dt>
+            <dd><ul class="field-list"><li>Duplicate lower-confidence row 08c2d3bc8cf3 captured the same worktree-to-master canonical-doc-path incident without the later technical refs.</li></ul></dd>
+          </div>
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Point daily learning automations at the durable dotfiles master checkout and use repo-local docs only as cwd-specific supplements.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">docs (required), automation (required)</dd>
+          </div>
+          <div class="field prior">
+            <dt>Previous decisions</dt>
+            <dd><ul class="prior-list"><li><strong>Decision note</strong>: triage 2026-05-06: canonical durable master checkout path is already in automation prompts and structural check; cluster: workflow guarantees must be wired and verified</li></ul></dd>
+          </div>
+              </dl>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>docs/ai/learning-system.md, /Users/david/.codex/automations/daily-learning-triage/automation.toml, /Users/david/.codex/automations/daily-learning-executor/automation.toml</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>archive/b1ade9e50ec0-daily-automations-should-read-canonical-docs-from-master.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>b1ade9e50ec0</code></dd></div>
+            </dl>
+          </details>
+
+            </div>
+          </details>
+
+        </article>
+        <article class="entry" data-fingerprint="f25da97943c6" data-status="archived" data-confidence="high" data-aging="0" data-search="learning automation parents need frontier judgment models a weaker parent model can miscluster evidence, auto-execute the wrong prevention work, or miss when a decision needs human review. docs (required), automation (required)">
+          <div class="entry-head">
+            <div class="entry-title">
+              <span class="conf conf-high" aria-hidden="true" title="High confidence"></span>
+              <h2>Learning automation parents need frontier judgment models</h2>
+              <span class="badge badge-done">Done</span>
+            </div>
+          </div>
+          <p class="ramification">A weaker parent model can miscluster evidence, auto-execute the wrong prevention work, or miss when a decision needs human review.</p>
+          <div class="entry-meta">
+            <span class="pill pill-required" title="docs (required)">docs<span class="pill-kind">required</span></span>
+            <span class="pill pill-required" title="automation (required)">automation<span class="pill-kind">required</span></span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item meta-conf-high">High</span>
+            <span class="dot-sep" aria-hidden="true">·</span>
+            <span class="meta-item">yesterday</span>
+          </div>
+          <details class="entry-body">
+            <summary><span class="open-text">Show context</span><span class="close-text">Hide context</span></summary>
+            <div class="body">
+              <dl>
+          <div class="field">
+            <dt>Evidence</dt>
+            <dd>User noted that daily learning automations were defaulting to gpt-5.2, which is too weak for clustering, abstraction, safety, and calibration decisions across many learnings.</dd>
+          </div>
+
+          <div class="field">
+            <dt>Suggested fix</dt>
+            <dd>Run daily learning triage and executor parents on gpt-5.5 high reasoning while using focused coding models such as gpt-5.3-codex only for bounded executor-dispatched subagents.</dd>
+          </div>
+          <div class="field">
+            <dt>Guardrails</dt>
+            <dd class="guardrails-value">docs (required), automation (required)</dd>
+          </div>
+          <div class="field prior">
+            <dt>Previous decisions</dt>
+            <dd><ul class="prior-list"><li><strong>Decision note</strong>: triage 2026-05-06: triage and executor configs now use gpt-5.5 high reasoning and docs cover parent/subagent model policy; cluster: judgment-heavy automation model policy</li></ul></dd>
+          </div>
+              </dl>
+
+          <details class="tech-details">
+            <summary>Files &amp; references</summary>
+            <dl class="tech-grid">
+            <div><dt>Technical refs</dt><dd>docs/ai/learning-system.md, /Users/david/.codex/automations/daily-learning-triage/automation.toml, /Users/david/.codex/automations/daily-learning-executor/automation.toml</dd></div>
+            <div><dt>Sources</dt><dd>user-feedback</dd></div>
+            <div><dt>Source file</dt><dd><code>archive/f25da97943c6-learning-automation-parents-need-frontier-judgment-models.md</code></dd></div>
+            <div><dt>Fingerprint</dt><dd><code>f25da97943c6</code></dd></div>
+            </dl>
+          </details>
+
+            </div>
+          </details>
+
+        </article>
       </section>
       <section data-panel="calibration" role="tabpanel" aria-label="Calibration" hidden>
         <div class="cal-pane">
