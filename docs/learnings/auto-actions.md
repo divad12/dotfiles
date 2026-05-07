@@ -41,3 +41,27 @@ archive: 6dd075d24cef triage 2026-05-06: final git status after browser/review-s
 - 2026-05-06 executor: regenerated `docs/learnings/dashboard.md` and `docs/learnings/dashboard.html` for dotfiles.
 - 2026-05-06 executor: verification: `.agents/skills/learn/tests/structural-check.sh` passed.
 - 2026-05-06 executor: verification: `python3 -m pytest setup/tests/test_learn_cli.py -q` failed 2 dashboard-server tests after 33 passed because this sandbox did not emit a local `127.0.0.1` server URL.
+decision: archive d12111e6daf4 Done: .codex/automations/*.toml are tracked in dotfiles, symlink.sh wires ~/.codex/automations -> dotfiles, and structural-check.sh verifies the prompts.
+archive: d12111e6daf4 Done: .codex/automations/*.toml are tracked in dotfiles, symlink.sh wires ~/.codex/automations -> dotfiles, and structural-check.sh verifies the prompts.
+decision: archive 02b34308afad Done: both triage and executor automation.toml now run git diff --check + create one local commit + 'do not leave a successful run dirty'.
+archive: 02b34308afad Done: both triage and executor automation.toml now run git diff --check + create one local commit + 'do not leave a successful run dirty'.
+decision: archive 83b06990aeb2 Done: capture reasoning lives in /learn and docs/ai/learning-system.md; docs/learnings/README is pointer-only.
+archive: 83b06990aeb2 Done: capture reasoning lives in /learn and docs/ai/learning-system.md; docs/learnings/README is pointer-only.
+decision: archive bd3fb5f75282 Done: learning-system.md and learn SKILL both say fingerprint matching is row-id only and semantic dedupe is agent-owned.
+archive: bd3fb5f75282 Done: learning-system.md and learn SKILL both say fingerprint matching is row-id only and semantic dedupe is agent-owned.
+decision: archive 9f76a57015e7 Done: task-observer SKILL declares the learning store is the durable destination and routes through /learn; observation files are fallback only.
+archive: 9f76a57015e7 Done: task-observer SKILL declares the learning store is the durable destination and routes through /learn; observation files are fallback only.
+decision: archive b27c9463bf75 Done: both automation TOMLs say 'operate on the current working directory only' and refuse to touch sibling configured repos.
+archive: b27c9463bf75 Done: both automation TOMLs say 'operate on the current working directory only' and refuse to touch sibling configured repos.
+decision: archive 053992e19e3d Done: bin/learn stores prevention work as one list with required/proposed markers; learning-system.md and learn SKILL teach the same shape.
+archive: 053992e19e3d Done: bin/learn stores prevention work as one list with required/proposed markers; learning-system.md and learn SKILL teach the same shape.
+decision: archive 60fa957fe0f0 Done: both automations run on gpt-5.5 with reasoning_effort = high.
+archive: 60fa957fe0f0 Done: both automations run on gpt-5.5 with reasoning_effort = high.
+decision: archive 08c2d3bc8cf3 Done: both automations read /Users/david/Dropbox (Personal)/code/dotfiles/docs/ai/learning-system.md (the master worktree path).
+archive: 08c2d3bc8cf3 Done: both automations read /Users/david/Dropbox (Personal)/code/dotfiles/docs/ai/learning-system.md (the master worktree path).
+decision: archive b1ade9e50ec0 Done: duplicate of 08c2d3bc8cf3 — same prevention now in place via the master-path automation prompts.
+archive: b1ade9e50ec0 Done: duplicate of 08c2d3bc8cf3 — same prevention now in place via the master-path automation prompts.
+decision: archive 9681e329c380 Done: learn is on PATH; merge skill, git.md, and learn SKILL all use 'learn --repo "$PWD"' rather than repo-local bin/learn.
+archive: 9681e329c380 Done: learn is on PATH; merge skill, git.md, and learn SKILL all use 'learn --repo "$PWD"' rather than repo-local bin/learn.
+decision: archive 5301da11e4f9 Done: docs/ai/git.md 'Before-Landing Learning Check' explicitly requires re-running git status --short after browser/review-server tools.
+archive: 5301da11e4f9 Done: docs/ai/git.md 'Before-Landing Learning Check' explicitly requires re-running git status --short after browser/review-server tools.

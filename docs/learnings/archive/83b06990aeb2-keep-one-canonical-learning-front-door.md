@@ -7,13 +7,13 @@
 - Source events: None
 - Scope: project
 - User-facing summary: Keep one canonical learning front door
-- Evidence: User questioned why an old capture wrapper and repo-local README duplicated /learn behavior and warned that duplicate docs drift.
+- Evidence: You pointed out that an old capture wrapper and a repo-local README were both duplicating /learn behavior — and duplicate docs always drift apart over time.
 - Technical refs: .agents/skills/learn/SKILL.md, docs/ai/learning-system.md, docs/learnings/README.md
-- Ramification: Users have to reason about multiple learning surfaces and lose trust when the setup feels like a command-line toolkit instead of a product.
+- Ramification: When the setup feels like a CLI toolkit with parallel docs, you stop trusting it as a product.
 - Suspected pattern: Unknown
-- Recommended fix: Move useful capture reasoning into /learn and the canonical learning-system guide; keep repo-local READMEs pointer-only.
+- Recommended fix: Move useful capture reasoning into /learn and docs/ai/learning-system.md; keep repo-local READMEs as pointer-only files.
 - Prevention artifacts: skill (required)
 - Requires TDD/review: yes
 - Confidence: high
-- Decision note: triage 2026-05-06: already covered by canonical /learn front-door contract, pointer-only README, and structural check; cluster: productized learning front door
+- Decision note: Done: capture reasoning lives in /learn and docs/ai/learning-system.md; docs/learnings/README is pointer-only.
 - Status: archived
