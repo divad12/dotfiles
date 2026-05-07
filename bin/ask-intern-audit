@@ -19,6 +19,7 @@ from pathlib import Path
 
 
 DEFAULT_EVENTS = Path("~/.config/ask-intern/events.tsv").expanduser()
+DEFAULT_ATTEMPTS = Path("~/.config/ask-intern/attempts.jsonl").expanduser()
 DEFAULT_GUARD_EVENTS = Path("~/.config/ask-intern/read-guard/events.jsonl").expanduser()
 DEFAULT_LOG_ROOTS = [
     Path("~/.codex/sessions").expanduser(),
@@ -239,6 +240,59 @@ def load_jsonl_events(path, since_days=None):
             continue
         events.append(event)
     return events
+
+
+def row_latency(row):
+    try:
+        return float(row.get("latency_s") or 0)
+    except (TypeError, ValueError):
+        return 0.0
+
+
+def summarize_slow_calls(rows, attempts, slow_seconds, limit):
+    slow_rows = [row for row in rows if row_latency(row) >= slow_seconds]
+    slow_rows.sort(key=row_latency)
+
+    started = {}
+    ended = set()
+    for attempt in attempts:
+        attempt_id = attempt.get("attempt_id")
+        if not attempt_id:
+            continue
+        if attempt.get("event") == "start":
+            started[attempt_id] = attempt
+        elif attempt.get("event") == "end":
+            ended.add(attempt_id)
+
+    abandoned = [
+        attempt
+        for attempt_id, attempt in started.items()
+        if attempt_id not in ended and (time.time() - safe_int(attempt.get("ts"))) >= slow_seconds
+    ]
+    abandoned.sort(key=lambda attempt: safe_int(attempt.get("ts")))
+
+    print(f"slow/hang-shaped calls: {len(slow_rows)} over {slow_seconds:g}s")
+    if slow_rows:
+        print("recent slow calls:")
+        for row in slow_rows[-limit:]:
+            latency = row_latency(row)
+            invocation = short_command(row.get("invocation") or "", 160)
+            print(
+                f"- {row.get('timestamp')} {row.get('source') or 'unknown'} "
+                f"{row.get('status')} {row.get('reason')} {latency:.1f}s "
+                f"files={row.get('file_count') or 0}: {invocation}"
+            )
+
+    print(f"attempt log events: {len(attempts)}")
+    print(f"abandoned attempts: {len(abandoned)}")
+    for attempt in abandoned[-limit:]:
+        invocation = short_command(attempt.get("invocation") or "", 160)
+        paths = path_names(attempt.get("files") or [])
+        age = max(0, time.time() - safe_int(attempt.get("ts")))
+        print(
+            f"- {timestamp_label(safe_int(attempt.get('ts')))} "
+            f"{attempt.get('source') or 'unknown'} age={age:.0f}s files={paths}: {invocation}"
+        )
 
 
 def timestamp_label(ts):
@@ -504,6 +558,7 @@ def possible_chunk_read_bypasses(guard_events):
 def main():
     parser = argparse.ArgumentParser(description="Audit ask-intern usage and likely missed delegations.")
     parser.add_argument("--events", default=str(DEFAULT_EVENTS), help="Path to ask-intern events.tsv")
+    parser.add_argument("--attempts", default=str(DEFAULT_ATTEMPTS), help="Path to ask-intern attempts.jsonl")
     parser.add_argument("--guard-events", default=str(DEFAULT_GUARD_EVENTS), help="Path to read-guard events.jsonl")
     parser.add_argument("--log", action="append", default=[], help="Session JSONL log to scan (repeatable)")
     parser.add_argument("--log-root", action="append", default=[], help="Directory of JSONL logs to scan recursively")
@@ -511,9 +566,11 @@ def main():
     parser.add_argument("--min-direct-reads", type=int, default=3, help="Direct-read count that flags a session")
     parser.add_argument("--top", type=int, default=10, help="Number of top paths/sessions to print")
     parser.add_argument("--guard-limit", type=int, default=8, help="Number of recent read-guard blocks to print")
+    parser.add_argument("--slow-call-seconds", type=float, default=180, help="Latency threshold for hang-shaped calls")
     args = parser.parse_args()
 
     events = load_events(Path(args.events).expanduser(), since_days=args.since_days)
+    attempts = load_jsonl_events(Path(args.attempts).expanduser(), since_days=args.since_days)
     guard_events = load_jsonl_events(Path(args.guard_events).expanduser(), since_days=args.since_days)
     guard_blocked = [event for event in guard_events if event.get("action") == "blocked"]
     chunk_bypasses = possible_chunk_read_bypasses(guard_events)
@@ -549,6 +606,7 @@ def main():
         print("failure reasons:")
         for reason, count in events["failures"].most_common():
             print(f"- {reason}: {count}")
+    summarize_slow_calls(events["rows"], attempts, args.slow_call_seconds, args.top)
     summarize_over_delegations(events["rows"], args.top)
     print(f"read-guard events: {len(guard_events)} (blocked {len(guard_blocked)})")
     if guard_blocked:

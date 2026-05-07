@@ -60,6 +60,8 @@ class AskInternConfigTest(unittest.TestCase):
             )
             module = load_ask_intern(home)
             module.STATS_FILE = str(config_dir / "stats.tsv")
+            module.EVENTS_FILE = str(config_dir / "events.tsv")
+            module.ATTEMPTS_FILE = str(config_dir / "attempts.jsonl")
             captured = {}
 
             class FakeResponse:
@@ -93,9 +95,54 @@ class AskInternConfigTest(unittest.TestCase):
             ):
                 module.main()
 
+            attempts = (config_dir / "attempts.jsonl").read_text(encoding="utf-8").splitlines()
+
         self.assertEqual(captured["authorization"], "Bearer file-key")
         self.assertEqual(captured["title"], "ask-intern")
         self.assertEqual(captured["payload"]["model"], "deepseek/deepseek-v4-flash")
+        self.assertEqual(len(attempts), 2)
+        self.assertIn('"event": "start"', attempts[0])
+        self.assertIn('"event": "end"', attempts[1])
+        self.assertIn('"status": "success"', attempts[1])
+
+    def test_request_total_timeout_logs_timeout_and_attempt_end(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            config_dir = home / ".config" / "ask-intern"
+            config_dir.mkdir(parents=True)
+            (config_dir / "env").write_text(
+                "export OPENROUTER_API_KEY=file-key\n",
+                encoding="utf-8",
+            )
+            module = load_ask_intern(home)
+            module.STATS_FILE = str(config_dir / "stats.tsv")
+            module.EVENTS_FILE = str(config_dir / "events.tsv")
+            module.ATTEMPTS_FILE = str(config_dir / "attempts.jsonl")
+
+            def fake_request(*_args, **_kwargs):
+                raise module.TotalTimeoutError("ask-intern exceeded 1s")
+
+            stderr = io.StringIO()
+            with (
+                patch.dict(os.environ, {"HOME": str(home), "ASK_INTERN_SOURCE": "codex"}, clear=True),
+                patch.object(module, "request_with_timeouts", fake_request),
+                patch.object(sys, "argv", ["ask-intern", "summarize", "slow", "thing"]),
+                patch.object(sys, "stdin", io.StringIO("")),
+                patch.object(sys, "stdout", io.StringIO()),
+                patch.object(sys, "stderr", stderr),
+                self.assertRaises(SystemExit),
+            ):
+                module.main()
+
+            events = (config_dir / "events.tsv").read_text(encoding="utf-8")
+            attempts = (config_dir / "attempts.jsonl").read_text(encoding="utf-8")
+
+        self.assertIn("timed out", stderr.getvalue())
+        self.assertIn("\tcodex\tfailure\ttimeout\t", events)
+        self.assertIn('"event": "start"', attempts)
+        self.assertIn('"event": "end"', attempts)
+        self.assertIn('"status": "failure"', attempts)
+        self.assertIn('"reason": "timeout"', attempts)
 
     def test_missing_temp_log_is_skipped_but_project_files_are_sent(self):
         with tempfile.TemporaryDirectory() as tmp:

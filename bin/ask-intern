@@ -15,6 +15,7 @@ Env vars:
     INTERN_MODEL            - default: deepseek/deepseek-v4-flash
     INTERN_MAX_TOKENS       - default: 8192 (read mode)
     INTERN_MAX_TOKENS_WRITE - default: 16384 (write-to-file mode)
+    INTERN_TIMEOUT_SECONDS  - default: 240 (total wall-clock API timeout)
 """
 
 import sys
@@ -24,6 +25,9 @@ import argparse
 import time
 import re
 import shlex
+import signal
+import uuid
+from contextlib import contextmanager
 from collections import Counter
 from urllib.request import Request, urlopen
 from urllib.error import HTTPError
@@ -64,11 +68,14 @@ load_env_file(CONFIG_FILE)
 DEFAULT_MODEL = os.environ.get("INTERN_MODEL", "deepseek/deepseek-v4-flash")
 MAX_TOKENS_READ = int(os.environ.get("INTERN_MAX_TOKENS", "8192"))
 MAX_TOKENS_WRITE = int(os.environ.get("INTERN_MAX_TOKENS_WRITE", "16384"))
+TOTAL_TIMEOUT_SECONDS = float(os.environ.get("INTERN_TIMEOUT_SECONDS", "240"))
+SOCKET_TIMEOUT_SECONDS = float(os.environ.get("INTERN_SOCKET_TIMEOUT_SECONDS", "120"))
 # Weekly Opus-equivalent budget for "% saved" display.
 # Max $200/month (20x) ≈ $200/week in API-equivalent usage.
 WEEKLY_BUDGET = float(os.environ.get("INTERN_WEEKLY_BUDGET", "200"))
 STATS_FILE = os.path.expanduser("~/.config/ask-intern/stats.tsv")
 EVENTS_FILE = os.path.expanduser("~/.config/ask-intern/events.tsv")
+ATTEMPTS_FILE = os.path.expanduser("~/.config/ask-intern/attempts.jsonl")
 EXACT_SOURCE_RE = re.compile(
     r"\b("
     r"verbatim|"
@@ -107,6 +114,10 @@ EVENT_FIELDS = [
     "invocation",
 ]
 
+
+class TotalTimeoutError(TimeoutError):
+    pass
+
 # Pricing per million tokens (input, output)
 MODEL_PRICING = {
     "deepseek/deepseek-v4-flash": (0.14, 0.28),
@@ -120,6 +131,24 @@ OPUS_PRICING = (15.0, 75.0)
 
 def clean_field(value):
     return str(value or "").replace("\t", " ").replace("\n", " ")
+
+
+def clean_json_value(value):
+    if isinstance(value, list):
+        return [clean_json_value(item) for item in value]
+    if isinstance(value, dict):
+        return {str(key): clean_json_value(item) for key, item in value.items()}
+    if value is None or isinstance(value, (int, float, bool)):
+        return value
+    return str(value)
+
+
+def write_jsonl(path, payload):
+    log_dir = os.path.dirname(path)
+    if log_dir:
+        os.makedirs(log_dir, exist_ok=True)
+    with open(path, "a") as f:
+        f.write(json.dumps(payload, sort_keys=True) + "\n")
 
 
 def is_optional_missing_file(path):
@@ -330,6 +359,63 @@ def log_event(status, reason, model="", files=None, target=None, elapsed=0.0, in
             f.write(row + "\n")
     except OSError:
         pass
+
+
+def log_attempt(event, attempt_id, status="", reason="", model="", files=None, target=None, elapsed=None, invocation=None):
+    from datetime import datetime, timezone
+
+    files = files or []
+    payload = {
+        "ts": time.time(),
+        "timestamp": datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S"),
+        "event": event,
+        "attempt_id": attempt_id,
+        "pid": os.getpid(),
+        "source": detect_source(),
+        "status": status,
+        "reason": reason,
+        "model": model,
+        "cwd": os.getcwd(),
+        "files": list(files),
+        "target": target or "",
+        "invocation": invocation or " ".join(shlex.quote(arg) for arg in sys.argv),
+    }
+    if elapsed is not None:
+        payload["elapsed_s"] = round(float(elapsed), 2)
+
+    try:
+        write_jsonl(ATTEMPTS_FILE, clean_json_value(payload))
+    except OSError:
+        pass
+
+
+@contextmanager
+def total_timeout(seconds):
+    if seconds is None or seconds <= 0 or not hasattr(signal, "SIGALRM"):
+        yield
+        return
+
+    previous_handler = signal.getsignal(signal.SIGALRM)
+    previous_timer = signal.setitimer(signal.ITIMER_REAL, 0)
+
+    def handle_timeout(_signum, _frame):
+        raise TotalTimeoutError(f"request exceeded {seconds:g}s total timeout")
+
+    signal.signal(signal.SIGALRM, handle_timeout)
+    signal.setitimer(signal.ITIMER_REAL, seconds)
+    try:
+        yield
+    finally:
+        signal.setitimer(signal.ITIMER_REAL, 0)
+        if previous_timer[0] > 0:
+            signal.setitimer(signal.ITIMER_REAL, *previous_timer)
+        signal.signal(signal.SIGALRM, previous_handler)
+
+
+def request_with_timeouts(req, socket_timeout=SOCKET_TIMEOUT_SECONDS, total_timeout_seconds=TOTAL_TIMEOUT_SECONDS):
+    with total_timeout(total_timeout_seconds):
+        with urlopen(req, timeout=socket_timeout) as resp:
+            return json.loads(resp.read().decode())
 
 
 def fatal(msg, reason=None, model="", files=None, target=None, elapsed=0.0):
@@ -625,15 +711,30 @@ def main():
     req = Request(API_URL, data=json.dumps(payload).encode(), headers=headers)
 
     t0 = time.time()
+    attempt_id = f"{int(t0 * 1000)}-{os.getpid()}-{uuid.uuid4().hex[:8]}"
+    log_attempt("start", attempt_id, model=args.model, files=args.file, target=args.target)
     try:
-        with urlopen(req, timeout=120) as resp:
-            data = json.loads(resp.read().decode())
+        data = request_with_timeouts(req)
+    except TotalTimeoutError as e:
+        elapsed = time.time() - t0
+        log_attempt("end", attempt_id, status="failure", reason="timeout", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
+        fatal(
+            f"Request timed out after {elapsed:.1f}s ({e}). "
+            "Retry with a narrower file set, a simpler prompt, or INTERN_TIMEOUT_SECONDS=<seconds> if this was intentional.",
+            reason="timeout",
+            model=args.model,
+            files=args.file,
+            target=args.target,
+            elapsed=elapsed,
+        )
     except HTTPError as e:
         elapsed = time.time() - t0
         body = e.read().decode() if e.fp else ""
+        log_attempt("end", attempt_id, status="failure", reason="api_error", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
         fatal(f"API error {e.code}: {body[:500]}", reason="api_error", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
     except Exception as e:
         elapsed = time.time() - t0
+        log_attempt("end", attempt_id, status="failure", reason="request_failed", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
         fatal(f"Request failed: {e}", reason="request_failed", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
     elapsed = time.time() - t0
 
@@ -645,9 +746,11 @@ def main():
     try:
         content = data["choices"][0]["message"]["content"]
     except (KeyError, IndexError):
+        log_attempt("end", attempt_id, status="failure", reason="unexpected_response", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
         fatal(f"Unexpected response: {json.dumps(data)[:500]}", reason="unexpected_response", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
 
     if not content:
+        log_attempt("end", attempt_id, status="failure", reason="empty_response", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
         fatal("Empty response — model may have exhausted token budget on internal reasoning. "
               "Try increasing INTERN_MAX_TOKENS or use a non-reasoning model.",
               reason="empty_response", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
@@ -670,6 +773,7 @@ def main():
     actual_cost = usage.get("cost")
     log_usage(args.model, in_tok, out_tok, elapsed, actual_cost=actual_cost)
     log_event("success", "ok", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
+    log_attempt("end", attempt_id, status="success", reason="ok", model=args.model, files=args.file, target=args.target, elapsed=elapsed)
     print(f"[intern: {args.model} | {in_tok}in/{out_tok}out | {elapsed:.1f}s]", file=sys.stderr)
     if not args.target:
         print(

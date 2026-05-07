@@ -70,17 +70,20 @@ After `--target`, review the output and edit only what needs fixing.
 
 - Success stats: `~/.config/ask-intern/stats.tsv`
 - Outcome log: `~/.config/ask-intern/events.tsv`
+- Attempt log: `~/.config/ask-intern/attempts.jsonl`
 - Claude Code read-guard log: `~/.config/ask-intern/read-guard/events.jsonl`
 - `ask-intern --stats` includes recent failure counts by reason, such as `missing_file`, `missing_api_key`, `api_error`, or `empty_response`.
 - The event log records source (`claude`, `codex`, or `unknown`), status, reason, model, cwd, file paths, target path, latency, and the exact `ask-intern` invocation for early debugging.
+- The attempt log records one `start` row before the API request and one `end` row after success or handled failure. If an agent kills a stale `ask-intern` process, the start row remains without an end row and `ask-intern-audit` reports it as an abandoned attempt.
 - The read-guard log records every catch with reason, paths, inferred agent source (`claude`, `codex`, or `unknown`), source tool, original hook input (`Read` `file_path`/`offset`/`limit` or Bash `command`), and computed line/count estimates when available.
 - Source is inferred from `ASK_INTERN_SOURCE`, agent-specific environment variables, working directory, and process ancestry; old rows are backfilled from `cwd` when obvious and otherwise remain `unknown`.
 - The invocation field may include prompt text. Keep this while tuning adoption, then remove or redact it once common failure modes are understood.
 - `ask-intern-audit` flags likely over-delegation patterns such as exact/verbatim-code prompts, single small-file calls, and docs/control-only calls. It filters docs/control/generated/temp/binary reads and also reports possible chunk-read bypasses when one session reads the same non-exempt file in repeated large chunks. Exact source text should come from direct small reads or narrow snippets, not from `ask-intern`.
 - `ask-intern` hard-denies exact/verbatim source requests before any API call and logs `exact_source_request`; the matcher is negation-aware, so prompts like "do not quote exact code" are allowed. Use direct `rg`/`sed`/narrow `Read` snippets for exact text; set `--allow-exact-source` or `ASK_INTERN_ALLOW_EXACT_SOURCE=1` only for deliberate manual debugging.
 - Successful read-mode calls print a short stderr reminder that exact code and line numbers should come from direct narrow snippets after the summary.
+- API calls have a total wall-clock timeout (`INTERN_TIMEOUT_SECONDS`, default 240s) in addition to the socket inactivity timeout (`INTERN_SOCKET_TIMEOUT_SECONDS`, default 120s). Timeout failures are logged as `timeout`; narrow the prompt/file set or override the timeout only when the long run is intentional.
 - Missing temp/log files are treated as stale optional context and skipped with a warning; missing project/source files still fail so the agent corrects guessed paths.
-- Adoption audit: `ask-intern-audit` scans the event log, read-guard catches, and Claude/Codex JSONL logs. It reports recent guard blocks, suspicious direct reads, and likely missed delegations. Use `ask-intern-audit --since-days 1` for recent sessions, or `ask-intern-audit --log path/to/session.jsonl` to inspect a specific session.
+- Adoption audit: `ask-intern-audit` scans the event log, attempt log, read-guard catches, and Claude/Codex JSONL logs. It reports slow/hang-shaped calls, abandoned attempts, recent guard blocks, suspicious direct reads, and likely missed delegations. Use `ask-intern-audit --since-days 1` for recent sessions, or `ask-intern-audit --log path/to/session.jsonl` to inspect a specific session.
 
 ## Daily Adoption Audit Runbook
 
@@ -93,11 +96,19 @@ ask-intern --stats
 ask-intern-audit --since-days 1 --guard-limit 20
 ```
 
+For hang investigations, check:
+
+```bash
+ask-intern-audit --since-days 1 --slow-call-seconds 180
+```
+
 2. Review false positives:
 
 - `exact_source_request` failures where the prompt said not to quote exact code.
 - `read-guard` blocks on docs/control files, small exact snippets, or generated/temp files that should be exempt.
 - `possible over-delegations` where the work was a single small file, docs/control-only, or needed exact text rather than a summary.
+- `slow/hang-shaped calls` where the prompt or file set should be narrowed, or where the timeout should remain capped.
+- `abandoned attempts` where an agent probably killed or interrupted `ask-intern` before it produced a terminal outcome.
 
 3. Review false negatives:
 
@@ -131,6 +142,7 @@ ask-intern daily audit
 - calls: <total> (<claude>, <codex>)
 - false positives fixed/proposed: <count> - <one-line examples>
 - false negatives fixed/proposed: <count> - <one-line examples>
+- slow/abandoned ask-intern calls: <count> - <one-line examples>
 - noisy diagnostics still ignored: <count> - <why>
 - next tooling/doc change: <concrete recommendation>
 ```
@@ -166,6 +178,8 @@ The allowance is one-shot and expires after one hour. Use it when the user expli
 - Default model: `deepseek/deepseek-v4-flash` ($0.14/M in, $0.28/M out)
 - Override model: `INTERN_MODEL` env var or `-m` flag
 - Max tokens: `INTERN_MAX_TOKENS` for read mode (default 8192), `INTERN_MAX_TOKENS_WRITE` for write mode (default 16384)
+- Total timeout: `INTERN_TIMEOUT_SECONDS` (default 240). Set to `0` only for deliberate manual debugging.
+- Socket inactivity timeout: `INTERN_SOCKET_TIMEOUT_SECONDS` (default 120).
 
 ## Alternative Models
 

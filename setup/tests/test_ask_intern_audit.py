@@ -229,6 +229,63 @@ class AskInternAuditTest(unittest.TestCase):
         self.assertIn("/repo/src/app.tsx", result.stdout)
         self.assertNotIn("/repo/docs/plan.md", result.stdout)
 
+    def test_reports_slow_calls_and_abandoned_attempts(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            events = tmpdir / "events.tsv"
+            attempts = tmpdir / "attempts.jsonl"
+            now_label = time.strftime("%Y-%m-%d %H:%M:%S")
+            now = int(time.time())
+            events.write_text(
+                "\n".join(
+                    [
+                        "timestamp\tsource\tstatus\treason\tmodel\tfile_count\ttarget\tlatency_s\tcwd\tfiles\tinvocation",
+                        f"{now_label}\tclaude\tsuccess\tok\tdeepseek/deepseek-v4-flash\t1\t\t245.00\t/repo\tbig.ts\task-intern -f big.ts summarize",
+                        f"{now_label}\tcodex\tfailure\ttimeout\tdeepseek/deepseek-v4-flash\t2\t\t240.00\t/repo\ta.ts,b.ts\task-intern -f a.ts -f b.ts summarize",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            attempts.write_text(
+                "\n".join(
+                    [
+                        json_line({"ts": now - 600, "event": "start", "attempt_id": "open", "source": "claude", "model": "deepseek/deepseek-v4-flash", "files": ["lost.ts"], "invocation": "ask-intern -f lost.ts summarize"}),
+                        json_line({"ts": now - 500, "event": "start", "attempt_id": "done", "source": "codex", "model": "deepseek/deepseek-v4-flash", "files": ["done.ts"], "invocation": "ask-intern -f done.ts summarize"}),
+                        json_line({"ts": now - 450, "event": "end", "attempt_id": "done", "status": "success", "reason": "ok", "elapsed_s": 50.0}),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    str(SCRIPT),
+                    "--events",
+                    str(events),
+                    "--attempts",
+                    str(attempts),
+                    "--log-root",
+                    str(tmpdir / "missing-logs"),
+                    "--since-days",
+                    "1",
+                    "--slow-call-seconds",
+                    "180",
+                ],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("slow/hang-shaped calls: 2 over 180s", result.stdout)
+        self.assertIn("claude success ok 245.0s", result.stdout)
+        self.assertIn("codex failure timeout 240.0s", result.stdout)
+        self.assertIn("abandoned attempts: 1", result.stdout)
+        self.assertIn("lost.ts", result.stdout)
+
 
 def json_line(value):
     import json
