@@ -135,7 +135,7 @@ For the current repo:
 5. Archive obvious test-data-only, stale, or non-durable entries.
 6. Create candidate action notes or draft plans for clear prevention artifacts.
 7. Append plain-English audit lines to `docs/learnings/auto-actions.md`.
-8. Start or refresh the dashboard app when possible and surface the clickable URL/path so the user can review immediately.
+8. Do not attempt to serve a live dashboard from automation runs — sandboxed contexts block binding 127.0.0.1, and the live surface is owned by the user. Regenerate `docs/learnings/dashboard.md` and `dashboard.html` and end the report with a one-liner telling the user to run `learn live` in a terminal tab whenever they want to review (the URL stays at `http://127.0.0.1:60000`).
 9. Tell the user they can say `done` after review to run executor automation now and skip the scheduled 9pm executor.
 
 ### Executor automation
