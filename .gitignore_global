@@ -8,3 +8,4 @@ Icon?
 tags
 *.class
 .editorconfig
+graphify-out/

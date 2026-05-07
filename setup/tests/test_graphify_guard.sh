@@ -55,6 +55,14 @@ if ! grep -q "graphify explain" /tmp/graphify-guard.out; then
   exit 1
 fi
 
+mkdir -p "$work/graphify-out/wiki"
+printf '# Graphify Wiki\n' >"$work/graphify-out/wiki/index.md"
+run_hook "$(bash_json "rg auth src")" >/tmp/graphify-guard.out
+if ! grep -q "graphify-out/wiki/index.md" /tmp/graphify-guard.out; then
+  echo "graphify guard did not point search toward wiki/index.md when wiki exists" >&2
+  exit 1
+fi
+
 run_hook "$(bash_json "graphify query auth")" >/tmp/graphify-guard.out
 if [ -s /tmp/graphify-guard.out ]; then
   echo "graphify guard should not nudge graphify commands" >&2
@@ -110,7 +118,7 @@ if ! grep -q "commands:   1" /tmp/graphify-stats.out; then
   echo "graphify-stats did not count commands" >&2
   exit 1
 fi
-if ! grep -q "nudges:     1" /tmp/graphify-stats.out; then
+if ! grep -q "nudges:     2" /tmp/graphify-stats.out; then
   echo "graphify-stats did not count nudges" >&2
   exit 1
 fi

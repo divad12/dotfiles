@@ -178,10 +178,12 @@ def main():
         return
 
     report = root / "graphify-out" / "GRAPH_REPORT.md"
+    wiki = root / "graphify-out" / "wiki" / "index.md"
+    navigation = wiki if wiki.is_file() else report
     message = (
         "graphify: knowledge graph exists. Before broad raw search, use "
         "`graphify explain \"<exact node>\"`, concrete `graphify query \"<terms>\"`, or read "
-        f"`{report}` for god nodes and community structure. Then use ask-intern "
+        f"`{navigation}` for graph navigation, god nodes, and community structure. Then use ask-intern "
         "on the selected files if you still need bulk source summaries."
     )
     log_event(record, "nudge", command=command, root=root, reason="broad_search_in_graphified_repo")

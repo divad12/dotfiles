@@ -4,3 +4,4 @@ bundle/
 .claude/worktrees/
 .vim/pack/
 hg-dummy-cert.pem
+graphify-out/
