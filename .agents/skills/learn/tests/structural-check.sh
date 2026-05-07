@@ -59,6 +59,9 @@ grep -q "9pm" "$DOC" || { echo "FAIL: executor time contract"; exit 1; }
 grep -q "If the user says.*done" "$DOC" || { echo "FAIL: done trigger contract"; exit 1; }
 grep -q "skip the scheduled 9pm executor" "$DOC" || { echo "FAIL: skip executor contract"; exit 1; }
 grep -q "Each cron invocation is repo-scoped" "$DOC" || { echo "FAIL: learning doc repo-scoped automation"; exit 1; }
+grep -q "Do not leave successful automation runs dirty" "$DOC" || { echo "FAIL: learning doc automation git hygiene"; exit 1; }
+grep -q "create one local commit" "$DOC" || { echo "FAIL: learning doc automation commit contract"; exit 1; }
+grep -q "Do not push" "$DOC" || { echo "FAIL: learning doc automation no-push contract"; exit 1; }
 
 test -f .agents/skills/dashboard/SKILL.md || { echo "FAIL: dashboard skill missing"; exit 1; }
 grep -q "^name: dashboard$" .agents/skills/dashboard/SKILL.md || { echo "FAIL: dashboard skill name"; exit 1; }
@@ -105,12 +108,18 @@ if test -f "$TRIAGE_AUTOMATION"; then
   grep -q "docs/ai/learning-system.md" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage reads canonical learning doc"; exit 1; }
   grep -q "Abstraction Ladder" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage applies abstraction ladder"; exit 1; }
   grep -q "current working directory only" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage scoped to current cwd"; exit 1; }
+  grep -q "git status --short" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage checks dirty worktree"; exit 1; }
+  grep -q "create one local commit" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage commits successful changes"; exit 1; }
+  grep -q "Do not push" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage no-push contract"; exit 1; }
   ! grep -q "For each configured repo" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage must not loop configured repos"; exit 1; }
 fi
 if test -f "$EXECUTOR_AUTOMATION"; then
   grep -q "docs/ai/learning-system.md" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor reads canonical learning doc"; exit 1; }
   grep -q "Abstraction Ladder" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor applies abstraction ladder"; exit 1; }
   grep -q "current working directory only" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor scoped to current cwd"; exit 1; }
+  grep -q "git status --short" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor checks dirty worktree"; exit 1; }
+  grep -q "create one local commit" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor commits successful changes"; exit 1; }
+  grep -q "Do not push" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor no-push contract"; exit 1; }
   grep -q "Autopick the top one or two obvious high-leverage next actions" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor autopicks obvious prevention work"; exit 1; }
   grep -q "Ask the user only for true product choices" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor avoids micro-decision handoff"; exit 1; }
   grep -q "CEO-style summary" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor reports decision-ready summary"; exit 1; }

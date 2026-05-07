@@ -6,6 +6,8 @@ prompt = '''Act as the daily learning executor automation. This is the action ph
 
 First read the canonical global learning-system contract at /Users/david/Dropbox (Personal)/code/dotfiles/docs/ai/learning-system.md; when the current repo also has docs/ai/learning-system.md, read that as a repo-specific supplement. The contract is the source of truth; this prompt is only the scheduler wrapper.
 
+Before writing anything, run git status --short. If the worktree is dirty at the start, classify the dirty paths. You may consume explicit dashboard decision files such as docs/learnings/decisions.jsonl, but otherwise report the dirty paths and stop before writing; do not mix automation output with unrelated user/session changes and do not stage unrelated pre-existing work.
+
 In the current repo, first inspect docs/learnings/auto-actions.md for a same-day marker like `manual-executor-ran: YYYY-MM-DD`; if present, skip execution for this repo and report that the 9pm run was skipped because the user already said `done` and executor ran manually. Otherwise inspect docs/learnings/candidates.md, inbox.md, calibration.md, decisions.jsonl, auto-actions.md, and candidate action notes/draft plans from triage.
 
 Use the Abstraction Ladder from the learning-system contract only to verify that each proposed action is tied to the highest still-actionable principle and a clear prevention artifact; do not invent broad new meaning during execution. Interpret `Prevention artifacts: docs (required), test (required), skill (proposed)` as the artifact list: required means needed to prevent recurrence, proposed means worth considering.
@@ -20,7 +22,9 @@ Use subagents for independent implementation, review, or verification slices whe
 
 Do not silently make broad product behavior changes, architecture changes, global instruction changes, root AGENTS.md changes, risky shared skill changes, ambiguous code changes, or cross-caller behavior changes. If those are needed, leave dashboard review only after recording the clearest next prototype or testable slice.
 
-Regenerate docs/learnings/dashboard.md and dashboard.html for the current repo. Append plain-English audit lines to docs/learnings/auto-actions.md for every action and verification result. End with a concise CEO-style summary for the current repo only, grouped by outcome: executed, prototyped, verified, needs product decision, skip status, dashboard path, and the one thing the user should focus on if any input is truly needed.'''
+Regenerate docs/learnings/dashboard.md and dashboard.html for the current repo. Append plain-English audit lines to docs/learnings/auto-actions.md for every action and verification result. Verify with git diff --check and any focused project checks required by touched code/tests/skills. If files changed and verification passed, stage only files changed by this automation plus explicit dashboard decision files it consumed, then create one local commit such as `docs(learnings): apply daily executor`; report the commit hash. Do not push. Do not leave a successful run dirty. If verification fails, do not commit; report the dirty paths and failed checks.
+
+End with a concise CEO-style summary for the current repo only, grouped by outcome: executed, prototyped, verified, local commit hash or skip reason, needs product decision, dashboard path, and the one thing the user should focus on if any input is truly needed.'''
 status = "ACTIVE"
 rrule = "FREQ=DAILY;BYHOUR=21;BYMINUTE=0;BYSECOND=0"
 model = "gpt-5.5"
@@ -28,4 +32,4 @@ reasoning_effort = "high"
 execution_environment = "local"
 cwds = ["/Users/david/Dropbox (Personal)/code/dotfiles", "/Users/david/Dropbox (Personal)/code/journology"]
 created_at = 1778014699759
-updated_at = 1778114010000
+updated_at = 1778121891958

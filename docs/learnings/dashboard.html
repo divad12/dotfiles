@@ -33,10 +33,10 @@
   <main>
     <section class="triage" aria-label="Dashboard Triage Signals">
       <h2>Dashboard Triage Signals</h2>
-      <ul><li><strong>Needs Review</strong>: 1</li>
-<li><strong>Open Items</strong>: 1</li>
+      <ul><li><strong>Needs Review</strong>: 2</li>
+<li><strong>Open Items</strong>: 2</li>
 <li><strong>Auto Done</strong>: 11</li>
-<li><strong>Raw Inbox</strong>: 1</li>
+<li><strong>Raw Inbox</strong>: 2</li>
 <li><strong>Candidates</strong>: 0</li>
 <li><strong>Aging/Stale</strong>: 0</li>
 <li><strong>Likely Duplicates</strong>: 0</li>
@@ -73,6 +73,32 @@
           </dl>
         </details>
         <label>Note <textarea rows="2" data-note-for="d12111e6daf4"></textarea></label>
+      </article>
+
+
+      <article class="entry" data-fingerprint="02b34308afad">
+        <header>
+          <div>
+            <p class="meta">inbox.md | inbox | high | automation (required), docs (required), test (required)</p>
+            <h2>Successful learning automations must not leave branches dirty</h2>
+          </div>
+          <div class="controls"><button type="button" data-action="candidate" data-fingerprint="02b34308afad">Candidate</button>
+<button type="button" data-action="promote" data-fingerprint="02b34308afad">Promote</button>
+<button type="button" data-action="archive" data-fingerprint="02b34308afad">Archive</button>
+<button type="button" data-action="defer" data-fingerprint="02b34308afad">Defer</button></div>
+        </header>
+        <p>The user has to manually clean up after supposedly hands-off automation, and later agents may mix automation output with unrelated session changes.</p>
+        <details>
+          <summary>Evidence and Technical refs</summary>
+          <dl>
+            <dt>Evidence</dt><dd>The Journology daily learning automations wrote docs/learnings and docs guidance directly to the m3 branch without committing, leaving the integration branch dirty after the scheduled run.</dd>
+
+            <dt>Technical refs</dt><dd>docs/ai/learning-system.md, .codex/automations/daily-learning-triage/automation.toml, .codex/automations/daily-learning-executor/automation.toml, .agents/skills/learn/tests/structural-check.sh</dd>
+            <dt>Recommended fix</dt><dd>Daily automations should check git status before writing, stop on unrelated pre-existing dirt, verify their own changes, and create one local no-push commit when successful.</dd>
+
+          </dl>
+        </details>
+        <label>Note <textarea rows="2" data-note-for="02b34308afad"></textarea></label>
       </article>
 
   </main>

@@ -108,6 +108,14 @@ the scheduler starts separate runs, one per working directory. A run must operat
 on the current working directory only; it must not inspect, report on, write to,
 or regenerate dashboards for sibling configured repos.
 
+Do not leave successful automation runs dirty. At the start of each run, inspect
+`git status --short`; if unrelated changes are already present, report the
+dirty paths and stop before writing. The executor may consume explicit dashboard
+decision files such as `docs/learnings/decisions.jsonl`, but it must not stage
+unrelated pre-existing work. After a successful run with changes, verify, stage
+only files changed by the automation, create one local commit, and report the
+commit hash. Do not push.
+
 Daily automations should read the canonical global learning-system contract
 from the durable dotfiles master checkout, not from a temporary feature
 worktree. They may also read a repo-local `docs/ai/learning-system.md` as a
