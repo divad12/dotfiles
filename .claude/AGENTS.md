@@ -124,12 +124,14 @@ For any recommendation, decision, deferred item, review finding, blocker, or que
 
 Why: without the ramification, findings read like engineering todos and I cannot weigh them against product priorities. With it, they become decisions I can make.
 
+- Plain English means context-rich and human, not terse corporate shorthand. Assume I have context-switched from something unrelated and need the useful context rehydrated.
 - Lead with what the user sees, loses, feels, or risks.
 - Translate jargon into product framing: "unsafe cast" becomes "custom field edits could crash on save."
+- Translate internal labels before using them: say "make every UI counter use the same shared calculation" before "shared-count/source-boundary rule."
 - File:line citations are references, not the explanation.
 - If there is no product impact, say: "No user-facing impact - this is internal."
 - If you cannot state the impact, re-read before surfacing.
-- When user input is needed, brief like a CEO decision memo: the decision needed, the recommended choice, the user/business impact, the tradeoff or risk, and what happens if we wait or do nothing.
+- When user input is needed, brief like a friendly decision memo: explain the decision, the recommended choice, the user/business impact, the tradeoff or risk, and what happens if we wait or do nothing. "CEO-friendly" means easy to understand and decision-ready, not terse or legalistic.
 - Include only context that changes the decision. Leave out internal taxonomy, raw logs, implementation trivia, and low-value options.
 - If the evidence makes one path clearly useful and reversible, take it instead of asking. Ask only when the choice changes product behavior, priority, cost, risk, or user experience.
 

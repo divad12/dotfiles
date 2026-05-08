@@ -3,9 +3,11 @@ set -e
 
 SKILL=.agents/skills/learn/SKILL.md
 DOC=docs/ai/learning-system.md
+AGENTS=.claude/AGENTS.md
 
 test -f "$SKILL" || { echo "FAIL: learn skill missing"; exit 1; }
 test -f "$DOC" || { echo "FAIL: learning system doc missing"; exit 1; }
+test -f "$AGENTS" || { echo "FAIL: global AGENTS missing"; exit 1; }
 test ! -e .agents/skills/capture-learning/SKILL.md || { echo "FAIL: capture-learning skill should not exist"; exit 1; }
 grep -q "^name: learn$" "$SKILL" || { echo "FAIL: learn name"; exit 1; }
 grep -q "^user-invocable: true$" "$SKILL" || { echo "FAIL: learn user-invocable"; exit 1; }
@@ -50,6 +52,9 @@ grep -q "Use a frontier reasoning parent model" "$DOC" || { echo "FAIL: learning
 grep -q "gpt-5.5.*high reasoning" "$DOC" || { echo "FAIL: learning automation parent model"; exit 1; }
 grep -q "gpt-5.3-codex" "$DOC" || { echo "FAIL: learning automation subagent model"; exit 1; }
 grep -q "durable dotfiles master checkout" "$DOC" || { echo "FAIL: learning automation canonical checkout"; exit 1; }
+grep -q "context-switched" "$DOC" || { echo "FAIL: learning doc context-rehydrating reports"; exit 1; }
+grep -q "same shared calculation" "$DOC" || { echo "FAIL: learning doc translates jargon labels"; exit 1; }
+grep -q "not terse corporate shorthand" "$DOC" || { echo "FAIL: learning doc rejects corporate shorthand"; exit 1; }
 grep -q "Prevention artifacts: docs (required), test (required), skill (proposed)" "$DOC" || { echo "FAIL: learning doc prevention artifacts"; exit 1; }
 grep -q "Skill and Doc Enforcement" "$DOC" || { echo "FAIL: skill/doc enforcement contract"; exit 1; }
 grep -q "automatically loads the rule before implementation" "$DOC" || { echo "FAIL: automatic skill enforcement rationale"; exit 1; }
@@ -68,6 +73,9 @@ grep -q "leave baseline dirty files untouched" "$DOC" || { echo "FAIL: learning 
 grep -q "fix verification failures caused by its own changes" "$DOC" || { echo "FAIL: learning doc verification repair"; exit 1; }
 grep -q "create one local commit" "$DOC" || { echo "FAIL: learning doc automation commit contract"; exit 1; }
 grep -q "Do not push" "$DOC" || { echo "FAIL: learning doc automation no-push contract"; exit 1; }
+grep -q "Plain English means context-rich and human" "$AGENTS" || { echo "FAIL: global user-facing plain English contract"; exit 1; }
+grep -q "not terse or legalistic" "$AGENTS" || { echo "FAIL: global CEO wording correction"; exit 1; }
+grep -q "same shared calculation" "$AGENTS" || { echo "FAIL: global jargon translation example"; exit 1; }
 
 test -f .agents/skills/dashboard/SKILL.md || { echo "FAIL: dashboard skill missing"; exit 1; }
 grep -q "^name: dashboard$" .agents/skills/dashboard/SKILL.md || { echo "FAIL: dashboard skill name"; exit 1; }
@@ -124,6 +132,10 @@ if test -f "$TRIAGE_AUTOMATION"; then
   grep -q "fix the failure and rerun verification" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage repairs verification failures"; exit 1; }
   grep -q "create one local commit" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage commits successful changes"; exit 1; }
   grep -q "Do not push" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage no-push contract"; exit 1; }
+  grep -q "friendly plain-English summary" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage plain-English reporting"; exit 1; }
+  grep -q "Do not use.*Executed" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage avoids bare executed report"; exit 1; }
+  grep -q "context-switched" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage rehydrates context"; exit 1; }
+  grep -q "file paths and technical labels only as receipts" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage uses files as receipts"; exit 1; }
   ! grep -q "stop before writing" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage should not stop on baseline dirt"; exit 1; }
   ! grep -q "For each configured repo" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage must not loop configured repos"; exit 1; }
 fi
@@ -142,7 +154,11 @@ if test -f "$EXECUTOR_AUTOMATION"; then
   grep -q "Do not push" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor no-push contract"; exit 1; }
   grep -q "Autopick the top one or two obvious high-leverage next actions" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor autopicks obvious prevention work"; exit 1; }
   grep -q "Ask the user only for true product choices" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor avoids micro-decision handoff"; exit 1; }
-  grep -q "CEO-style summary" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor reports decision-ready summary"; exit 1; }
+  grep -q "friendly plain-English summary" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor plain-English reporting"; exit 1; }
+  grep -q "Do not use.*Executed" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor avoids bare executed report"; exit 1; }
+  grep -q "context-switched" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor rehydrates context"; exit 1; }
+  grep -q "file paths and technical labels only as receipts" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor uses files as receipts"; exit 1; }
+  ! grep -q "CEO-style summary" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor should not request CEO-style summary"; exit 1; }
   ! grep -q "stop before writing" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor should not stop on baseline dirt"; exit 1; }
   ! grep -q "If verification fails, do not commit" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor should fix own verification failures"; exit 1; }
   ! grep -q "For each configured repo" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor must not loop configured repos"; exit 1; }

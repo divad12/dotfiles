@@ -14,7 +14,9 @@ Store prevention work as one readable field, for example `Prevention artifacts: 
 
 Verify automation-owned changes with git diff --check -- <paths changed by this automation> and any focused checks that are not polluted by baseline dirt. If verification fails because of automation changes, fix the failure and rerun verification. If files changed and verification passed, stage only files changed by this automation and create one local commit such as `docs(learnings): apply daily triage`; report the commit hash. Do not push. Do not leave a successful run dirty.
 
-The dashboard is optional calibration, not a daily approval gate. Do not ask the user to do a daily review. Do not attempt to serve a live dashboard from this automation — the sandbox blocks binding 127.0.0.1. End the report with what changed, the local commit hash or skip reason, anything genuinely needing a product decision, and a short optional note that `learn live` is available at http://127.0.0.1:60000 for calibration when wanted.'''
+The dashboard is optional calibration, not a daily approval gate. Do not ask the user to do a daily review. Do not attempt to serve a live dashboard from this automation — the sandbox blocks binding 127.0.0.1.
+
+End with a friendly plain-English summary for the current repo only. Assume the reader has context-switched from something unrelated and needs enough context to understand each unrelated item without opening the files. Do not use `Executed` followed by bare technical bullets. For each item, explain what problem or repeated pattern prompted the work, what changed in ordinary language, why it helps, where it landed, and what was verified. Use file paths and technical labels only as receipts after the explanation. Include the local commit hash or skip reason, anything genuinely needing a product decision, and a short optional note that `learn live` is available at http://127.0.0.1:60000 for calibration when wanted.'''
 status = "ACTIVE"
 rrule = "FREQ=DAILY;BYHOUR=17;BYMINUTE=0;BYSECOND=0"
 model = "gpt-5.5"

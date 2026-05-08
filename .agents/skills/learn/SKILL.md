@@ -44,6 +44,14 @@ Voice contrast — same evidence, before and after:
 
 If the captured `--summary` / `--evidence` / `--ramification` text reads as third-person bureaucratese, rewrite it before passing it to `learn capture`.
 
+Use the same voice for daily automation reports. Assume the reader has
+context-switched from something unrelated. Do not write `Executed` and then a
+stack of bare file-change bullets. For each unrelated item, explain the problem
+or pattern that prompted it, what changed in ordinary language, why it helps,
+and then the file/test names as receipts. Translate internal labels first:
+"make every UI counter use the same shared calculation" is useful context;
+"shared-count/source-boundary rule" is only a shorthand after that.
+
 #### Reference samples
 
 Real entries already in the canonical voice. Match this shape and rhythm — the agent should be able to drop a new capture in this list and have it read indistinguishable from the rest.
@@ -147,6 +155,11 @@ The dashboard must show triage signals for Needs Review, Open Items, Auto Done, 
 Daily maintenance is split into Triage automation and Executor automation. Triage runs around 5pm: it clusters new learnings when the samples support a natural pattern, merges duplicate evidence, archives obvious junk, and prepares candidate actions. Executor runs around 9pm: it acts by default on high-confidence narrow work, updates low-risk docs, or implements focused prevention artifacts when it can follow TDD/review.
 
 The dashboard is optional calibration, not a daily approval gate. Do not make the user process a large review queue before useful work happens; do your best, commit successful automation changes locally, and report what changed. Existing dirty files are normal: snapshot them, leave them untouched and unstaged, do non-overlapping work, and fix verification failures caused by your own changes before committing. Ask only for true product choices or risky/blocked work.
+
+Automation reports should be friendly plain-English summaries, not corporate
+shorthand. Include enough context for each unrelated item that the user can tell
+what problem it came from, why it mattered, and what changed without opening the
+file first.
 
 If the user says `done` after reviewing the triage dashboard, run executor automation immediately for that repo, append a same-day audit marker, and skip the scheduled 9pm executor for that repo.
 

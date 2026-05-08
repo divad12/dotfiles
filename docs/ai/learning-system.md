@@ -13,6 +13,7 @@
 - Store prevention work as one readable list: `Prevention artifacts: docs (required), test (required), skill (proposed)`. Required artifacts describe the prevention work needed; proposed artifacts are worthwhile ideas to consider. The executor decides what is executable now.
 - Fingerprint matching is not semantic dedupe. It is only a row identity and exact replay guard. Agents do all meaningful duplicate detection, semantic clustering, and pattern formation.
 - Daily agentic automation should sweep participating repos, cluster new evidence, autopick the top one or two obvious high-leverage prevention actions, execute or prototype low-risk/high-clarity work, regenerate dashboards, and report what changed plus only true product tradeoffs or review needs.
+- Automation reports must rehydrate context in plain English. "CEO-friendly" means decision-ready and easy to understand after the reader has context-switched, not terse corporate shorthand. Translate labels before using them: say "make every UI counter use the same shared calculation" before "shared-count/source-boundary rule."
 - Review is optional calibration, not a daily approval gate. Do not make the user process a large dashboard every day before useful work happens; act by default and let later feedback tune future runs.
 - Let abstractions emerge from batches of evidence. Raw bugs are useful samples; cluster them when several examples point to the same class, or when one high-risk incident has an obvious prevention surface. Do not manufacture one guidance line per bug.
 - Code, tests, helpers, skills, architecture, and global guidance still require TDD/review discipline. Automation may implement focused, high-clarity fixes only when it can write the failing test or structural check first and verify the result.
@@ -126,6 +127,24 @@ Daily automations should read the canonical global learning-system contract
 from the durable dotfiles master checkout, not from a temporary feature
 worktree. They may also read a repo-local `docs/ai/learning-system.md` as a
 supplement for the current cwd.
+
+### Reporting style
+
+Daily reports should read like a teammate explaining what happened, not a
+corporate status rollup. The reader may have context-switched from something
+unrelated, so each unrelated item needs enough context to stand on its own.
+
+For each item, say:
+
+1. What problem, repeated pattern, or risk prompted the work.
+2. What changed, in ordinary language.
+3. Why that helps the product or prevents future pain.
+4. Where it landed and what was verified.
+5. Whether anything truly needs a decision.
+
+Do not end with `Executed` plus bare technical bullets. File paths, test names,
+and internal labels are receipts, not the explanation. Put the plain-English
+translation first, then the receipt.
 
 ### Triage automation
 
