@@ -656,6 +656,54 @@ def test_dashboard_summarizes_action_status_instead_of_raw_decision_log(
     assert "follow-up required before code changes" not in dashboard
 
 
+def test_dashboard_marks_prevention_artifacts_done_from_executor_notes(
+    tmp_path: Path,
+) -> None:
+    assert run_learn(tmp_path, "init").returncode == 0
+    result = run_learn(
+        tmp_path,
+        "capture",
+        "--source",
+        "review",
+        "--summary",
+        "CSV exports must guard against formula-injection prefixes",
+        "--evidence",
+        "A venue CSV export emitted raw cell values that spreadsheet apps may treat as formulas.",
+        "--ramification",
+        "A teammate can open an exported CSV and trigger a spreadsheet formula prompt.",
+        "--recommended-fix",
+        "Route CSV exports through one formula-injection-safe encoder.",
+        "--prevention-artifact",
+        "test|required",
+        "--prevention-artifact",
+        "helper|required",
+        "--prevention-artifact",
+        "docs|proposed",
+        "--technical-ref",
+        "src/lib/venues/venue-export-csv.ts",
+        "--confidence",
+        "high",
+    )
+    assert result.returncode == 0, result.stderr
+    store = tmp_path / "docs" / "learnings"
+    inbox_path = store / "inbox.md"
+    inbox_path.write_text(
+        inbox_path.read_text()
+        + "- Executor note: 2026-05-08 helper/test artifact completed by adding `src/lib/csv.ts` plus prefix/reserved-character tests and wiring the venue export through the shared encoder. Docs remain proposed only.\n"
+    )
+
+    dashboard = run_learn(tmp_path, "dashboard")
+
+    assert dashboard.returncode == 0, dashboard.stderr
+    html = (store / "dashboard.html").read_text()
+    assert 'title="test: done (originally required)"' in html
+    assert '>test<span class="pill-kind">done</span>' in html
+    assert 'title="helper: done (originally required)"' in html
+    assert '>helper<span class="pill-kind">done</span>' in html
+    assert 'title="docs: proposed"' in html
+    assert '>docs<span class="pill-kind">proposed</span>' in html
+
+
 def test_execute_records_dashboard_decisions(tmp_path: Path) -> None:
     assert run_learn(tmp_path, "init").returncode == 0
     store = tmp_path / "docs" / "learnings"

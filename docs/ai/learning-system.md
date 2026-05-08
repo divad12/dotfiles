@@ -124,6 +124,11 @@ happened, what remains, and where the user is genuinely needed. Do not make raw
 history lines such as "follow-up required before code changes" the main thing
 the user sees.
 
+Guardrail pills must show artifact state from the same evidence: done, required,
+or proposed. Completed executor notes should flip matching artifacts to done in
+the dashboard. Proposed means optional companion work that can wait or be
+skipped, not a request for user approval.
+
 Do not leave successful automation runs dirty. At the start of each run, inspect
 `git status --short` and snapshot baseline dirty paths. Proceed with useful
 non-overlapping work, but leave baseline dirty files untouched and unstaged. If

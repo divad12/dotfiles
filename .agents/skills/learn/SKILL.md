@@ -152,6 +152,8 @@ The dashboard must show triage signals for Needs Review, Open Items, Auto Done, 
 
 Candidate cards must show Action status in plain English instead of dumping raw decision history. Bucket decision, follow-up, draft, and executor notes into What changed, Next, Blocked, and Notes so the reader can tell what automation already did, what remains, and whether anything needs help. Raw audit wording such as "follow-up required before code changes" belongs in the learning files or `auto-actions.md`, not as the primary dashboard copy.
 
+Guardrail pills must show current artifact state too: done, required, or proposed. If an executor note says an artifact completed, the dashboard should show that artifact as done even when the original prevention list marked it required. Proposed means optional companion work, not "waiting for user approval."
+
 ## Agentic Maintenance
 
 Daily maintenance is split into Triage automation and Executor automation. Triage runs around 5pm: it clusters new learnings when the samples support a natural pattern, merges duplicate evidence, archives obvious junk, and prepares candidate actions. Executor runs around 9pm: it acts by default on high-confidence narrow work, updates low-risk docs, or implements focused prevention artifacts when it can follow TDD/review.

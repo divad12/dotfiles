@@ -1009,12 +1009,9 @@ def _render_card(entry: dict[str, object], summary_counts: dict[str, int]) -> st
     is_archived = status == "archived"
 
     artifacts_raw = str(entry.get("prevention_artifacts", ""))
-    artifacts_pills = _render_artifact_pills(artifacts_raw)
-    artifacts_value = (
-        html.escape(artifacts_raw)
-        if artifacts_raw
-        else '<span class="muted">(none)</span>'
-    )
+    artifact_items = dashboard_artifact_items(entry)
+    artifacts_pills = _render_artifact_pills(artifact_items)
+    artifacts_value = _render_guardrail_status(artifact_items)
     evidence_raw = str(entry.get("evidence", ""))
     evidence = (
         html.escape(evidence_raw)
@@ -1158,33 +1155,90 @@ def _render_card(entry: dict[str, object], summary_counts: dict[str, int]) -> st
     )
 
 
-def _render_artifact_pills(value: str) -> str:
-    parts = [part.strip() for part in value.split(",") if part.strip()]
+def dashboard_artifact_items(entry: dict[str, object]) -> list[dict[str, str]]:
+    artifacts_raw = str(entry.get("prevention_artifacts", ""))
+    completed = completed_artifact_names(entry)
+    items: list[dict[str, str]] = []
+    seen: set[str] = set()
+    for part in parse_prevention_artifacts(artifacts_raw):
+        name, kind = prevention_artifact_parts(part)
+        normalized_name = normalize_artifact_display_name(name)
+        state = "done" if normalized_name in completed else kind
+        items.append({"name": name, "kind": kind, "state": state})
+        seen.add(normalized_name)
+    for name in sorted(completed - seen):
+        items.append({"name": name, "kind": "done", "state": "done"})
+    return items
+
+
+def completed_artifact_names(entry: dict[str, object]) -> set[str]:
+    completed: set[str] = set()
+    for note in clean_list(entry.get("executor_notes", [])):
+        clean = clean_status_text(note)
+        match = re.match(r"^(.+?)\s+artifacts?\s+completed\b", clean, flags=re.IGNORECASE)
+        if not match:
+            continue
+        for raw_name in re.split(r"/|\+|&|,|\band\b", match.group(1), flags=re.IGNORECASE):
+            name = normalize_artifact_display_name(raw_name)
+            if name:
+                completed.add(name)
+    return completed
+
+
+def normalize_artifact_display_name(value: str) -> str:
+    name = " ".join(value.strip().lower().split())
+    aliases = {
+        "doc": "docs",
+        "documentation": "docs",
+        "tests": "test",
+        "helpers": "helper",
+        "skills": "skill",
+    }
+    return aliases.get(name, name)
+
+
+def _render_artifact_pills(items: list[dict[str, str]]) -> str:
     pills: list[str] = []
-    for part in parts:
-        match = re.match(r"^(.+?)\s*\((required|proposed)\)$", part)
-        if match:
-            name = match.group(1).strip()
-            kind = match.group(2)
-        else:
-            name = part
-            kind = "required"
+    for item in items:
+        name = item["name"]
+        kind = item["kind"]
+        state = item["state"]
         is_archive = name.lower() == "archive"
-        classes = ["pill", f"pill-{kind}"]
+        classes = ["pill", f"pill-{state}"]
         if is_archive:
             classes.append("pill-archive")
-        title = (
-            f"{name} ({kind})"
-            if not is_archive
-            else "marked for archive"
-        )
+        if is_archive:
+            title = "marked for archive"
+        elif state == "done" and kind != "done":
+            title = f"{name}: done (originally {kind})"
+        else:
+            title = f"{name}: {state}"
         pills.append(
             f'            <span class="{" ".join(classes)}" title="{html.escape(title)}">'
             f'{html.escape(name)}'
-            f'<span class="pill-kind">{kind}</span>'
+            f'<span class="pill-kind">{html.escape(state)}</span>'
             "</span>"
         )
     return "\n".join(pills) or '            <span class="muted">No guardrails recorded</span>'
+
+
+def _render_guardrail_status(items: list[dict[str, str]]) -> str:
+    if not items:
+        return '<span class="muted">(none)</span>'
+    rendered = []
+    for item in items:
+        name = html.escape(item["name"])
+        state = html.escape(item["state"])
+        kind = html.escape(item["kind"])
+        original = (
+            f' <span class="guardrail-origin">originally {kind}</span>'
+            if item["state"] == "done" and item["kind"] != "done"
+            else ""
+        )
+        rendered.append(
+            f"<li><strong>{name}</strong><span>{state}</span>{original}</li>"
+        )
+    return '<ul class="guardrail-status">' + "".join(rendered) + "</ul>"
 
 
 def _render_empty_state(tab: str) -> str:
@@ -1914,6 +1968,12 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
   border-style: dashed;
   color: var(--proposed-text);
 }
+.pill-done {
+  background: rgba(106, 143, 96, 0.12);
+  border-color: rgba(106, 143, 96, 0.48);
+  color: #3f6939;
+}
+.pill-done .pill-kind { color: #3f6939; }
 .pill-archive {
   background: var(--archive-bg);
   border-color: var(--archive-border);
@@ -1993,11 +2053,35 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
 .body .field-list li { margin-bottom: 4px; line-height: 1.6; }
 
 .guardrails-value {
-  font-family: var(--mono);
   font-size: 13.5px;
   color: var(--text-2);
+}
+.guardrail-status {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.guardrail-status li {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 12.5px;
   font-variant-numeric: tabular-nums;
   letter-spacing: 0.02em;
+}
+.guardrail-status strong {
+  color: var(--text);
+  font-weight: 600;
+}
+.guardrail-status span {
+  color: var(--text-2);
+}
+.guardrail-origin {
+  color: var(--text-3) !important;
 }
 
 .action-status {
