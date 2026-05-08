@@ -70,6 +70,8 @@ MAX_TOKENS_READ = int(os.environ.get("INTERN_MAX_TOKENS", "8192"))
 MAX_TOKENS_WRITE = int(os.environ.get("INTERN_MAX_TOKENS_WRITE", "16384"))
 TOTAL_TIMEOUT_SECONDS = float(os.environ.get("INTERN_TIMEOUT_SECONDS", "240"))
 SOCKET_TIMEOUT_SECONDS = float(os.environ.get("INTERN_SOCKET_TIMEOUT_SECONDS", "120"))
+HIGH_RISK_REVIEW_FILE_COUNT = int(os.environ.get("INTERN_HIGH_RISK_REVIEW_FILE_COUNT", "8"))
+HIGH_RISK_REVIEW_STDIN_CHARS = int(os.environ.get("INTERN_HIGH_RISK_REVIEW_STDIN_CHARS", "50000"))
 # Weekly Opus-equivalent budget for "% saved" display.
 # Max $200/month (20x) ≈ $200/week in API-equivalent usage.
 WEEKLY_BUDGET = float(os.environ.get("INTERN_WEEKLY_BUDGET", "200"))
@@ -111,6 +113,21 @@ POST_NEGATED_EXACT_SOURCE_RE = re.compile(
     re.IGNORECASE,
 )
 EXACT_SOURCE_OF_TRUTH_RE = re.compile(r"\bexact\s+source[- ]of[- ]truth\b", re.IGNORECASE)
+REVIEW_PROMPT_RE = re.compile(
+    r"\b("
+    r"deep[- ]?review|"
+    r"code\s+review|"
+    r"review\s+(?:this|the|my|our)|"
+    r"uncommitted\s+diff|"
+    r"whole\s+diff|"
+    r"patch|"
+    r"correctness\s+regressions?|"
+    r"regression\s+risks?|"
+    r"shared[- ]contract\s+drift|"
+    r"missing\s+tests"
+    r")\b",
+    re.IGNORECASE,
+)
 EVENT_FIELDS = [
     "timestamp",
     "source",
@@ -221,6 +238,22 @@ def is_exact_source_request(prompt):
             continue
         return True
     return False
+
+
+def high_risk_review_reasons(prompt, file_count=0, stdin_chars=0):
+    if not prompt or not REVIEW_PROMPT_RE.search(prompt):
+        return []
+
+    reasons = []
+    if HIGH_RISK_REVIEW_FILE_COUNT > 0 and file_count >= HIGH_RISK_REVIEW_FILE_COUNT:
+        reasons.append(f"{file_count} files")
+    if HIGH_RISK_REVIEW_STDIN_CHARS > 0 and stdin_chars >= HIGH_RISK_REVIEW_STDIN_CHARS:
+        reasons.append(f"{stdin_chars:,} chars of piped input")
+    return reasons
+
+
+def should_block_high_risk_review(prompt, file_count=0, stdin_chars=0):
+    return bool(high_risk_review_reasons(prompt, file_count=file_count, stdin_chars=stdin_chars))
 
 
 def infer_source_from_text(*values):
@@ -461,6 +494,20 @@ def deny_exact_source_request(model, files=None, target=None):
     )
 
 
+def deny_high_risk_review(prompt, model, files=None, target=None, stdin_chars=0):
+    reasons = ", ".join(high_risk_review_reasons(prompt, file_count=len(files or []), stdin_chars=stdin_chars))
+    fatal(
+        "High-risk broad review request is likely to time out"
+        + (f" ({reasons})" if reasons else "")
+        + ". Please split this into subsystem-sized reviews: one diff slice or about 3-5 related files per "
+        "`ask-intern` call, with a specific question. Use --allow-broad-review only for deliberate manual debugging.",
+        reason="high_risk_review",
+        model=model,
+        files=files,
+        target=target,
+    )
+
+
 def print_stats():
     if not os.path.exists(STATS_FILE):
         print("No usage data yet.")
@@ -629,6 +676,11 @@ def main():
         action="store_true",
         help="Bypass the exact-source misuse guard for rare manual debugging cases",
     )
+    parser.add_argument(
+        "--allow-broad-review",
+        action="store_true",
+        help="Bypass the broad-review timeout guard for deliberate manual debugging cases",
+    )
     args = parser.parse_args()
 
     if args.stats:
@@ -644,6 +696,14 @@ def main():
         and is_exact_source_request(prompt)
     ):
         deny_exact_source_request(args.model, files=args.file, target=args.target)
+    if (
+        prompt
+        and not args.target
+        and not args.allow_broad_review
+        and not os.environ.get("ASK_INTERN_ALLOW_BROAD_REVIEW")
+        and should_block_high_risk_review(prompt, file_count=len(args.file))
+    ):
+        deny_high_risk_review(prompt, args.model, files=args.file, target=args.target)
 
     load_env_file(CONFIG_FILE)
     api_key = os.environ.get("OPENROUTER_API_KEY")
@@ -677,6 +737,15 @@ def main():
         stdin_content = sys.stdin.read()
         if stdin_content.strip():
             context_parts.append(f"<stdin>\n{stdin_content}\n</stdin>")
+        if (
+            stdin_content.strip()
+            and prompt
+            and not args.target
+            and not args.allow_broad_review
+            and not os.environ.get("ASK_INTERN_ALLOW_BROAD_REVIEW")
+            and should_block_high_risk_review(prompt, file_count=len(args.file), stdin_chars=len(stdin_content))
+        ):
+            deny_high_risk_review(prompt, args.model, files=args.file, target=args.target, stdin_chars=len(stdin_content))
 
     if not prompt and not context_parts:
         fatal("Nothing to do. Provide a prompt, files (-f), or pipe input.", reason="no_input", model=args.model, files=args.file, target=args.target)

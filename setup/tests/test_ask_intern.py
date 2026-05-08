@@ -144,6 +144,116 @@ class AskInternConfigTest(unittest.TestCase):
         self.assertIn('"status": "failure"', attempts)
         self.assertIn('"reason": "timeout"', attempts)
 
+    def test_high_risk_review_many_files_is_blocked_before_api_call(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            work = home / "repo"
+            work.mkdir()
+            files = []
+            for index in range(8):
+                path = work / f"part-{index}.ts"
+                path.write_text("export const value = 1;\n", encoding="utf-8")
+                files.extend(["-f", str(path)])
+            config_dir = home / ".config" / "ask-intern"
+            config_dir.mkdir(parents=True)
+            (config_dir / "env").write_text("export OPENROUTER_API_KEY=file-key\n", encoding="utf-8")
+            module = load_ask_intern(home)
+            module.EVENTS_FILE = str(config_dir / "events.tsv")
+
+            def fail_urlopen(*_args, **_kwargs):
+                raise AssertionError("high-risk broad reviews should be denied before API calls")
+
+            stderr = io.StringIO()
+            with (
+                patch.dict(os.environ, {"HOME": str(home), "ASK_INTERN_SOURCE": "codex"}, clear=True),
+                patch.object(module, "urlopen", fail_urlopen),
+                patch.object(sys, "argv", ["ask-intern", *files, "Deep-review this patch for correctness regressions"]),
+                patch.object(sys, "stdin", io.StringIO("")),
+                patch.object(sys, "stdout", io.StringIO()),
+                patch.object(sys, "stderr", stderr),
+                self.assertRaises(SystemExit),
+            ):
+                module.main()
+
+            events = (config_dir / "events.tsv").read_text(encoding="utf-8")
+
+        self.assertIn("split this into subsystem-sized reviews", stderr.getvalue())
+        self.assertIn("\tcodex\tfailure\thigh_risk_review\t", events)
+
+    def test_high_risk_review_large_stdin_is_blocked_but_override_allows_it(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            home = Path(tmp)
+            config_dir = home / ".config" / "ask-intern"
+            config_dir.mkdir(parents=True)
+            (config_dir / "env").write_text("export OPENROUTER_API_KEY=file-key\n", encoding="utf-8")
+            module = load_ask_intern(home)
+            module.EVENTS_FILE = str(config_dir / "events.tsv")
+            module.STATS_FILE = str(config_dir / "stats.tsv")
+            module.ATTEMPTS_FILE = str(config_dir / "attempts.jsonl")
+
+            large_diff = "\n".join(f"+ changed line {index}" for index in range(5000))
+
+            with (
+                patch.dict(os.environ, {"HOME": str(home), "ASK_INTERN_SOURCE": "codex"}, clear=True),
+                patch.object(
+                    sys,
+                    "argv",
+                    ["ask-intern", "Review this uncommitted diff for likely correctness regressions"],
+                ),
+                patch.object(sys, "stdin", io.StringIO(large_diff)),
+                patch.object(sys, "stdout", io.StringIO()),
+                patch.object(sys, "stderr", io.StringIO()),
+                self.assertRaises(SystemExit),
+            ):
+                module.main()
+
+            captured = {}
+
+            class FakeResponse:
+                def __enter__(self):
+                    return self
+
+                def __exit__(self, exc_type, exc, tb):
+                    return False
+
+                def read(self):
+                    return json.dumps(
+                        {
+                            "choices": [{"message": {"content": "ok"}}],
+                            "usage": {"prompt_tokens": 10, "completion_tokens": 1},
+                        }
+                    ).encode("utf-8")
+
+            def fake_urlopen(req, timeout):
+                captured["payload"] = json.loads(req.data.decode("utf-8"))
+                return FakeResponse()
+
+            with (
+                patch.dict(os.environ, {"HOME": str(home), "ASK_INTERN_SOURCE": "codex"}, clear=True),
+                patch.object(module, "urlopen", fake_urlopen),
+                patch.object(
+                    sys,
+                    "argv",
+                    [
+                        "ask-intern",
+                        "--allow-broad-review",
+                        "Review this uncommitted diff for likely correctness regressions",
+                    ],
+                ),
+                patch.object(sys, "stdin", io.StringIO(large_diff)),
+                patch.object(sys, "stdout", io.StringIO()),
+                patch.object(sys, "stderr", io.StringIO()),
+            ):
+                module.main()
+
+            events = (config_dir / "events.tsv").read_text(encoding="utf-8")
+
+        self.assertIn("\tcodex\tfailure\thigh_risk_review\t", events)
+        self.assertEqual(
+            captured["payload"]["messages"][-1]["content"],
+            "Review this uncommitted diff for likely correctness regressions",
+        )
+
     def test_missing_temp_log_is_skipped_but_project_files_are_sent(self):
         with tempfile.TemporaryDirectory() as tmp:
             home = Path(tmp)
