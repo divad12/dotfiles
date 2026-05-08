@@ -26,6 +26,18 @@ grep -q 'Use the `ask-intern` skill if helpful' "$AGENTS" || {
   echo "session-start ask-intern reminder missing from AGENTS" >&2
   exit 1
 }
+grep -q 'Do NOT spend Codex/Claude work on' "$AGENTS" || {
+  echo "Token Delegation needs deny-list framing for primary-model work" >&2
+  exit 1
+}
+grep -q 'Never route to `ask-intern`' "$AGENTS" || {
+  echo "Token Delegation needs explicit never-route guardrails" >&2
+  exit 1
+}
+grep -q 'Max 2 sequential `ask-intern` calls' "$AGENTS" || {
+  echo "Token Delegation needs chaining guardrail" >&2
+  exit 1
+}
 grep -q 'ask-intern-shaped' "$SETTINGS" || {
   echo "Claude SessionStart ask-intern reminder missing" >&2
   exit 1

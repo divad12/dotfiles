@@ -8,6 +8,30 @@ Use `ask-intern` to offload high-token/low-reasoning work to a cheap model (~$0.
 
 Check the exceptions first. If an exception applies, read directly even when the file is over 400 lines.
 
+Negative routing rules are authoritative. If work matches the deny-list and no exception applies, do not do it on Codex/Claude just because it is easy.
+
+Do NOT spend Codex/Claude work on:
+
+- Bulk reformatting, text normalization, table conversion, or JSON/CSV shape cleanup.
+- Single-field or multi-field extraction from docs, logs, diffs, transcripts, changelogs, generated output, or issue lists.
+- Classification, tagging, bucketing, or triage that will be manually reviewed.
+- Templated rewrites: tone/style changes, shorten/expand passes, docstring/config/test/fixture boilerplate, sample data, or repetitive code drafts.
+- Deterministic transforms such as label mapping, rename lists, format conversions, or checklist extraction.
+- First-pass summarization for human or primary-agent review.
+
+Route those to `ask-intern`, then review the output yourself.
+
+Never route to `ask-intern`:
+
+- Architecture, planning, system design, or product decisions.
+- Final shipping implementation, refactors, migrations, or repo-impacting edits that need primary-model ownership.
+- Unfamiliar, high-risk, security/privacy-sensitive, or safety-critical work.
+- Ambiguous debugging or root-cause analysis.
+- Anything where a subtle mistake could pass review.
+- Exact instructions, exact source, line numbers, wire formats, or text that must be copied verbatim.
+
+Only delegate when inputs are explicit and bounded, output format is explicit and checkable, required context is present in the prompt/files, and review should take under 3 minutes. If any check fails, keep the work on Codex/Claude.
+
 ### Use `ask-intern` when
 
 You MUST use `ask-intern` when any rule below applies and no direct-read exception applies.
@@ -34,10 +58,12 @@ Claude Code has a PreToolUse hook that routes broad direct reads to `ask-intern`
 
 Do not use `ask-intern` to print exact/verbatim code, full source, or line-numbered snippets. Use it to identify relevant files, functions, contracts, risks, and approximate ranges; exact text for edits must come from direct small-file reads or narrow `Read`/`sed` snippets.
 
-When dispatching code-reading or code-editing subagents, copy the relevant Token Delegation instructions into each subagent prompt **verbatim**: the `Use ask-intern when` rules, the `Read directly instead when` exceptions, the `ask-intern -t` draft-write examples when tests/fixtures/docs/repetitive code may be generated, the narrow-snippet-after-summary rule, and the exact/verbatim-code prohibition. Do not paraphrase. This applies even when a workflow skill such as `superpowers:subagent-driven-development` supplies the rest of the prompt; append the Token Delegation block before the `spawn_agent` / Task call. Subagents often rebuild context from scratch, and paraphrases lose the thresholds after long context.
+When dispatching code-reading or code-editing subagents, copy the relevant Token Delegation instructions into each subagent prompt **verbatim**: the deny-list rules, the never-route exceptions, the `Use ask-intern when` rules, the `Read directly instead when` exceptions, the `ask-intern -t` draft-write examples when tests/fixtures/docs/repetitive code may be generated, the narrow-snippet-after-summary rule, the exact/verbatim-code prohibition, and the 2-call chaining guardrail. Do not paraphrase. This applies even when a workflow skill such as `superpowers:subagent-driven-development` supplies the rest of the prompt; append the Token Delegation block before the `spawn_agent` / Task call. Subagents often rebuild context from scratch, and paraphrases lose the thresholds after long context.
 
 Stop signals — if you think any of these, delegate instead:
 "let me read these files", "let me check", "I'll look at a few", "let me explore".
+
+Latency/chaining guardrails: Max 2 sequential `ask-intern` calls for the same parent task. Prefer one consolidated prompt over many micro-calls. If `ask-intern` needs retries, times out, or returns low-confidence output, split the task or keep it on Codex/Claude.
 
 ### Usage
 

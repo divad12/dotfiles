@@ -4,6 +4,36 @@ Load this file only when maintaining or troubleshooting `ask-intern`. For ordina
 
 Route token-heavy grunt work to `ask-intern` (DeepSeek v4 Flash via OpenRouter, ~$0.002/call) to preserve Claude/Codex limits for reasoning.
 
+## Routing Policy
+
+Use deny-list framing when teaching agents to route work. "Use the cheap model for X" is easier to ignore; "do not spend Codex/Claude work on X" has held better in practice.
+
+Do NOT spend Codex/Claude work on:
+
+- Bulk reformatting, text normalization, table conversion, or JSON/CSV cleanup.
+- Single-field or multi-field extraction from docs, logs, diffs, transcripts, changelogs, generated output, or issue lists.
+- Classification, tagging, bucketing, or triage that will be manually reviewed.
+- Templated rewrites: tone/style changes, shorten/expand passes, docstring/config/test/fixture boilerplate, sample data, or repetitive code drafts.
+- Deterministic transforms such as label mapping, rename lists, format conversions, or checklist extraction.
+- First-pass summarization for human or primary-agent review.
+
+Never route to `ask-intern`:
+
+- Architecture, planning, system design, or product decisions.
+- Final shipping implementation, refactors, migrations, or repo-impacting edits that need primary-model ownership.
+- Unfamiliar, high-risk, security/privacy-sensitive, or safety-critical work.
+- Ambiguous debugging or root-cause analysis.
+- Anything where a subtle mistake could pass review.
+- Exact instructions, exact source, line numbers, wire formats, or text that must be copied verbatim.
+
+Only delegate when inputs are explicit and bounded, output format is explicit and checkable, required context is present in the prompt/files, and review should take under 3 minutes. Max 2 sequential `ask-intern` calls for the same parent task; prefer one consolidated prompt over many micro-calls.
+
+## MCP Comparison
+
+`deepseek-mcp` is a clean MCP stdio worker with typed `deepseek` and `advise` tools, streaming responses, optional metadata logging, and simple Codex/Claude config snippets. Keep `ask-intern` as the canonical path for now because it already has local file inputs, write-to-file mode, source attribution, exact-source denial, broad-review timeout denial, abandoned-attempt telemetry, usage stats, and Claude read-guard integration.
+
+Revisit an MCP wrapper only if Codex follows MCP tools materially better than shell commands. If we build one, wrap the existing `ask-intern` policy/logging rather than adopting a parallel worker that would drift.
+
 ## When to Delegate
 
 - Reading files >400 lines, or cumulative medium/large file sets for context
