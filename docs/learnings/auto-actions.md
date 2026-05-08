@@ -87,3 +87,8 @@ decision: archive e4ffe1d2e3a0 Done: the learning docs, learn skill, triage prom
 archive: e4ffe1d2e3a0 Done: the learning docs, learn skill, triage prompt, executor prompt, and structural check now keep cron automations file-only; the live dashboard stays user-owned through learn live.
 decision: archive 88d602ab001f Done: global AGENTS guidance, learning docs, learn skill, triage/executor prompts, and structural checks now require context-rich friendly plain-English reports instead of terse technical bullets.
 archive: 88d602ab001f Done: global AGENTS guidance, learning docs, learn skill, triage/executor prompts, and structural checks now require context-rich friendly plain-English reports instead of terse technical bullets.
+- 2026-05-08 triage: closed 071d9b93b060 because the dashboard problem it described is now covered: cards show current Action status instead of raw previous decisions, completed guardrails flip to done, and the prevention is backed by dashboard regression tests plus the learning docs, skill text, and structural check.
+- 2026-05-08 triage: no new candidate or draft-plan rows were created because the only active dotfiles learning was already enforced rather than needing a new prevention artifact.
+- 2026-05-08 triage: regenerated docs/learnings/dashboard.md and docs/learnings/dashboard.html for dotfiles after archiving the already-covered dashboard-card learning.
+- 2026-05-08 triage: verification passed with git diff --check on the automation-owned learning files.
+- 2026-05-08 triage: verification passed with the learning structural check, confirming the dashboard action-status and guardrail-state contracts remain enforced.
