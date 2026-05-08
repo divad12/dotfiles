@@ -34,6 +34,8 @@ grep -q "dashboard --serve --host 127.0.0.1 --port 0" "$SKILL" || { echo "FAIL: 
 grep -q "dashboard --serve --execute-on-finish --host 127.0.0.1 --port 0" "$SKILL" || { echo "FAIL: finish dashboard contract"; exit 1; }
 grep -q "decisions.jsonl" "$SKILL" || { echo "FAIL: decisions.jsonl contract"; exit 1; }
 grep -q "Needs Review.*Open Items.*Auto Done.*Raw Inbox.*Candidates.*Aging/Stale.*Likely Duplicates.*Calibration Learned.*Blocked Decisions.*Ask Agent Prompts" "$SKILL" || { echo "FAIL: dashboard triage contract"; exit 1; }
+grep -q "Action status" "$SKILL" || { echo "FAIL: dashboard action status contract"; exit 1; }
+grep -q "What changed.*Next.*Blocked" "$SKILL" || { echo "FAIL: dashboard readable status buckets"; exit 1; }
 grep -q "Aging/Stale is date-backed" "$SKILL" || { echo "FAIL: date-backed aging contract"; exit 1; }
 grep -q "Additional evidence" "$SKILL" || { echo "FAIL: additional evidence contract"; exit 1; }
 grep -q "Prevention artifacts: docs (required), test (required), skill (proposed)" "$SKILL" || { echo "FAIL: prevention artifacts contract"; exit 1; }
@@ -49,6 +51,8 @@ grep -q "Daily maintenance is split" "$DOC" || { echo "FAIL: learning doc daily 
 grep -q "Review is optional calibration, not a daily approval gate" "$DOC" || { echo "FAIL: learning doc hands-off review contract"; exit 1; }
 grep -q "Let abstractions emerge from batches of evidence" "$DOC" || { echo "FAIL: learning doc sample-backed clustering contract"; exit 1; }
 grep -q "Do not manufacture one guidance line per bug" "$DOC" || { echo "FAIL: learning doc no per-bug abstraction churn"; exit 1; }
+grep -q "Action status" "$DOC" || { echo "FAIL: learning doc dashboard action status"; exit 1; }
+grep -q "What changed.*Next.*Blocked" "$DOC" || { echo "FAIL: learning doc readable status buckets"; exit 1; }
 grep -q "Use a frontier reasoning parent model" "$DOC" || { echo "FAIL: learning automation model policy"; exit 1; }
 grep -q "gpt-5.5.*high reasoning" "$DOC" || { echo "FAIL: learning automation parent model"; exit 1; }
 grep -q "gpt-5.3-codex" "$DOC" || { echo "FAIL: learning automation subagent model"; exit 1; }

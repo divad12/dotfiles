@@ -676,6 +676,7 @@ def entry_to_dashboard_dict(store: Path, path: Path, block: str) -> dict[str, ob
         "status": entry_field(block, "Status"),
         "recommended_fix": entry_field(block, "Recommended fix"),
         "decision_notes": entry_fields(block, "Decision note"),
+        "executor_notes": entry_fields(block, "Executor note"),
         "follow_up_tasks": entry_fields(block, "Follow-up task"),
         "draft_plans": entry_fields(block, "Draft plan"),
         "draft_patches": entry_fields(block, "Draft patch"),
@@ -1060,22 +1061,7 @@ def _render_card(entry: dict[str, object], summary_counts: dict[str, int]) -> st
     technical_refs_value = str(entry.get("technical_refs", "")).strip()
     technical_refs_html = html.escape(technical_refs_value or "None")
 
-    prior_items = render_labeled_values(
-        [
-            ("Decision note", entry.get("decision_notes", [])),
-            ("Follow-up task", entry.get("follow_up_tasks", [])),
-            ("Draft plan", entry.get("draft_plans", [])),
-            ("Draft patch", entry.get("draft_patches", [])),
-        ]
-    )
-    prior_section = (
-        '          <div class="field prior">\n'
-        '            <dt>Previous decisions</dt>\n'
-        f'            <dd>{prior_items}</dd>\n'
-        "          </div>"
-        if prior_items
-        else ""
-    )
+    action_status_section = render_action_status(entry)
 
     badges: list[str] = []
     if is_duplicate:
@@ -1150,7 +1136,7 @@ def _render_card(entry: dict[str, object], summary_counts: dict[str, int]) -> st
         '            <dt>Guardrails</dt>\n'
         f'            <dd class="guardrails-value">{artifacts_value}</dd>\n'
         "          </div>\n"
-        f"{prior_section}\n"
+        f"{action_status_section}\n"
         "              </dl>\n"
         f"{notes_block}\n"
         '          <details class="tech-details">\n'
@@ -1246,20 +1232,188 @@ def _render_calibration_panel(calibration: list[str]) -> str:
     )
 
 
-def render_labeled_values(groups: list[tuple[str, object]]) -> str:
-    items: list[str] = []
-    for label, values in groups:
-        if isinstance(values, str):
-            value_list = [values] if values else []
-        else:
-            value_list = [str(value) for value in values if str(value)]
-        for value in value_list:
-            items.append(
-                f"<li><strong>{html.escape(label)}</strong>: {html.escape(value)}</li>"
-            )
-    if not items:
+GENERIC_HISTORY_NOTES = {
+    "auto-promotion docs candidate",
+    "follow-up required before code changes",
+}
+
+
+def render_action_status(entry: dict[str, object]) -> str:
+    groups = action_status_groups(entry)
+    if not any(groups.values()):
         return ""
-    return '<ul class="prior-list">' + "".join(items) + "</ul>"
+    rendered_groups = []
+    labels = [
+        ("done", "What changed"),
+        ("next", "Next"),
+        ("blocked", "Blocked"),
+        ("notes", "Notes"),
+    ]
+    for key, label in labels:
+        values = groups[key]
+        if not values:
+            continue
+        items = "".join(f"<li>{html.escape(value)}</li>" for value in values)
+        rendered_groups.append(
+            f'              <div class="status-group status-{key}">\n'
+            f"                <h3>{label}</h3>\n"
+            f"                <ul>{items}</ul>\n"
+            "              </div>"
+        )
+    return (
+        '          <div class="field action-status">\n'
+        '            <dt>Action status</dt>\n'
+        f'            <dd><div class="status-stack">{"".join(rendered_groups)}</div></dd>\n'
+        "          </div>"
+    )
+
+
+def action_status_groups(entry: dict[str, object]) -> dict[str, list[str]]:
+    groups: dict[str, list[str]] = {
+        "done": [],
+        "next": [],
+        "blocked": [],
+        "notes": [],
+    }
+    executor_notes = clean_list(entry.get("executor_notes", []))
+    for note in executor_notes:
+        classify_executor_note(note, groups)
+
+    for note in clean_list(entry.get("decision_notes", [])):
+        clean = clean_status_text(note)
+        if clean.lower() in GENERIC_HISTORY_NOTES:
+            continue
+        if clean.lower().startswith("done:"):
+            append_unique(groups["done"], clean[5:].strip())
+        elif "executor should" in clean.lower() and not executor_notes:
+            append_unique(groups["next"], sentence_after_executor_should(clean))
+        elif not executor_notes:
+            append_unique(groups["notes"], clean)
+
+    has_useful_status = any(groups[key] for key in ("done", "next", "blocked", "notes"))
+    for task in clean_list(entry.get("follow_up_tasks", [])):
+        clean = clean_status_text(task)
+        if clean.lower() == "follow-up required before code changes":
+            if not has_useful_status:
+                append_unique(
+                    groups["next"],
+                    "Needs a focused TDD/review pass before code changes.",
+                )
+            continue
+        if clean.lower().startswith("tdd/review required before"):
+            append_unique(groups["blocked"], humanize_tdd_marker(clean))
+        else:
+            append_unique(groups["next"], clean)
+
+    for draft in clean_list(entry.get("draft_plans", [])):
+        append_unique(groups["next"], f"Draft plan ready: {draft}")
+    for draft in clean_list(entry.get("draft_patches", [])):
+        append_unique(groups["next"], f"Draft patch ready: {draft}")
+    return groups
+
+
+def clean_list(values: object) -> list[str]:
+    if isinstance(values, str):
+        return [values] if values.strip() else []
+    return [str(value).strip() for value in values or [] if str(value).strip()]
+
+
+def classify_executor_note(note: str, groups: dict[str, list[str]]) -> None:
+    clean = clean_status_text(note)
+    for raw_sentence in split_status_sentences(clean):
+        sentence = humanize_status_sentence(sentence_case(raw_sentence))
+        lowered = sentence.lower()
+        if any(word in lowered for word in ["blocked", "waiting on", "cannot proceed"]):
+            append_unique(groups["blocked"], sentence)
+        elif any(word in lowered for word in ["remain", "follow-up", "next", "proposed"]):
+            append_unique(groups["next"], sentence)
+        elif any(word in lowered for word in ["completed", "done", "added", "wired", "verified"]):
+            append_unique(groups["done"], sentence)
+        else:
+            append_unique(groups["notes"], sentence)
+
+
+def clean_status_text(value: str) -> str:
+    cleaned = value.strip()
+    cleaned = re.sub(r"^\d{4}-\d{2}-\d{2}\s+(?:triage|executor):\s*", "", cleaned)
+    cleaned = re.sub(r"^\d{4}-\d{2}-\d{2}\s+", "", cleaned)
+    return cleaned.strip()
+
+
+def split_status_sentences(value: str) -> list[str]:
+    return [part.strip() for part in re.split(r"(?<=[.!?])\s+", value) if part.strip()]
+
+
+def humanize_status_sentence(value: str) -> str:
+    value = re.sub(
+        r"^Helper/test artifact completed by adding\s+",
+        "Added the helper and tests: ",
+        value,
+        flags=re.IGNORECASE,
+    )
+    value = re.sub(
+        r"^Docs artifact completed in\s+(.+?)\s+by adding\s+",
+        r"Updated the docs in \1: added ",
+        value,
+        flags=re.IGNORECASE,
+    )
+    value = re.sub(
+        r"\ba shared-count/source-boundary rule for\s+",
+        "a rule to make these counts use one shared calculation: ",
+        value,
+        flags=re.IGNORECASE,
+    )
+    value = re.sub(
+        r"\bprefix/reserved-character tests\b",
+        "tests for dangerous prefixes and reserved CSV characters",
+        value,
+        flags=re.IGNORECASE,
+    )
+    value = re.sub(
+        r"^Added the helper and tests: (.+?) plus tests for dangerous prefixes and reserved CSV characters and wiring ",
+        r"Added the helper and tests: \1, covered dangerous prefixes and reserved CSV characters, and wired ",
+        value,
+        flags=re.IGNORECASE,
+    )
+    value = re.sub(
+        r"\bhelper/test work remains follow-up\b",
+        "Helper and test work still needs a follow-up pass",
+        value,
+        flags=re.IGNORECASE,
+    )
+    value = re.sub(
+        r"\bdocs remain proposed only\b",
+        "Docs are still only proposed",
+        value,
+        flags=re.IGNORECASE,
+    )
+    return value
+
+
+def sentence_after_executor_should(value: str) -> str:
+    return re.sub(r"^.*?Executor should\s+", "", value, flags=re.IGNORECASE).strip()
+
+
+def humanize_tdd_marker(value: str) -> str:
+    _, _, detail = value.partition(":")
+    detail = detail.strip()
+    if detail.lower() == "follow-up required before code changes":
+        return "Needs TDD/review before code changes."
+    if detail:
+        return f"Needs TDD/review before code changes: {detail}"
+    return "Needs TDD/review before code changes."
+
+
+def sentence_case(value: str) -> str:
+    if not value:
+        return value
+    return value[0].upper() + value[1:]
+
+
+def append_unique(values: list[str], value: str) -> None:
+    value = value.strip()
+    if value and value not in values:
+        values.append(value)
 
 
 _DASHBOARD_CSS = r"""
@@ -1846,17 +2000,41 @@ main[data-active-tab="calibration"] .toolbar { display: none; }
   letter-spacing: 0.02em;
 }
 
-.prior {
+.action-status {
   background: var(--surface-2);
   border-radius: var(--radius-sm);
   padding: 12px 14px;
   margin-top: 4px;
 }
-.prior dt { font-size: 11.5px !important; }
-.prior dd { padding-top: 4px; }
-.prior-list { margin: 0; padding-left: 18px; font-size: 13px; }
-.prior-list li { margin: 2px 0; color: var(--text); }
-.prior-list strong { font-weight: 500; color: var(--text-2); }
+.action-status dt { font-size: 11.5px !important; }
+.action-status dd { padding-top: 8px; }
+.status-stack {
+  display: grid;
+  gap: 10px;
+}
+.status-group {
+  border-left: 3px solid var(--border);
+  padding-left: 10px;
+}
+.status-group h3 {
+  margin: 0 0 4px;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 650;
+  letter-spacing: 0;
+}
+.status-group ul {
+  margin: 0;
+  padding-left: 18px;
+  color: var(--text);
+  font-size: 13.5px;
+  line-height: 1.55;
+}
+.status-group li { margin: 2px 0; }
+.status-done { border-color: #6a8f60; }
+.status-next { border-color: #b88a44; }
+.status-blocked { border-color: #b85c46; }
+.status-notes { border-color: var(--text-2); }
 
 .tech-details { margin-top: -4px; }
 .tech-details > summary {

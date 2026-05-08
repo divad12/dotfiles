@@ -117,6 +117,13 @@ and `dashboard.html`, then report where those artifacts are. Do not attempt to
 serve a live dashboard from cron automation; the user owns the long-running
 interactive tab through `learn live`.
 
+The dashboard is a product surface, not an audit log. Candidate cards must show
+Action status in readable buckets: What changed, Next, Blocked, and Notes. Use
+executor notes, decisions, follow-ups, and draft paths to explain what already
+happened, what remains, and where the user is genuinely needed. Do not make raw
+history lines such as "follow-up required before code changes" the main thing
+the user sees.
+
 Do not leave successful automation runs dirty. At the start of each run, inspect
 `git status --short` and snapshot baseline dirty paths. Proceed with useful
 non-overlapping work, but leave baseline dirty files untouched and unstaged. If

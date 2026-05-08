@@ -601,15 +601,59 @@ def test_dashboard_details_render_prior_decisions_and_drafts(tmp_path: Path) -> 
 
     assert result.returncode == 0, result.stderr
     dashboard = (store / "dashboard.html").read_text()
-    assert "Previous decisions" in dashboard
-    assert "Decision note" in dashboard
+    assert "Action status" in dashboard
+    assert "Notes" in dashboard
     assert "Keep this visible" in dashboard
-    assert "Follow-up task" in dashboard
+    assert "Next" in dashboard
     assert "Ask reviewer for wording" in dashboard
-    assert "Draft plan" in dashboard
+    assert "Draft plan ready" in dashboard
     assert f"drafts/{fingerprint}-plan.md" in dashboard
-    assert "Draft patch" in dashboard
+    assert "Draft patch ready" in dashboard
     assert f"drafts/{fingerprint}-patch.md" in dashboard
+
+
+def test_dashboard_summarizes_action_status_instead_of_raw_decision_log(
+    tmp_path: Path,
+) -> None:
+    assert run_learn(tmp_path, "init").returncode == 0
+    assert capture_learning(
+        tmp_path,
+        summary="CSV exports must guard against formula-injection prefixes",
+        artifact="test",
+        technical_ref="src/lib/venues/venue-export-csv.ts",
+    ).returncode == 0
+    store = tmp_path / "docs" / "learnings"
+    fingerprint = fingerprint_from((store / "inbox.md").read_text())
+    (store / "decisions.jsonl").write_text(
+        json.dumps(
+            {
+                "fingerprint": fingerprint,
+                "action": "candidate",
+                "note": "follow-up required before code changes",
+            }
+        )
+        + "\n"
+    )
+    assert run_learn(tmp_path, "execute").returncode == 0
+    inbox_path = store / "inbox.md"
+    inbox_path.write_text(
+        inbox_path.read_text()
+        + "- Decision note: 2026-05-07 triage: climb from the venue export incident to the contract level: every future CSV export should reuse one formula-injection-safe encoder. Executor should search for other CSV builders first, then lift or expose the current encoder with failing prefix tests before adding another export surface.\n"
+        + "- Executor note: 2026-05-08 helper/test artifact completed by adding `src/lib/csv.ts` plus prefix/reserved-character tests and wiring the venue export through the shared encoder. Docs remain proposed only.\n"
+    )
+
+    result = run_learn(tmp_path, "dashboard")
+
+    assert result.returncode == 0, result.stderr
+    dashboard = (store / "dashboard.html").read_text()
+    assert "Action status" in dashboard
+    assert "What changed" in dashboard
+    assert "Added the helper and tests" in dashboard
+    assert "covered dangerous prefixes and reserved CSV characters" in dashboard
+    assert "Next" in dashboard
+    assert "Docs are still only proposed." in dashboard
+    assert "Previous decisions" not in dashboard
+    assert "follow-up required before code changes" not in dashboard
 
 
 def test_execute_records_dashboard_decisions(tmp_path: Path) -> None:
