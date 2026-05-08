@@ -100,6 +100,17 @@ NEGATED_EXACT_SOURCE_RE = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+POST_NEGATED_EXACT_SOURCE_RE = re.compile(
+    r"\b("
+    r"verbatim|exact|source|code|text|contents?|lines?|line[- ]numbered|"
+    r"line\s+numbers?|complete\s+source|full\s+source|full\s+implementation|"
+    r"imports|print|quote|show|reproduce|include|provide"
+    r")\b"
+    r"(?:(?![.;!?\n]).){0,80}"
+    r"\b(?:not\s+needed|not\s+required|not\s+necessary|unneeded|unnecessary|not\s+wanted)\b",
+    re.IGNORECASE,
+)
+EXACT_SOURCE_OF_TRUTH_RE = re.compile(r"\bexact\s+source[- ]of[- ]truth\b", re.IGNORECASE)
 EVENT_FIELDS = [
     "timestamp",
     "source",
@@ -186,8 +197,21 @@ def clause_prefix(text, index):
     return text[start:index]
 
 
+def clause_suffix(text, index):
+    end = len(text)
+    markers = [position for marker in (".", ";", "!", "?", "\n") if (position := text.find(marker, index)) != -1]
+    if markers:
+        end = min(markers)
+    return text[index:end]
+
+
 def is_negated_exact_source_match(text, match):
-    return bool(NEGATED_EXACT_SOURCE_RE.search(clause_prefix(text, match.end())))
+    if EXACT_SOURCE_OF_TRUTH_RE.search(text[match.start() : match.end() + 24]):
+        return True
+    return bool(
+        NEGATED_EXACT_SOURCE_RE.search(clause_prefix(text, match.end()))
+        or POST_NEGATED_EXACT_SOURCE_RE.search(clause_suffix(text, match.start()))
+    )
 
 
 def is_exact_source_request(prompt):

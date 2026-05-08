@@ -286,6 +286,8 @@ class AskInternConfigTest(unittest.TestCase):
             "Summarize risks without asking for exact lines.",
             "No exact source text; point me to approximate ranges.",
             "Names only, not exact code.",
+            "Do not quote exact code or full source; line numbers are not needed.",
+            "Also note exact source-of-truth files/functions I should inspect next.",
         ]
         denied = [
             "Show me the exact code with line numbers.",

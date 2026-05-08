@@ -106,6 +106,7 @@ class AskInternAuditTest(unittest.TestCase):
                     [
                         "timestamp\tsource\tstatus\treason\tmodel\tfile_count\ttarget\tlatency_s\tcwd\tfiles\tinvocation",
                         f"{now}\tclaude\tsuccess\tok\tdeepseek/deepseek-v4-flash\t1\t\t1.00\t/repo\treview.html\task-intern -f review.html 'Don'\"'\"'t reproduce exact code; just describe it'",
+                        f"{now}\tclaude\tsuccess\tok\tdeepseek/deepseek-v4-flash\t1\t\t1.00\t/repo\tqueue.md\task-intern -f queue.md \"Do not quote exact code or full source; line numbers are not needed.\"",
                         f"{now}\tcodex\tfailure\texact_source_request\tdeepseek/deepseek-v4-flash\t1\t\t0.00\t/repo\tapp.ts\task-intern -f app.ts \"Show me the exact code\"",
                     ]
                 )

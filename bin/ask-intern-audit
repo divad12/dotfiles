@@ -47,6 +47,16 @@ NEGATED_EXACT_PROMPT_RE = re.compile(
     r")\b",
     re.IGNORECASE,
 )
+POST_NEGATED_EXACT_PROMPT_RE = re.compile(
+    r"\b("
+    r"verbatim|exact|source|code|text|contents?|lines?|line[- ]numbered|"
+    r"line\s+numbers?|complete\s+source|full\s+source|print|quote|show|"
+    r"reproduce|include|provide"
+    r")\b"
+    r"(?:(?![.;!?\n]).){0,80}"
+    r"\b(?:not\s+needed|not\s+required|not\s+necessary|unneeded|unnecessary|not\s+wanted)\b",
+    re.IGNORECASE,
+)
 CONTROL_BASENAMES = {"AGENTS.md", "CLAUDE.md", "PROGRESS.md", "SKILL.md"}
 SENSITIVE_BASENAMES = {".env", ".env.local"}
 GENERATED_SEGMENTS = {"graphify-out", "node_modules"}
@@ -175,8 +185,19 @@ def clause_prefix(text, index):
     return text[start:index]
 
 
+def clause_suffix(text, index):
+    end = len(text)
+    markers = [position for marker in (".", ";", "!", "?", "\n") if (position := text.find(marker, index)) != -1]
+    if markers:
+        end = min(markers)
+    return text[index:end]
+
+
 def is_negated_exact_prompt_match(text, match):
-    return bool(NEGATED_EXACT_PROMPT_RE.search(clause_prefix(text, match.end())))
+    return bool(
+        NEGATED_EXACT_PROMPT_RE.search(clause_prefix(text, match.end()))
+        or POST_NEGATED_EXACT_PROMPT_RE.search(clause_suffix(text, match.start()))
+    )
 
 
 def is_exact_prompt(text):
