@@ -65,3 +65,19 @@ decision: archive 9681e329c380 Done: learn is on PATH; merge skill, git.md, and 
 archive: 9681e329c380 Done: learn is on PATH; merge skill, git.md, and learn SKILL all use 'learn --repo "$PWD"' rather than repo-local bin/learn.
 decision: archive 5301da11e4f9 Done: docs/ai/git.md 'Before-Landing Learning Check' explicitly requires re-running git status --short after browser/review-server tools.
 archive: 5301da11e4f9 Done: docs/ai/git.md 'Before-Landing Learning Check' explicitly requires re-running git status --short after browser/review-server tools.
+decision: archive 04e0529e5585 Done: required learning-system wiring is enforced by canonical docs, live automation prompts, and the learn structural check; remaining executor dashboard-serving parity is tracked as a draft plan.
+archive: 04e0529e5585 Done: required learning-system wiring is enforced by canonical docs, live automation prompts, and the learn structural check; remaining executor dashboard-serving parity is tracked as a draft plan.
+decision: draft-plan e4ffe1d2e3a0 Prototype executor parity: add a failing structural check that the executor prompt says not to serve a live dashboard, then add the file-only dashboard sentence to the canonical/live executor automation. Blocked this run because sandbox denied writes to .agents and .codex files.
+draft-plan: e4ffe1d2e3a0 wrote drafts/e4ffe1d2e3a0-plan.md
+draft-plan: e4ffe1d2e3a0 TDD/review task marker created
+decision: archive 627a97bbdbbc Done: docs, learn skill, executor prompt, and structural check now require act-by-default/autopick behavior, local commits, and true-product-choice escalation only.
+archive: 627a97bbdbbc Done: docs, learn skill, executor prompt, and structural check now require act-by-default/autopick behavior, local commits, and true-product-choice escalation only.
+decision: archive 29b7632b5c3b Done: docs, learn skill, triage/executor prompts, and structural check now require baseline dirty snapshots, untouched baseline paths, and staging only automation-owned changes.
+archive: 29b7632b5c3b Done: docs, learn skill, triage/executor prompts, and structural check now require baseline dirty snapshots, untouched baseline paths, and staging only automation-owned changes.
+- 2026-05-07 executor: dotfiles run started with baseline dirty path `.claude/settings.json`; left it untouched and unstaged.
+- 2026-05-07 executor: archived 04e0529e5585, 627a97bbdbbc, and 29b7632b5c3b because their prevention artifacts are already enforced by docs, automation prompts, and structural checks.
+- 2026-05-07 executor: prototyped e4ffe1d2e3a0 as `docs/learnings/drafts/e4ffe1d2e3a0-plan.md` for executor file-only dashboard parity.
+- 2026-05-07 executor: attempted the TDD structural-check slice for e4ffe1d2e3a0, but this sandbox denied writes to `.agents/skills/learn/tests/structural-check.sh` and `.codex/automations/daily-learning-executor/automation.toml`; kept the next patch as a draft plan instead.
+- 2026-05-07 executor: regenerated `docs/learnings/dashboard.md` and `docs/learnings/dashboard.html` for dotfiles via `bin/learn --repo "$PWD" dashboard`.
+- 2026-05-07 executor: verification: `git diff --check -- <automation-owned learning paths>` passed.
+- 2026-05-07 executor: verification: `.agents/skills/learn/tests/structural-check.sh` passed against the existing enforced learning contracts.

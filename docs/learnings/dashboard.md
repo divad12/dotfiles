@@ -4,22 +4,6 @@
 
 # Learning Inbox
 
-### 04e0529e5585-verify-that-required-behavior-is-actually-wired
-- Fingerprint: 04e0529e5585
-- Sources: user-feedback
-- Captured: 2026-05-05
-- Source events: None
-- Scope: project
-- User-facing summary: Verify that required behavior is actually wired
-- Evidence: You asked whether triage and executor actually read the learning-system doc and apply the abstraction ladder, surfacing that "should do X" in prose is empty unless something concrete enforces it.
-- Technical refs: /Users/david/.codex/automations/daily-learning-triage/automation.toml, /Users/david/.codex/automations/daily-learning-executor/automation.toml, .agents/skills/learn/tests/structural-check.sh
-- Ramification: If we say a behavior is required but no prompt, hook, test, automation, or structural check makes it happen, you can't trust the system to do what we promise.
-- Suspected pattern: Claims about expected behavior drift from actual wiring.
-- Recommended fix: When a workflow depends on a behavior, point at the trigger, prompt, hook, test, or structural check that enforces it — and add one if it's missing.
-- Prevention artifacts: automation (required)
-- Requires TDD/review: yes
-- Confidence: high
-- Status: inbox
 ### 8d3cf8846396-don-t-put-backslash-escapes-inside-f-string-expressions
 - Fingerprint: 8d3cf8846396
 - Sources: agent-discovery
@@ -49,38 +33,8 @@
 - Recommended fix: Keep automation prompts file-only. End each report with a one-liner pointing at the user-owned interactive command (e.g. learn live). Audit other batch automations (daily-bug-scan, update-docs) for the same anti-pattern.
 - Prevention artifacts: docs (required), automation (proposed)
 - Confidence: high
-- Status: inbox
-### 627a97bbdbbc-learning-automations-should-act-first-and-use-review-as-calibrat
-- Fingerprint: 627a97bbdbbc
-- Sources: user-feedback
-- Captured: 2026-05-07
-- Source events: None
-- Scope: agent-system
-- User-facing summary: Learning automations should act first and use review as calibration
-- Evidence: You said you don't have time to process a massive learning dashboard every day. You want the automations to use their judgment, make the clear changes, and tell you what happened so you can calibrate later.
-- Technical refs: docs/ai/learning-system.md, .agents/skills/learn/SKILL.md, .codex/automations/daily-learning-triage/automation.toml, .codex/automations/daily-learning-executor/automation.toml, .agents/skills/learn/tests/structural-check.sh
-- Ramification: If the learning system waits on daily human review, it turns into another chore and stops being the hands-off product you asked for.
-- Suspected pattern: Unknown
-- Recommended fix: Make daily triage and executor act by default, cluster from sample-backed evidence, commit successful changes locally, and ask only for true product decisions or risky/blocked work.
-- Prevention artifacts: automation (required), docs (required), test (required)
-- Requires TDD/review: yes
-- Confidence: high
-- Status: inbox
-### 29b7632b5c3b-learning-automations-should-work-around-baseline-dirt
-- Fingerprint: 29b7632b5c3b
-- Sources: user-feedback
-- Captured: 2026-05-07
-- Source events: None
-- Scope: agent-system
-- User-facing summary: Learning automations should work around baseline dirt
-- Evidence: You clarified that your repos will often have dirty files, so daily automations should not stop just because the checkout is dirty. They should leave pre-existing dirty files untouched, do non-overlapping work, and commit only their own changes.
-- Technical refs: docs/ai/learning-system.md, .agents/skills/learn/SKILL.md, .codex/automations/daily-learning-triage/automation.toml, .codex/automations/daily-learning-executor/automation.toml, .agents/skills/learn/tests/structural-check.sh
-- Ramification: If the automation stops on normal local dirt, the hands-off workflow stalls; if it stages the dirt, it can accidentally commit unrelated work you were still editing.
-- Suspected pattern: Unknown
-- Recommended fix: Snapshot baseline dirty paths, avoid touching or staging them, fix verification failures caused by automation changes, and commit the clean automation-owned delta.
-- Prevention artifacts: automation (required), docs (required), test (required)
-- Requires TDD/review: yes
-- Confidence: high
+- Follow-up task: Draft plan requested: Prototype executor parity: add a failing structural check that the executor prompt says not to serve a live dashboard, then add the file-only dashboard sentence to the canonical/live executor automation. Blocked this run because sandbox denied writes to .agents and .codex files.
+- Draft plan: drafts/e4ffe1d2e3a0-plan.md
 - Status: inbox
 
 
