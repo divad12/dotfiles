@@ -8,6 +8,7 @@ AGENTS=.claude/AGENTS.md
 test -f "$SKILL" || { echo "FAIL: learn skill missing"; exit 1; }
 test -f "$DOC" || { echo "FAIL: learning system doc missing"; exit 1; }
 test -f "$AGENTS" || { echo "FAIL: global AGENTS missing"; exit 1; }
+python3 -m py_compile bin/learn
 test ! -e .agents/skills/capture-learning/SKILL.md || { echo "FAIL: capture-learning skill should not exist"; exit 1; }
 grep -q "^name: learn$" "$SKILL" || { echo "FAIL: learn name"; exit 1; }
 grep -q "^user-invocable: true$" "$SKILL" || { echo "FAIL: learn user-invocable"; exit 1; }
@@ -158,6 +159,7 @@ if test -f "$EXECUTOR_AUTOMATION"; then
   grep -q "Do not use.*Executed" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor avoids bare executed report"; exit 1; }
   grep -q "context-switched" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor rehydrates context"; exit 1; }
   grep -q "file paths and technical labels only as receipts" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor uses files as receipts"; exit 1; }
+  grep -q "Do not attempt to serve a live dashboard" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor must stay file-only"; exit 1; }
   ! grep -q "CEO-style summary" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor should not request CEO-style summary"; exit 1; }
   ! grep -q "stop before writing" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor should not stop on baseline dirt"; exit 1; }
   ! grep -q "If verification fails, do not commit" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor should fix own verification failures"; exit 1; }

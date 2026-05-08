@@ -81,3 +81,9 @@ archive: 29b7632b5c3b Done: docs, learn skill, triage/executor prompts, and stru
 - 2026-05-07 executor: regenerated `docs/learnings/dashboard.md` and `docs/learnings/dashboard.html` for dotfiles via `bin/learn --repo "$PWD" dashboard`.
 - 2026-05-07 executor: verification: `git diff --check -- <automation-owned learning paths>` passed.
 - 2026-05-07 executor: verification: `.agents/skills/learn/tests/structural-check.sh` passed against the existing enforced learning contracts.
+decision: archive 8d3cf8846396 Done: the learning structural check now runs python3 -m py_compile bin/learn, so syntax mistakes like backslash escapes inside f-string expressions fail before the dashboard glue ships.
+archive: 8d3cf8846396 Done: the learning structural check now runs python3 -m py_compile bin/learn, so syntax mistakes like backslash escapes inside f-string expressions fail before the dashboard glue ships.
+decision: archive e4ffe1d2e3a0 Done: the learning docs, learn skill, triage prompt, executor prompt, and structural check now keep cron automations file-only; the live dashboard stays user-owned through learn live.
+archive: e4ffe1d2e3a0 Done: the learning docs, learn skill, triage prompt, executor prompt, and structural check now keep cron automations file-only; the live dashboard stays user-owned through learn live.
+decision: archive 88d602ab001f Done: global AGENTS guidance, learning docs, learn skill, triage/executor prompts, and structural checks now require context-rich friendly plain-English reports instead of terse technical bullets.
+archive: 88d602ab001f Done: global AGENTS guidance, learning docs, learn skill, triage/executor prompts, and structural checks now require context-rich friendly plain-English reports instead of terse technical bullets.

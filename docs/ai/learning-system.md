@@ -112,6 +112,11 @@ the scheduler starts separate runs, one per working directory. A run must operat
 on the current working directory only; it must not inspect, report on, write to,
 or regenerate dashboards for sibling configured repos.
 
+Batch automations are file-only. They regenerate `docs/learnings/dashboard.md`
+and `dashboard.html`, then report where those artifacts are. Do not attempt to
+serve a live dashboard from cron automation; the user owns the long-running
+interactive tab through `learn live`.
+
 Do not leave successful automation runs dirty. At the start of each run, inspect
 `git status --short` and snapshot baseline dirty paths. Proceed with useful
 non-overlapping work, but leave baseline dirty files untouched and unstaged. If
@@ -176,7 +181,7 @@ Executor automation runs daily around 9pm unless it already ran after the user s
 8. Ask the user only for true product choices, such as whether a warning should block an action, whether a behavior should change, or which business priority wins. Do not ask the user to choose routine test targets, owner files, or implementation sequence when the evidence makes one path obviously useful.
 9. Leave broad code, architecture, product decisions, global docs, ambiguous evidence, or cross-caller behavior changes for dashboard review only after recording the clearest next prototype or testable slice.
 10. Append plain-English audit lines to `docs/learnings/auto-actions.md`.
-11. Regenerate the dashboard and report execution results grouped by outcome: executed, prototyped, verified, and needs product decision.
+11. Regenerate the static dashboard artifacts without serving a live dashboard, then report execution results grouped by outcome: executed, prototyped, verified, and needs product decision.
 
 If the user says `done` in a dashboard/triage thread, run the executor immediately against the current repo, append a same-day audit marker, and skip the scheduled 9pm executor for that repo.
 
@@ -197,4 +202,5 @@ Weekly review can summarize the daily work, but daily maintenance is the default
 ## Verification
 
 - `python3 -m pytest setup/tests/test_learn_cli.py -q`
+- `python3 -m py_compile bin/learn`
 - `.agents/skills/learn/tests/structural-check.sh`

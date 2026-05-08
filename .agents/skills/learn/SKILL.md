@@ -156,6 +156,10 @@ Daily maintenance is split into Triage automation and Executor automation. Triag
 
 The dashboard is optional calibration, not a daily approval gate. Do not make the user process a large review queue before useful work happens; do your best, commit successful automation changes locally, and report what changed. Existing dirty files are normal: snapshot them, leave them untouched and unstaged, do non-overlapping work, and fix verification failures caused by your own changes before committing. Ask only for true product choices or risky/blocked work.
 
+Batch automations are file-only: regenerate `docs/learnings/dashboard.md` and
+`dashboard.html`, but do not try to serve a live dashboard from cron. The user
+owns the long-running interactive tab through `learn live`.
+
 Automation reports should be friendly plain-English summaries, not corporate
 shorthand. Include enough context for each unrelated item that the user can tell
 what problem it came from, why it mattered, and what changed without opening the
