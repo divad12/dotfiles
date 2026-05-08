@@ -54,6 +54,32 @@ git commit
 Do not rewrite published/shared branch history silently. If rewriting would
 surprise someone else, tell the user the ramification and ask first.
 
+## Worktree Recovery
+
+When work has accidentally landed in the main checkout, resist the reflex to
+create another worktree. First, check whether a clean, suitable worktree
+already exists:
+
+```bash
+git worktree list
+```
+
+If an existing worktree has no branch-only commits and is otherwise clean,
+prefer it over creating a new one:
+
+1. Checkpoint the accidental work on the main checkout (commit to a throwaway
+   branch or stash).
+2. Fast-forward the existing worktree's branch to the target:
+   ```bash
+   git -C <worktree-path> fetch origin <target>
+   git -C <worktree-path> checkout <target>
+   ```
+3. Cherry-pick or re-apply the checkpointed work there.
+
+Creating a new worktree when a clean one already exists adds sprawl and
+leaves abandoned branches. A clean existing worktree is the safest landing
+zone after recovering from accidental main-checkout edits.
+
 ## The Merge Workflow
 
 When the user says "merge" or uses the `/merge` skill:
