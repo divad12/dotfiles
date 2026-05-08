@@ -24,6 +24,7 @@ grep -q "git diff --cached > /tmp/deep-review-staged.patch" "$SKILL" || { echo "
 
 grep -qi "Reviewed by:.*independent reviewer" "$SKILL" || { echo "FAIL: summary uses dynamic independent reviewer"; exit 1; }
 grep -qi "Re-run the same independent reviewer" "$SKILL" || { echo "FAIL: verification uses same reviewer selection"; exit 1; }
+grep -q "you are now a senior dev and you think the code you just wrote sucks hard. why?" "$SKILL" || { echo "FAIL: senior-dev adversarial self-review prompt"; exit 1; }
 grep -q "^## Learning Closeout$" "$SKILL" || { echo "FAIL: learning closeout section"; exit 1; }
 grep -q "last five active learnings" "$SKILL" || { echo "FAIL: recent learning duplicate check"; exit 1; }
 grep -q "same-session" "$SKILL" || { echo "FAIL: same-session learning duplicate check"; exit 1; }

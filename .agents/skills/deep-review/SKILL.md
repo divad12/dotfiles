@@ -73,6 +73,10 @@ Analyze the diff yourself. Focus on:
 
 Use `git diff` (for uncommitted) or `git diff main...HEAD` (for branch) to read the actual changes.
 
+Adversarial self-review prompt: before accepting the diff, ask exactly:
+"you are now a senior dev and you think the code you just wrote sucks hard. why?"
+Treat the answer as review evidence, not as self-deprecation.
+
 #### Review 1.5: Rule compliance audit (run inline, CRITICAL)
 
 **Why this exists:** The agent that wrote the code and the agent reviewing it share the same context window. Rules read at session start fade as context fills. This review step re-reads project rules with fresh eyes and systematically checks the diff against them.
