@@ -185,6 +185,55 @@ class AskInternAuditTest(unittest.TestCase):
         self.assertIn("src/large.ts", result.stdout)
         self.assertNotIn("screenshot.png", result.stdout)
 
+    def test_filters_session_records_by_record_timestamp_not_only_file_mtime(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            events = tmpdir / "events.tsv"
+            now = time.time()
+            old_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now - 3 * 24 * 60 * 60))
+            recent_iso = time.strftime("%Y-%m-%dT%H:%M:%SZ", time.gmtime(now))
+            events.write_text(
+                "timestamp\tsource\tstatus\treason\tmodel\tfile_count\ttarget\tlatency_s\tcwd\tfiles\tinvocation\n",
+                encoding="utf-8",
+            )
+            session = tmpdir / "recently-touched-old-session.jsonl"
+            session.write_text(
+                "\n".join(
+                    [
+                        json_line({"timestamp": old_iso, "type": "response_item", "payload": {"type": "function_call", "name": "exec_command", "arguments": "{\"cmd\":\"cat src/old-a.ts\"}"}}),
+                        json_line({"timestamp": old_iso, "type": "response_item", "payload": {"type": "function_call", "name": "exec_command", "arguments": "{\"cmd\":\"cat src/old-b.ts\"}"}}),
+                        json_line({"timestamp": old_iso, "type": "response_item", "payload": {"type": "function_call", "name": "exec_command", "arguments": "{\"cmd\":\"cat src/old-c.ts\"}"}}),
+                        json_line({"timestamp": recent_iso, "type": "response_item", "payload": {"type": "function_call", "name": "exec_command", "arguments": "{\"cmd\":\"cat src/recent.ts\"}"}}),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            os.utime(session, None)
+
+            result = subprocess.run(
+                [
+                    str(SCRIPT),
+                    "--events",
+                    str(events),
+                    "--log",
+                    str(session),
+                    "--since-days",
+                    "1",
+                    "--min-direct-reads",
+                    "1",
+                ],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("suspicious direct reads: 1", result.stdout)
+        self.assertIn("src/recent.ts", result.stdout)
+        self.assertNotIn("src/old-a.ts", result.stdout)
+
     def test_reports_possible_chunk_read_bypasses_from_guard_logs(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)
@@ -229,6 +278,59 @@ class AskInternAuditTest(unittest.TestCase):
         self.assertIn("possible chunk-read bypasses: 1", result.stdout)
         self.assertIn("/repo/src/app.tsx", result.stdout)
         self.assertNotIn("/repo/docs/plan.md", result.stdout)
+
+    def test_reports_raw_git_diff_reads_without_ask_intern(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            events = tmpdir / "events.tsv"
+            now = time.strftime("%Y-%m-%d %H:%M:%S")
+            events.write_text(
+                "timestamp\tsource\tstatus\treason\tmodel\tfile_count\ttarget\tlatency_s\tcwd\tfiles\tinvocation\n",
+                encoding="utf-8",
+            )
+            missed = tmpdir / "diff-missed.jsonl"
+            missed.write_text(
+                "\n".join(
+                    [
+                        json_line({"timestamp": now, "type": "response_item", "payload": {"type": "function_call", "name": "exec_command", "arguments": "{\"cmd\":\"git diff -- src/a.ts | sed -n '1,260p'\"}"}}),
+                        json_line({"timestamp": now, "type": "response_item", "payload": {"type": "function_call", "name": "exec_command", "arguments": "{\"cmd\":\"git diff -- src/b.ts\"}"}}),
+                        json_line({"timestamp": now, "type": "response_item", "payload": {"type": "function_call", "name": "exec_command", "arguments": "{\"cmd\":\"git diff -- src/tiny.ts | head -40\"}"}}),
+                        json_line({"timestamp": now, "type": "response_item", "payload": {"type": "function_call", "name": "exec_command", "arguments": "{\"cmd\":\"git diff --stat\"}"}}),
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+            delegated = tmpdir / "diff-delegated.jsonl"
+            delegated.write_text(
+                json_line({"timestamp": now, "type": "response_item", "payload": {"type": "function_call", "name": "exec_command", "arguments": "{\"cmd\":\"git diff -- src/c.ts | ask-intern 'summarize'\"}"}})
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    str(SCRIPT),
+                    "--events",
+                    str(events),
+                    "--log",
+                    str(missed),
+                    "--log",
+                    str(delegated),
+                    "--since-days",
+                    "1",
+                ],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("possible raw diff missed delegations: 2", result.stdout)
+        self.assertIn("diff-missed.jsonl: 2 raw diff reads, no ask-intern", result.stdout)
+        self.assertIn("src/a.ts", result.stdout)
+        self.assertNotIn("src/c.ts", result.stdout)
 
     def test_reports_slow_calls_and_abandoned_attempts(self):
         with tempfile.TemporaryDirectory() as tmp:

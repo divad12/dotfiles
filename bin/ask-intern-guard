@@ -34,13 +34,28 @@ CONTROL_MARKER_SCAN_LINES = 40
 READ_COMMANDS = {"cat", "head", "tail", "nl"}
 INSTRUCTION_BASENAMES = {"AGENTS.md", "CLAUDE.md", "PROGRESS.md", "SKILL.md"}
 REDIRECT_TARGET_TOKENS = {">", ">>", "1>", "1>>", "2>", "2>>", "&>", "<<", "<<<"}
+BINARY_EXTENSIONS = {
+    ".avif",
+    ".bin",
+    ".gif",
+    ".ico",
+    ".jpeg",
+    ".jpg",
+    ".mov",
+    ".mp4",
+    ".pdf",
+    ".png",
+    ".tar",
+    ".webp",
+    ".zip",
+}
 DIRECT_READ_RE = re.compile(
     r"(^|[;&|]\s*|\b)(cat|head|tail)\s+|"
     r"\bsed\s+-n\b|"
     r"\bnl\s+-ba\b|"
     r"\bpython3?\b.*\b(read_text|open\()",
 )
-SHELL_SEGMENT_RE = re.compile(r"\s*(?:&&|\|\||[;|]|\n)\s*")
+SHELL_SEGMENT_RE = re.compile(r"\s*(?:&&|\|\||[;]|\n)\s*")
 
 
 def config_int(name, default):
@@ -229,10 +244,16 @@ def is_durable_control_doc(path):
     return is_docs_path(path)
 
 
+def is_binary_path(path):
+    return Path(path).suffix.lower() in BINARY_EXTENSIONS
+
+
 def is_exempt_path(path):
     parts = Path(path).parts
     basename = os.path.basename(path)
     if basename in INSTRUCTION_BASENAMES:
+        return True
+    if is_binary_path(path):
         return True
     joined = "/".join(parts)
     if "/docs/ai/" in joined:
@@ -425,6 +446,57 @@ def parse_sed_limit(script):
     return None
 
 
+def next_pipe_index(tokens, start):
+    try:
+        return tokens.index("|", start)
+    except ValueError:
+        return len(tokens)
+
+
+def parse_downstream_sed_limit(tokens, command_index):
+    if "-n" not in tokens[command_index + 1 : command_index + 4]:
+        return None
+    end = next_pipe_index(tokens, command_index + 1)
+    for token in tokens[command_index + 1 : end]:
+        if token == "-n" or token.startswith("-"):
+            continue
+        return parse_sed_limit(token)
+    return None
+
+
+def parse_downstream_wc_limit(tokens, command_index):
+    end = next_pipe_index(tokens, command_index + 1)
+    args = tokens[command_index + 1 : end]
+    if any(token == "-l" or token == "--lines" or (token.startswith("-") and "l" in token) for token in args):
+        return 1
+    return None
+
+
+def downstream_pipeline_line_limit(tokens, command_index):
+    limits = []
+    search_index = command_index + 1
+    while True:
+        try:
+            pipe_index = tokens.index("|", search_index)
+        except ValueError:
+            break
+        if pipe_index + 1 >= len(tokens):
+            break
+        downstream = os.path.basename(tokens[pipe_index + 1])
+        if downstream in {"head", "tail"}:
+            limits.append(parse_head_tail_limit(tokens, pipe_index + 1))
+        elif downstream == "sed":
+            limit = parse_downstream_sed_limit(tokens, pipe_index + 1)
+            if limit is not None:
+                limits.append(limit)
+        elif downstream == "wc":
+            limit = parse_downstream_wc_limit(tokens, pipe_index + 1)
+            if limit is not None:
+                limits.append(limit)
+        search_index = pipe_index + 1
+    return min(limits) if limits else None
+
+
 def extract_segment_read_candidates(segment, cwd):
     try:
         tokens = shlex.split(segment)
@@ -451,8 +523,15 @@ def extract_segment_read_candidates(segment, cwd):
     start = read_index if read_index is not None else sed_index
     command = os.path.basename(tokens[start])
     line_limit = None
+    pipeline_limit = downstream_pipeline_line_limit(tokens, start)
     if command in {"head", "tail"}:
         line_limit = parse_head_tail_limit(tokens, start)
+        if pipeline_limit is not None:
+            line_limit = min(line_limit, pipeline_limit)
+        if line_limit <= config_int("ASK_INTERN_GUARD_PROBE_MAX_LINES", DEFAULT_PROBE_MAX_LINES):
+            return []
+    elif pipeline_limit is not None:
+        line_limit = pipeline_limit
         if line_limit <= config_int("ASK_INTERN_GUARD_PROBE_MAX_LINES", DEFAULT_PROBE_MAX_LINES):
             return []
 

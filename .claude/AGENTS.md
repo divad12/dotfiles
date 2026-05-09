@@ -39,6 +39,7 @@ You MUST use `ask-intern` when any rule below applies and no direct-read excepti
 - A non-exception file is over 400 lines.
 - You need broad context from multiple medium/large files.
 - You are reading long logs, diffs, transcripts, generated output, or non-exception documentation for a summary.
+- Before reading raw `git diff` output over ~200 lines, pipe it to `ask-intern` for a first-pass summary; read exact hunks directly afterward.
 - You are drafting boilerplate: tests, config, docstrings, fixtures, sample data, repetitive code, or format conversions.
 
 Build the file list from actual paths (`rg --files` is fine), then use the summary instead of reading those files yourself. If `ask-intern` reports `Cannot read`, correct the paths and retry.

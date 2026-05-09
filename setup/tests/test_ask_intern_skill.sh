@@ -38,6 +38,10 @@ grep -q 'Max 2 sequential `ask-intern` calls' "$AGENTS" || {
   echo "Token Delegation needs chaining guardrail" >&2
   exit 1
 }
+grep -q 'raw `git diff` output' "$AGENTS" || {
+  echo "Token Delegation must explicitly route broad raw git diff output" >&2
+  exit 1
+}
 grep -q 'ask-intern-shaped' "$SETTINGS" || {
   echo "Claude SessionStart ask-intern reminder missing" >&2
   exit 1

@@ -35,6 +35,8 @@ manual_control="$work/manual-verbatim.md"
 full="$work/full.txt"
 codex_out="$work/codex-out.txt"
 commit_msg="$work/cm2.txt"
+image="$work/screenshot.png"
+long_log="$work/long.log"
 mkdir -p "$(dirname "$docs_control")"
 printf 'print("a")\n' >"$small_a"
 printf 'print("b")\n' >"$small_b"
@@ -54,6 +56,8 @@ printf '# Manual queue\n\n- [ ] Read this verbatim\n' >"$manual_control"
 printf 'Test Files  1 passed\nTests  1 passed\n' >"$full"
 printf 'codex review output\n' >"$codex_out"
 printf '' >"$commit_msg"
+printf '' >"$image"
+printf '' >"$long_log"
 i=0
 while [ "$i" -lt 401 ]; do
   printf 'line %s\n' "$i" >>"$large"
@@ -73,9 +77,15 @@ while [ "$i" -lt 401 ]; do
     printf 'edge a %s\n' "$i" >>"$edge_a"
     printf 'edge b %s\n' "$i" >>"$edge_b"
   fi
+  printf 'pixel-ish line %s\n' "$i" >>"$image"
+  printf 'log line %s\n' "$i" >>"$long_log"
   if [ "$i" -lt 88 ]; then
     printf 'page line %s\n' "$i" >>"$small_page"
   fi
+  i=$((i + 1))
+done
+while [ "$i" -lt 1000 ]; do
+  printf 'log line %s\n' "$i" >>"$long_log"
   i=$((i + 1))
 done
 
@@ -133,6 +143,7 @@ if run_hook "$(partial_read_json "$large" s20 500)" >/tmp/guard.out 2>/tmp/guard
   echo "large partial read was not blocked" >&2
   exit 1
 fi
+run_hook "$(read_json "$image" s21)" >/tmp/guard.out 2>/tmp/guard.err
 
 run_hook "$(read_json "$medium_a" s10)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(read_json "$medium_b" s10)" >/tmp/guard.out 2>/tmp/guard.err
@@ -149,6 +160,11 @@ run_hook "$(read_json "$small_page" s13)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(read_json "$medium_a" s11)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(read_json "$medium_b" s11)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(bash_json "wc -l '$small_page'; head -5 '$small_page'; tail -5 '$small_page'" s11)" >/tmp/guard.out 2>/tmp/guard.err
+
+run_hook "$(read_json "$medium_a" s22)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(read_json "$medium_b" s22)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(bash_json "cat '$long_log' | tail -5" s22)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(bash_json "cat '$long_log' | wc -l && tail -80 '$long_log' | head -40" s22)" >/tmp/guard.out 2>/tmp/guard.err
 
 run_hook "$(read_json "$marked_control" s6)" >/tmp/guard.out 2>/tmp/guard.err
 

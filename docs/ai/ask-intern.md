@@ -109,7 +109,7 @@ After `--target`, review the output and edit only what needs fixing.
 - The read-guard log records every catch with reason, paths, inferred agent source (`claude`, `codex`, or `unknown`), source tool, original hook input (`Read` `file_path`/`offset`/`limit` or Bash `command`), and computed line/count estimates when available.
 - Source is inferred from `ASK_INTERN_SOURCE`, agent-specific environment variables, working directory, and process ancestry; old rows are backfilled from `cwd` when obvious and otherwise remain `unknown`.
 - The invocation field may include prompt text. Keep this while tuning adoption, then remove or redact it once common failure modes are understood.
-- `ask-intern-audit` flags likely over-delegation patterns such as exact/verbatim-code prompts, single small-file calls, and docs/control-only calls. It filters docs/control/generated/temp/binary reads and also reports possible chunk-read bypasses when one session reads the same non-exempt file in repeated large chunks. Exact source text should come from direct small reads or narrow snippets, not from `ask-intern`.
+- `ask-intern-audit` flags likely over-delegation patterns such as exact/verbatim-code prompts, single small-file calls, and docs/control-only calls. It filters docs/control/generated/temp/binary reads and also reports possible raw-diff misses and possible chunk-read bypasses when one session reads the same non-exempt file in repeated large chunks. Exact source text should come from direct small reads or narrow snippets, not from `ask-intern`.
 - `ask-intern` hard-denies exact/verbatim source requests before any API call and logs `exact_source_request`; the matcher is negation-aware, so prompts like "do not quote exact code" are allowed. Use direct `rg`/`sed`/narrow `Read` snippets for exact text; set `--allow-exact-source` or `ASK_INTERN_ALLOW_EXACT_SOURCE=1` only for deliberate manual debugging.
 - `ask-intern` hard-denies broad review-shaped requests that are likely to time out before any API call and logs `high_risk_review`. This targets prompts like "review this uncommitted diff" or "deep-review this patch" when paired with a large piped diff or too many files. Split these into subsystem-sized reviews: one diff slice or about 3-5 related files per call. Use `--allow-broad-review` or `ASK_INTERN_ALLOW_BROAD_REVIEW=1` only for deliberate manual debugging.
 - Successful read-mode calls print a short stderr reminder that exact code and line numbers should come from direct narrow snippets after the summary.
@@ -139,6 +139,7 @@ ask-intern-audit --since-days 1 --slow-call-seconds 180
 - `exact_source_request` failures where the prompt said not to quote exact code.
 - `high_risk_review` failures where the guard correctly asked the agent to split a broad review, or where the thresholds are too aggressive.
 - `read-guard` blocks on docs/control files, small exact snippets, or generated/temp files that should be exempt.
+- Raw `git diff` output read directly for broad review; summarize large diffs through `ask-intern` first, then inspect narrow hunks directly.
 - `possible over-delegations` where the work was a single small file, docs/control-only, or needed exact text rather than a summary.
 - `slow/hang-shaped calls` where the prompt or file set should be narrowed, or where the timeout should remain capped.
 - `abandoned attempts` where an agent probably killed or interrupted `ask-intern` before it produced a terminal outcome.
@@ -188,7 +189,7 @@ ask-intern daily audit
 - cumulative broad reads over 800 lines across 3+ distinct non-instruction context files, counting only files/ranges of roughly 200+ lines
 - Bash commands that directly read enough file content to cross that cumulative budget
 
-The hook allows small files, narrow `Read` chunks with `offset`/`limit`, and shape probes such as `wc -l` or small `head`/`tail` reads. It ignores required instruction/project documentation files (`AGENTS.md`, `CLAUDE.md`, `PROGRESS.md`, `SKILL.md`, any path segment named `docs`) and resets the session counter when Claude runs `ask-intern`. Tune the cumulative budget with `ASK_INTERN_GUARD_MAX_CUMULATIVE_LINES` and the small-file floor with `ASK_INTERN_GUARD_MIN_CUMULATIVE_FILE_LINES`. Set `ASK_INTERN_GUARD_DISABLED=1` to bypass it, or `ASK_INTERN_GUARD_MODE=warn` to allow reads with an advisory while tuning.
+The hook allows small files, narrow `Read` chunks with `offset`/`limit`, bounded output probes such as `wc -l`, small `head`/`tail`, and `cat file | tail/head/wc` pipelines, plus binary/media reads. It ignores required instruction/project documentation files (`AGENTS.md`, `CLAUDE.md`, `PROGRESS.md`, `SKILL.md`, any path segment named `docs`) and resets the session counter when Claude runs `ask-intern`. Tune the cumulative budget with `ASK_INTERN_GUARD_MAX_CUMULATIVE_LINES` and the small-file floor with `ASK_INTERN_GUARD_MIN_CUMULATIVE_FILE_LINES`. Set `ASK_INTERN_GUARD_DISABLED=1` to bypass it, or `ASK_INTERN_GUARD_MODE=warn` to allow reads with an advisory while tuning.
 
 Direct-read control docs are exempt because summarizing them can lose execution order or exact instructions:
 

@@ -15,6 +15,7 @@ import shlex
 import sys
 import time
 from collections import Counter, defaultdict
+from datetime import datetime
 from pathlib import Path
 
 
@@ -33,6 +34,17 @@ DIRECT_READ_RE = re.compile(
     r"\bnl\s+-ba\b",
 )
 ASK_INTERN_RE = re.compile(r"(^|[\s/])ask-intern(\s|$)")
+DIFF_SUMMARY_FLAGS = {
+    "--check",
+    "--exit-code",
+    "--name-only",
+    "--name-status",
+    "--numstat",
+    "--quiet",
+    "--shortstat",
+    "--stat",
+    "--summary",
+}
 EXACT_PROMPT_RE = re.compile(
     r"\b(verbatim|exact lines?|line numbers?|quote exact|exact code|complete source|full source|exact contents|print exact)\b",
     re.IGNORECASE,
@@ -120,6 +132,36 @@ def event_epoch(timestamp):
         return time.mktime(time.strptime(timestamp, "%Y-%m-%d %H:%M:%S"))
     except (TypeError, ValueError):
         return 0
+
+
+def iso_epoch(value):
+    if not isinstance(value, str) or not value:
+        return 0
+    normalized = value.replace("Z", "+00:00")
+    try:
+        return datetime.fromisoformat(normalized).timestamp()
+    except ValueError:
+        return 0
+
+
+def record_epoch(record):
+    for key in ("timestamp", "created_at"):
+        parsed = iso_epoch(record.get(key))
+        if parsed:
+            return parsed
+    numeric_ts = record.get("ts")
+    if isinstance(numeric_ts, (int, float)):
+        return float(numeric_ts)
+    payload = record.get("payload")
+    if isinstance(payload, dict):
+        for key in ("timestamp", "created_at"):
+            parsed = iso_epoch(payload.get(key))
+            if parsed:
+                return parsed
+        started_at = payload.get("started_at")
+        if isinstance(started_at, (int, float)):
+            return float(started_at)
+    return 0
 
 
 def load_events(path, since_days=None):
@@ -400,6 +442,56 @@ def direct_read_paths(command):
     return paths
 
 
+def command_groups_preserve_pipes(command):
+    return [segment.strip() for segment in re.split(r"\s*(?:&&|\|\||;|\n)\s*", command) if segment.strip()]
+
+
+def git_diff_segments(command):
+    for segment in command_groups_preserve_pipes(command):
+        tokens = shell_tokens(segment)
+        for index, token in enumerate(tokens):
+            if os.path.basename(token) != "git":
+                continue
+            arg_index = index + 1
+            while arg_index < len(tokens):
+                arg = tokens[arg_index]
+                if arg == "-C" and arg_index + 1 < len(tokens):
+                    arg_index += 2
+                    continue
+                if arg == "-c" and arg_index + 1 < len(tokens):
+                    arg_index += 2
+                    continue
+                if arg.startswith("-c"):
+                    arg_index += 1
+                    continue
+                break
+            if arg_index < len(tokens) and tokens[arg_index] == "diff":
+                args = []
+                for arg in tokens[arg_index + 1 :]:
+                    if arg == "|":
+                        break
+                    args.append(arg)
+                yield segment, args
+
+
+def is_raw_git_diff_command(command):
+    for segment, args in git_diff_segments(command):
+        if any(arg in DIFF_SUMMARY_FLAGS for arg in args):
+            continue
+        if is_bounded_diff_segment(segment):
+            continue
+        return True
+    return False
+
+
+def is_bounded_diff_segment(segment, max_lines=200):
+    if "|" not in segment:
+        return False
+    if re.search(r"\|\s*wc\s+(?:-[A-Za-z]*l[A-Za-z]*|--lines)\b", segment):
+        return True
+    return is_narrow_direct_read_command(segment, max_lines=max_lines)
+
+
 def is_narrow_direct_read_command(command, max_lines=200):
     if command.startswith("Read "):
         return False
@@ -512,10 +604,11 @@ def is_exempt_direct_read_path(path):
     return False
 
 
-def scan_log(path):
+def scan_log(path, cutoff=None):
     result = {
         "ask_intern": 0,
         "direct_reads": [],
+        "raw_diffs": [],
     }
     try:
         lines = path.read_text(errors="ignore").splitlines()
@@ -528,10 +621,15 @@ def scan_log(path):
             record = json.loads(line)
         except json.JSONDecodeError:
             continue
+        timestamp = record_epoch(record)
+        if cutoff is not None and timestamp and timestamp < cutoff:
+            continue
         for command, _cwd in command_values(record):
             if ASK_INTERN_RE.search(command):
                 result["ask_intern"] += 1
                 delegated_seen = True
+            if is_raw_git_diff_command(command) and not ASK_INTERN_RE.search(command):
+                result["raw_diffs"].append(command)
             if DIRECT_READ_RE.search(command) and not ASK_INTERN_RE.search(command):
                 if delegated_seen and is_narrow_direct_read_command(command):
                     continue
@@ -604,17 +702,25 @@ def main():
     logs = discover_logs(args.log, log_roots, since_days=args.since_days)
 
     total_direct_reads = 0
+    total_raw_diffs = 0
     top_paths = Counter()
     missed_sessions = []
+    raw_diff_sessions = []
+
+    cutoff = time.time() - (args.since_days * 24 * 60 * 60) if args.since_days is not None else None
 
     for log_path in logs:
-        scan = scan_log(log_path)
+        scan = scan_log(log_path, cutoff=cutoff)
         direct_reads = scan["direct_reads"]
+        raw_diffs = scan["raw_diffs"]
         total_direct_reads += len(direct_reads)
+        total_raw_diffs += len(raw_diffs)
         for _command, path in direct_reads:
             top_paths[path] += 1
         if len(direct_reads) >= args.min_direct_reads and scan["ask_intern"] == 0:
             missed_sessions.append((log_path, len(direct_reads), [path for _cmd, path in direct_reads[:5]]))
+        if raw_diffs and scan["ask_intern"] == 0:
+            raw_diff_sessions.append((log_path, len(raw_diffs), raw_diffs[:3]))
 
     print("ask-intern audit")
     print(f"events file: {Path(args.events).expanduser()}")
@@ -644,6 +750,11 @@ def main():
         print(f"session log window: last {args.since_days:g} days")
     print(f"session logs scanned: {len(logs)}")
     print(f"suspicious direct reads: {total_direct_reads}")
+    print(f"possible raw diff missed delegations: {total_raw_diffs}")
+    for path, count, examples in raw_diff_sessions[: args.top]:
+        print(f"- {path}: {count} raw diff reads, no ask-intern")
+        for example in examples:
+            print(f"  sample command: {short_command(example, 160)}")
     if top_paths:
         print("top direct-read paths:")
         for path, count in top_paths.most_common(args.top):
