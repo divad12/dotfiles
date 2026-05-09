@@ -5,7 +5,7 @@
 ## Contract
 
 - Make the learning system feel like a product, not a CLI. Only three user-facing front doors are normal: `/learn`, `/dashboard`, and `/learn-init`.
-- Captured entries must read like a teammate explaining what happened, not a crime report. Never write "User …" / "The user …"; address the reader directly ("you", "we", or just the situation), use everyday verbs, and state ramifications as concrete consequences. Concrete voice examples live in `docs/ai/learning-report-voice.md`.
+- Captured entries must read like a teammate explaining what happened, not a crime report. Never write "User …" / "The user …"; address the reader directly ("you", "we", or just the situation), use everyday verbs, and state ramifications as concrete consequences. Full voice rules and contrast examples live in `.agents/skills/learn/SKILL.md` under "Voice".
 - Treat the global `learn --repo <repo>` command as hidden glue for agents and automations. Do not assume every participating repo has repo-local `bin/learn`, and do not teach the user to operate `capture`, `promote`, `execute`, or `check-merge` unless they ask for internals.
 - Keep the canonical store in `docs/learnings/`. Raw evidence can be noisy; hot context and promoted guidance must stay curated.
 - Use agents for judgment: clustering, abstraction, calibration, destination choice, and deciding whether the next guardrail is clear enough to implement.
@@ -150,6 +150,15 @@ from the durable dotfiles master checkout, not from a temporary feature
 worktree. They may also read a repo-local `docs/ai/learning-system.md` as a
 supplement for the current cwd.
 
+Repo-specific automation TOMLs should stay tiny: they provide id, name,
+schedule, cwd, model, and the repo label only. The shared operational prompt
+lives in `.codex/automations/learning-maintenance-prompt.md`. Do not copy that
+prompt body into the repo-specific automation files, because the two runs should
+not drift just because one says Journology and the other says dotfiles. Name the
+folders after what they do, such as `journology-learning-maintenance` and
+`dotfiles-learning-maintenance`; old triage/executor names are misleading now
+that each run does both.
+
 ### Reporting style
 
 Maintenance reports should read like a teammate explaining what happened, not a
@@ -173,8 +182,11 @@ thing instead: test, helper, docs update, check, or "the thing that stops this
 from happening again." If the technical phrase is still needed in a file format
 or command, keep it there and translate it before speaking to the user.
 
-Read `docs/ai/learning-report-voice.md` for the canonical concrete examples.
-Do not duplicate those examples in this doc, skill files, or automation prompts.
+Concrete voice target:
+
+> Bad: "Async status summaries now have a clearer rule: chips, banners, and callouts that depend on multiple async inputs should show a neutral loading/unknown state until all inputs that can change the conclusion have resolved. That prevents brief 'no groups' or missing-warning states that make architects distrust the header. Receipt:"
+>
+> Good: "Some of these little status labels were speaking too soon. They'd say 'no groups' or hide a warning while the page was still loading the rest of the data, which makes the header feel flaky even if it fixes itself a second later. I changed them so they basically say 'still checking...' until the actual data has loaded, then they give the real answer."
 
 ### Maintenance Sweep
 
@@ -222,6 +234,7 @@ same work.
 - `docs/learnings/dashboard.md` and `docs/learnings/dashboard.html` - generated review surfaces.
 - `docs/learnings/calibration.md` - user taste about abstraction, automation, artifact choice, and wording.
 - `docs/learnings/auto-actions.md` - audit trail for automation and executor actions.
+- `.codex/automations/learning-maintenance-prompt.md` - shared scheduled-maintenance prompt used by repo-specific automation wrappers.
 - `.agents/skills/learn/SKILL.md` - capture front door.
 - `.agents/skills/dashboard/SKILL.md` - review front door.
 - `.agents/skills/learn-init/SKILL.md` - initialization front door.

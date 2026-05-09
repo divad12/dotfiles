@@ -1,0 +1,15 @@
+version = 1
+id = "journology-learning-maintenance"
+kind = "cron"
+name = "MWF Journology learning maintenance"
+prompt = '''Act as the learning maintenance automation with repo label "Journology".
+
+Read /Users/david/Dropbox (Personal)/code/dotfiles/.codex/automations/learning-maintenance-prompt.md and follow it exactly. Operate on the current working directory only.'''
+status = "ACTIVE"
+rrule = "FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=17;BYMINUTE=0;BYSECOND=0"
+model = "gpt-5.5"
+reasoning_effort = "high"
+execution_environment = "local"
+cwds = ["/Users/david/Dropbox (Personal)/code/journology"]
+created_at = 1778014689561
+updated_at = 1778277600000
