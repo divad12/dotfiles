@@ -8,7 +8,7 @@
 - Captured entries must read like a teammate explaining what happened, not a crime report. Never write "User …" / "The user …"; address the reader directly ("you", "we", or just the situation), use everyday verbs, and state ramifications as concrete consequences. Full voice rules and contrast examples live in `.agents/skills/learn/SKILL.md` under "Voice".
 - Treat the global `learn --repo <repo>` command as hidden glue for agents and automations. Do not assume every participating repo has repo-local `bin/learn`, and do not teach the user to operate `capture`, `promote`, `execute`, or `check-merge` unless they ask for internals.
 - Keep the canonical store in `docs/learnings/`. Raw evidence can be noisy; hot context and promoted guidance must stay curated.
-- Use agents for judgment: clustering, abstraction, calibration, destination choice, and deciding whether a prevention artifact is clear enough to implement.
+- Use agents for judgment: clustering, abstraction, calibration, destination choice, and deciding whether the next guardrail is clear enough to implement.
 - Use binaries only for boring glue: initializing files, appending structured entries, assigning row IDs, serving the dashboard, recording decisions, safe markdown moves, and checks.
 - Store prevention work as one readable list: `Prevention artifacts: docs (required), test (required), skill (proposed)`. Required artifacts describe the prevention work needed; proposed artifacts are worthwhile ideas to consider. The executor decides what is executable now.
 - Fingerprint matching is not semantic dedupe. It is only a row identity and exact replay guard. Agents do all meaningful duplicate detection, semantic clustering, and pattern formation.
@@ -49,7 +49,7 @@ Pattern:        Validate at the boundary by constraining inputs to valid values
 Principle:      Make invalid user-facing input states unrepresentable
 ```
 
-Write the principle as the main learning. Use the specific incident as evidence, the user-facing consequence as the ramification, and list the prevention artifacts that would stop the issue from recurring.
+Write the principle as the main learning. Use the specific incident as evidence, the user-facing consequence as the ramification, and list the concrete guardrails that would stop the issue from recurring.
 
 When the bug involves a removed field, renamed type, changed response shape, modified helper behavior, changed component props, or another shared surface, climb to the contract level:
 
@@ -67,7 +67,7 @@ The sweet spot is the highest level that still tells a future agent what to do. 
 
 Treat "this should happen" as a warning sign, not a learning. Climb from the specific missing instruction or hook to the class: required behavior must be verified against actual wiring. The learning should name the enforcement surface: trigger phrase, skill text, automation prompt, hook, test, structural check, or code path.
 
-After choosing the principle, ask what would enforce it next time: a regression test, lint rule, schema/contract scan, shared helper, checklist, docs update, skill tweak, or automation. Mark each prevention artifact as required or proposed. If the code surface does not exist yet, docs, skill, or nested-AGENTS updates may be the only executable prevention artifact for now; record the code/test artifact as required and let the executor mark it blocked or follow-up. Triage automation uses this ladder to cluster raw evidence into patterns; executor automation uses the enforcement idea to decide whether a prevention artifact is clear enough to implement.
+After choosing the principle, ask what would enforce it next time: a regression test, lint rule, schema/contract scan, shared helper, checklist, docs update, skill tweak, or automation. Mark each item as required or proposed in the internal learning row. If the code surface does not exist yet, docs, skill, or nested-AGENTS updates may be the only executable work for now; record the code/test item as required and let the executor mark it blocked or follow-up. Triage automation uses this ladder to cluster raw evidence into patterns; executor automation uses the enforcement idea to decide whether the next guardrail is clear enough to implement.
 
 ### Skill and Doc Enforcement
 
@@ -159,9 +159,14 @@ For each item, say:
 4. Where it landed and what was verified.
 5. Whether anything truly needs a decision.
 
-Do not end with `Executed` plus bare technical bullets. File paths, test names,
-and internal labels are receipts, not the explanation. Put the plain-English
-translation first, then the receipt.
+Do not end with `Executed` plus bare technical bullets. Do not call file paths,
+test names, or internal labels "receipts." Explain the actual situation first,
+then put paths and checks after it as supporting details.
+
+Do not say "prevention artifact" in a user-facing report. Say the concrete
+thing instead: test, helper, docs update, check, or "the thing that stops this
+from happening again." If the technical phrase is still needed in a file format
+or command, keep it there and translate it before speaking to the user.
 
 ### Triage automation
 
@@ -174,7 +179,7 @@ For the current repo:
 3. Preserve raw bug samples until there is enough evidence for a natural pattern. Create sample-backed clusters when multiple entries share a class, or when a single high-risk issue has a clear prevention surface. Do not manufacture one guidance line per bug.
 4. Merge duplicates by appending evidence instead of creating more dashboard rows.
 5. Archive obvious test-data-only, stale, or non-durable entries.
-6. Create candidate action notes or draft plans for clear prevention artifacts.
+6. Create candidate action notes or draft plans for clear guardrail work.
 7. Append plain-English audit lines to `docs/learnings/auto-actions.md`.
 8. Do not attempt to serve a live dashboard from automation runs — sandboxed contexts block binding 127.0.0.1, and the live surface is owned by the user. Regenerate `docs/learnings/dashboard.md` and `dashboard.html` and end the report with a one-liner telling the user to run `learn live` in a terminal tab whenever they want to review (the URL stays at `http://127.0.0.1:60000`).
 9. Treat the dashboard as optional calibration. Surface it when it helps, but do not ask for daily review unless a true product decision, risky action, or blocked item needs the user's judgment.
@@ -186,9 +191,9 @@ Executor automation runs daily around 9pm unless it already ran after the user s
 1. Read candidates, auto-action notes, calibration, and any explicit dashboard decisions.
 2. Act by default. Autopick the top one or two next actions from high-confidence evidence. Prefer items that are repeated, recent, user-visible, reversible, and able to prevent several candidate patterns at once.
 3. Execute low-risk docs updates directly when the destination and wording are clear.
-4. For focused tests, lint checks, helper guardrails, or skill tweaks, write the failing test or structural check first, implement the smallest fix, verify, and log the prevention artifact.
+4. For focused tests, lint checks, helper guardrails, or skill tweaks, write the failing test or structural check first, implement the smallest fix, verify, and log what changed.
 5. When a useful fix is too broad for safe code changes, create the smallest concrete prototype, draft plan, characterization test, grep check, or harness checklist that names the owner surface and next verification command. This counts as progress; do not block on asking the user to pick the surface.
-6. Execute required prevention artifacts when they are clear; consider proposed artifacts when they fit the task. If they are code/test/skill/automation work, keep the TDD/review gate.
+6. Execute required guardrail work when it is clear; consider proposed work when it fits the task. If it is code/test/skill/automation work, keep the TDD/review gate.
 7. Use subagents for independent implementation, review, or verification work when there are disjoint files or clearly separable questions.
 8. Ask the user only for true product choices, such as whether a warning should block an action, whether a behavior should change, or which business priority wins. Do not ask the user to choose routine test targets, owner files, or implementation sequence when the evidence makes one path obviously useful.
 9. Leave broad code, architecture, product decisions, global docs, ambiguous evidence, or cross-caller behavior changes for dashboard review only after recording the clearest next prototype or testable slice.
@@ -202,7 +207,7 @@ Weekly review can summarize the daily work, but daily maintenance is the default
 ## Canonical Files
 
 - `docs/learnings/inbox.md` - raw and active learnings.
-- `docs/learnings/candidates.md` - reviewed/promoted candidate prevention work.
+- `docs/learnings/candidates.md` - reviewed/promoted follow-up work.
 - `docs/learnings/dashboard.md` and `docs/learnings/dashboard.html` - generated review surfaces.
 - `docs/learnings/calibration.md` - user taste about abstraction, automation, artifact choice, and wording.
 - `docs/learnings/auto-actions.md` - audit trail for automation and executor actions.

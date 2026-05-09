@@ -63,6 +63,9 @@ grep -q "durable dotfiles master checkout" "$DOC" || { echo "FAIL: learning auto
 grep -q "context-switched" "$DOC" || { echo "FAIL: learning doc context-rehydrating reports"; exit 1; }
 grep -q "same shared calculation" "$DOC" || { echo "FAIL: learning doc translates jargon labels"; exit 1; }
 grep -q "not terse corporate shorthand" "$DOC" || { echo "FAIL: learning doc rejects corporate shorthand"; exit 1; }
+grep -q 'Do not say "prevention artifact" in a user-facing report' "$DOC" || { echo "FAIL: learning doc bans internal artifact label in reports"; exit 1; }
+grep -q "Do not call file paths" "$DOC" || { echo "FAIL: learning doc bans receipt label"; exit 1; }
+grep -q "receipts" "$DOC" || { echo "FAIL: learning doc names banned receipt label"; exit 1; }
 grep -q "Prevention artifacts: docs (required), test (required), skill (proposed)" "$DOC" || { echo "FAIL: learning doc prevention artifacts"; exit 1; }
 grep -q "Skill and Doc Enforcement" "$DOC" || { echo "FAIL: skill/doc enforcement contract"; exit 1; }
 grep -q "automatically loads the rule before implementation" "$DOC" || { echo "FAIL: automatic skill enforcement rationale"; exit 1; }
@@ -143,7 +146,8 @@ if test -f "$TRIAGE_AUTOMATION"; then
   grep -q "friendly plain-English summary" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage plain-English reporting"; exit 1; }
   grep -q "Do not use.*Executed" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage avoids bare executed report"; exit 1; }
   grep -q "context-switched" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage rehydrates context"; exit 1; }
-  grep -q "file paths and technical labels only as receipts" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage uses files as receipts"; exit 1; }
+  grep -q 'Do not say "receipt" or "prevention artifact"' "$TRIAGE_AUTOMATION" || { echo "FAIL: triage bans internal labels in user report"; exit 1; }
+  grep -q "supporting details" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage puts technical details after explanation"; exit 1; }
   ! grep -q "stop before writing" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage should not stop on baseline dirt"; exit 1; }
   ! grep -q "For each configured repo" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage must not loop configured repos"; exit 1; }
 fi
@@ -165,7 +169,8 @@ if test -f "$EXECUTOR_AUTOMATION"; then
   grep -q "friendly plain-English summary" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor plain-English reporting"; exit 1; }
   grep -q "Do not use.*Executed" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor avoids bare executed report"; exit 1; }
   grep -q "context-switched" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor rehydrates context"; exit 1; }
-  grep -q "file paths and technical labels only as receipts" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor uses files as receipts"; exit 1; }
+  grep -q 'Do not say "receipt" or "prevention artifact"' "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor bans internal labels in user report"; exit 1; }
+  grep -q "supporting details" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor puts technical details after explanation"; exit 1; }
   grep -q "Do not attempt to serve a live dashboard" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor must stay file-only"; exit 1; }
   ! grep -q "CEO-style summary" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor should not request CEO-style summary"; exit 1; }
   ! grep -q "stop before writing" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor should not stop on baseline dirt"; exit 1; }

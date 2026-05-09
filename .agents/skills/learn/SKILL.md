@@ -48,9 +48,13 @@ Use the same voice for daily automation reports. Assume the reader has
 context-switched from something unrelated. Do not write `Executed` and then a
 stack of bare file-change bullets. For each unrelated item, explain the problem
 or pattern that prompted it, what changed in ordinary language, why it helps,
-and then the file/test names as receipts. Translate internal labels first:
+and then the file/test names as supporting details. Do not call those details
+"receipts." Translate internal labels first:
 "make every UI counter use the same shared calculation" is useful context;
 "shared-count/source-boundary rule" is only a shorthand after that.
+Do not say "prevention artifact" in user-facing summaries; say the concrete
+thing instead: test, helper, docs update, check, or "the thing that stops this
+from happening again."
 
 #### Reference samples
 
@@ -87,6 +91,8 @@ Real entries already in the canonical voice. Match this shape and rhythm — the
 - "Users have to / Users may" → name **the user** or **we**, with a concrete consequence.
 - "Should be configured / Could lead to" → say what actually happens: "if we skip this, the merge lands without X."
 - Generic stakes ("this could cause confusion") → specific stakes ("you'll trust a green checkmark on a build that was actually red").
+- "Receipt" → say "details", "files changed", "tests run", or just put the path after the explanation.
+- "Prevention artifact" → say "test", "helper", "docs update", "check", or "what stops this from happening again."
 - Buzzword verbs (utilize, leverage, ensure, facilitate) → plain ones (use, lean on, make sure, help).
 - Treating the recommended fix as a synopsis of evidence — it's an instruction. Start with a verb the future agent can act on: *Move*, *Add*, *Trace*, *Always invoke*, *Re-run*.
 
@@ -156,7 +162,7 @@ Guardrail pills must show current artifact state too: done, required, or propose
 
 ## Agentic Maintenance
 
-Daily maintenance is split into Triage automation and Executor automation. Triage runs around 5pm: it clusters new learnings when the samples support a natural pattern, merges duplicate evidence, archives obvious junk, and prepares candidate actions. Executor runs around 9pm: it acts by default on high-confidence narrow work, updates low-risk docs, or implements focused prevention artifacts when it can follow TDD/review.
+Daily maintenance is split into Triage automation and Executor automation. Triage runs around 5pm: it clusters new learnings when the samples support a natural pattern, merges duplicate evidence, archives obvious junk, and prepares candidate actions. Executor runs around 9pm: it acts by default on high-confidence narrow work, updates low-risk docs, or implements focused guardrail work when it can follow TDD/review.
 
 The dashboard is optional calibration, not a daily approval gate. Do not make the user process a large review queue before useful work happens; do your best, commit successful automation changes locally, and report what changed. Existing dirty files are normal: snapshot them, leave them untouched and unstaged, do non-overlapping work, and fix verification failures caused by your own changes before committing. Ask only for true product choices or risky/blocked work.
 
@@ -173,7 +179,7 @@ If the user says `done` after reviewing the triage dashboard, run executor autom
 
 Executor automation should use subagents for independent implementation, review, or verification slices with disjoint file ownership. It should log every action in `docs/learnings/auto-actions.md`.
 
-The executor can apply archive, candidate, promote, confidence, prevention-artifact, prevention-artifacts, note, calibration, defer, block, revise-wording, follow-up, draft-plan, and draft-patch decisions. It should plan or execute required prevention artifacts when they are clear enough and consider proposed artifacts when they fit the task. Draft decisions write `docs/learnings/drafts/<fingerprint>-plan.md` and `docs/learnings/drafts/<fingerprint>-patch.md`.
+The executor can apply archive, candidate, promote, confidence, prevention-artifact, prevention-artifacts, note, calibration, defer, block, revise-wording, follow-up, draft-plan, and draft-patch decisions. It should plan or execute required guardrail work when it is clear enough and consider proposed work when it fits the task. Draft decisions write `docs/learnings/drafts/<fingerprint>-plan.md` and `docs/learnings/drafts/<fingerprint>-patch.md`.
 
 Learning-file updates and low-risk docs can be applied directly. Code, shared skill, enforcement, and architecture changes must become TDD/review tasks or focused verified changes; never silently edit code and never mark code-related prevention as promoted before tests and required review pass.
 
@@ -185,4 +191,4 @@ At landing checkpoints, agents may use:
 learn --repo "$PWD" check-merge
 ```
 
-Surface high-confidence open items in plain English. If a prevention artifact is missing, ask whether to create it, defer it, or acknowledge landing with a follow-up.
+Surface high-confidence open items in plain English. If a needed guardrail is missing, ask whether to create it, defer it, or acknowledge landing with a follow-up.
