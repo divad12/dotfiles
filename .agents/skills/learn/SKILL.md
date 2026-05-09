@@ -23,6 +23,8 @@ Capture raw evidence broadly, but write the entry at the highest actionable patt
 
 Write captures the way a thoughtful teammate would talk to the user about what just happened. Plain English, direct address, concrete.
 
+Read `reporting-voice.md` for the canonical concrete reporting example. It is a symlink to `docs/ai/learning-report-voice.md` so the skill and reference docs do not drift.
+
 - Address the human directly — "you", "we", or just describe the situation. **Never write "User …" or "The user …"** — that third-person crime-report tone is what makes the dashboard feel like a CLI dump. The only "user" of this learning store is the person reading it.
 - Prefer everyday verbs: "asked" not "questioned why", "said" not "stated", "wanted" not "indicated a desire", "tried X and got Y" not "encountered an unexpected outcome", "noticed" not "noted that".
 - Lead with the situation, then the lesson. Keep technical specifics (file names, commands, error text) verbatim — the voice change is about narration, not removing detail.
@@ -41,10 +43,6 @@ Voice contrast — same evidence, before and after:
 > Bad: "User noted that Codex spawns one executor per cwd, so the Journology executor should not inspect or report on dotfiles."
 >
 > Good: "You noticed Codex spawns one executor per cwd — which means each run has to stay in its own repo and not peek at sibling configured ones."
-
-> Bad: "Async status summaries now have a clearer rule: chips, banners, and callouts that depend on multiple async inputs should show a neutral loading/unknown state until all inputs that can change the conclusion have resolved. That prevents brief 'no groups' or missing-warning states that make architects distrust the header. Receipt:"
->
-> Good: "Some of these little status labels were speaking too soon. They'd say 'no groups' or hide a warning while the page was still loading the rest of the data, which makes the header feel flaky even if it fixes itself a second later. I changed them so they basically say 'still checking...' until the actual data has loaded, then they give the real answer."
 
 If the captured `--summary` / `--evidence` / `--ramification` text reads as third-person bureaucratese, rewrite it before passing it to `learn capture`.
 
