@@ -92,3 +92,9 @@ archive: 88d602ab001f Done: global AGENTS guidance, learning docs, learn skill, 
 - 2026-05-08 triage: regenerated docs/learnings/dashboard.md and docs/learnings/dashboard.html for dotfiles after archiving the already-covered dashboard-card learning.
 - 2026-05-08 triage: verification passed with git diff --check on the automation-owned learning files.
 - 2026-05-08 triage: verification passed with the learning structural check, confirming the dashboard action-status and guardrail-state contracts remain enforced.
+- 2026-05-08 executor: dotfiles run started with baseline dirty path `.claude/settings.json`; left it untouched and unstaged.
+- 2026-05-08 executor: inspected candidates, inbox, calibration, decisions, auto-actions, and note drafts; no active candidate, inbox item, saved dashboard decision, or draft action was waiting for executor work.
+- 2026-05-08 executor: no prevention artifact was executed because there was no high-confidence queued work; creating a new abstraction from an empty queue would add noise rather than prevent a repeated pattern.
+- 2026-05-08 executor: regenerated `docs/learnings/dashboard.md` and `docs/learnings/dashboard.html` for dotfiles via `bin/learn --repo "$PWD" dashboard`.
+- 2026-05-08 executor: verification passed with `git diff --check` on the automation-owned learning paths.
+- 2026-05-08 executor: verification passed with `.agents/skills/learn/tests/structural-check.sh` and `python3 -m py_compile bin/learn`.
