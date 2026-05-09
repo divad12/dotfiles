@@ -42,6 +42,10 @@ Voice contrast — same evidence, before and after:
 >
 > Good: "You noticed Codex spawns one executor per cwd — which means each run has to stay in its own repo and not peek at sibling configured ones."
 
+> Bad: "Async status summaries now have a clearer rule: chips, banners, and callouts that depend on multiple async inputs should show a neutral loading/unknown state until all inputs that can change the conclusion have resolved. That prevents brief 'no groups' or missing-warning states that make architects distrust the header. Receipt:"
+>
+> Good: "Some of these little status labels were speaking too soon. They'd say 'no groups' or hide a warning while the page was still loading the rest of the data, which makes the header feel flaky even if it fixes itself a second later. I changed them so they basically say 'still checking...' until the actual data has loaded, then they give the real answer."
+
 If the captured `--summary` / `--evidence` / `--ramification` text reads as third-person bureaucratese, rewrite it before passing it to `learn capture`.
 
 Use the same voice for daily automation reports. Assume the reader has
@@ -162,7 +166,7 @@ Guardrail pills must show current artifact state too: done, required, or propose
 
 ## Agentic Maintenance
 
-Daily maintenance is split into Triage automation and Executor automation. Triage runs around 5pm: it clusters new learnings when the samples support a natural pattern, merges duplicate evidence, archives obvious junk, and prepares candidate actions. Executor runs around 9pm: it acts by default on high-confidence narrow work, updates low-risk docs, or implements focused guardrail work when it can follow TDD/review.
+Scheduled maintenance is one repo-scoped agent run: it does the triage sweep first, then acts on the clearest useful work, then sends one friendly summary. Dotfiles runs weekly; Journology runs Monday, Wednesday, and Friday while it is changing quickly.
 
 The dashboard is optional calibration, not a daily approval gate. Do not make the user process a large review queue before useful work happens; do your best, commit successful automation changes locally, and report what changed. Existing dirty files are normal: snapshot them, leave them untouched and unstaged, do non-overlapping work, and fix verification failures caused by your own changes before committing. Ask only for true product choices or risky/blocked work.
 
@@ -175,11 +179,11 @@ shorthand. Include enough context for each unrelated item that the user can tell
 what problem it came from, why it mattered, and what changed without opening the
 file first.
 
-If the user says `done` after reviewing the triage dashboard, run executor automation immediately for that repo, append a same-day audit marker, and skip the scheduled 9pm executor for that repo.
+If the user says `done` after reviewing the dashboard, run maintenance immediately for that repo, append a same-day audit marker, and skip the next scheduled maintenance run for that repo if it would only repeat the same work.
 
-Executor automation should use subagents for independent implementation, review, or verification slices with disjoint file ownership. It should log every action in `docs/learnings/auto-actions.md`.
+Maintenance automation should use subagents for independent implementation, review, or verification slices with disjoint file ownership. It should log every action in `docs/learnings/auto-actions.md`.
 
-The executor can apply archive, candidate, promote, confidence, prevention-artifact, prevention-artifacts, note, calibration, defer, block, revise-wording, follow-up, draft-plan, and draft-patch decisions. It should plan or execute required guardrail work when it is clear enough and consider proposed work when it fits the task. Draft decisions write `docs/learnings/drafts/<fingerprint>-plan.md` and `docs/learnings/drafts/<fingerprint>-patch.md`.
+Maintenance can apply archive, candidate, promote, confidence, prevention-artifact, prevention-artifacts, note, calibration, defer, block, revise-wording, follow-up, draft-plan, and draft-patch decisions. It should plan or execute required guardrail work when it is clear enough and consider proposed work when it fits the task. Draft decisions write `docs/learnings/drafts/<fingerprint>-plan.md` and `docs/learnings/drafts/<fingerprint>-patch.md`.
 
 Learning-file updates and low-risk docs can be applied directly. Code, shared skill, enforcement, and architecture changes must become TDD/review tasks or focused verified changes; never silently edit code and never mark code-related prevention as promoted before tests and required review pass.
 

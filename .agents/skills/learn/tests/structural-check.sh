@@ -21,7 +21,8 @@ grep -q "^## Before Merge$" "$SKILL" || { echo "FAIL: Before Merge section"; exi
 grep -q "docs/ai/learning-system.md" "$SKILL" || { echo "FAIL: learning-system reference"; exit 1; }
 grep -q "Only three user-facing front doors" "$SKILL" || { echo "FAIL: three front doors contract"; exit 1; }
 grep -q "/learn.*capture.*dashboard.*learn-init" "$SKILL" || { echo "FAIL: command front doors"; exit 1; }
-grep -q "Daily maintenance is split into Triage automation and Executor automation" "$SKILL" || { echo "FAIL: split automation contract"; exit 1; }
+grep -q "Scheduled maintenance is one repo-scoped agent run" "$SKILL" || { echo "FAIL: combined maintenance contract"; exit 1; }
+grep -q "status labels were speaking too soon" "$SKILL" || { echo "FAIL: concrete voice example in learn skill"; exit 1; }
 grep -q "🧠 Captured learning:" "$SKILL" || { echo "FAIL: capture announcement"; exit 1; }
 grep -q "last five active learnings" "$SKILL" || { echo "FAIL: recent duplicate check"; exit 1; }
 grep -q "same session" "$SKILL" || { echo "FAIL: session duplicate check"; exit 1; }
@@ -48,7 +49,9 @@ grep -q "mark code-related prevention as promoted" "$SKILL" || { echo "FAIL: cod
 grep -q "Only three user-facing front doors" "$DOC" || { echo "FAIL: learning doc front doors"; exit 1; }
 grep -q "The Abstraction Ladder" "$DOC" || { echo "FAIL: abstraction ladder moved to canonical doc"; exit 1; }
 grep -q "Fingerprint matching is not semantic dedupe" "$DOC" || { echo "FAIL: learning doc fingerprint boundary"; exit 1; }
-grep -q "Daily maintenance is split" "$DOC" || { echo "FAIL: learning doc daily automation"; exit 1; }
+grep -q "Learning maintenance is one repo-scoped agent run" "$DOC" || { echo "FAIL: learning doc combined automation"; exit 1; }
+grep -q "Dotfiles runs weekly" "$DOC" || { echo "FAIL: learning doc dotfiles weekly schedule"; exit 1; }
+grep -q "Journology runs Monday, Wednesday, and Friday" "$DOC" || { echo "FAIL: learning doc journology MWF schedule"; exit 1; }
 grep -q "Review is optional calibration, not a daily approval gate" "$DOC" || { echo "FAIL: learning doc hands-off review contract"; exit 1; }
 grep -q "Let abstractions emerge from batches of evidence" "$DOC" || { echo "FAIL: learning doc sample-backed clustering contract"; exit 1; }
 grep -q "Do not manufacture one guidance line per bug" "$DOC" || { echo "FAIL: learning doc no per-bug abstraction churn"; exit 1; }
@@ -57,7 +60,8 @@ grep -q "What changed.*Next.*Blocked" "$DOC" || { echo "FAIL: learning doc reada
 grep -q "Guardrail pills must show artifact state" "$DOC" || { echo "FAIL: learning doc artifact status contract"; exit 1; }
 grep -q "Proposed means optional companion work" "$DOC" || { echo "FAIL: learning doc proposed artifact meaning"; exit 1; }
 grep -q "Use a frontier reasoning parent model" "$DOC" || { echo "FAIL: learning automation model policy"; exit 1; }
-grep -q "gpt-5.5.*high reasoning" "$DOC" || { echo "FAIL: learning automation parent model"; exit 1; }
+grep -q "gpt-5.5" "$DOC" || { echo "FAIL: learning automation parent model"; exit 1; }
+grep -q "high reasoning" "$DOC" || { echo "FAIL: learning automation parent reasoning"; exit 1; }
 grep -q "gpt-5.3-codex" "$DOC" || { echo "FAIL: learning automation subagent model"; exit 1; }
 grep -q "durable dotfiles master checkout" "$DOC" || { echo "FAIL: learning automation canonical checkout"; exit 1; }
 grep -q "context-switched" "$DOC" || { echo "FAIL: learning doc context-rehydrating reports"; exit 1; }
@@ -66,17 +70,17 @@ grep -q "not terse corporate shorthand" "$DOC" || { echo "FAIL: learning doc rej
 grep -q 'Do not say "prevention artifact" in a user-facing report' "$DOC" || { echo "FAIL: learning doc bans internal artifact label in reports"; exit 1; }
 grep -q "Do not call file paths" "$DOC" || { echo "FAIL: learning doc bans receipt label"; exit 1; }
 grep -q "receipts" "$DOC" || { echo "FAIL: learning doc names banned receipt label"; exit 1; }
+grep -q "status labels were speaking too soon" "$DOC" || { echo "FAIL: concrete voice example in learning doc"; exit 1; }
 grep -q "Prevention artifacts: docs (required), test (required), skill (proposed)" "$DOC" || { echo "FAIL: learning doc prevention artifacts"; exit 1; }
 grep -q "Skill and Doc Enforcement" "$DOC" || { echo "FAIL: skill/doc enforcement contract"; exit 1; }
 grep -q "automatically loads the rule before implementation" "$DOC" || { echo "FAIL: automatic skill enforcement rationale"; exit 1; }
 grep -q "write the failing test or structural check first" "$DOC" || { echo "FAIL: learning doc TDD automation"; exit 1; }
-grep -q "Triage automation" "$DOC" || { echo "FAIL: triage automation contract"; exit 1; }
-grep -q "Executor automation" "$DOC" || { echo "FAIL: executor automation contract"; exit 1; }
+grep -q "Maintenance Sweep" "$DOC" || { echo "FAIL: maintenance sweep contract"; exit 1; }
+grep -q "Maintenance Action" "$DOC" || { echo "FAIL: maintenance action contract"; exit 1; }
 grep -q "Use subagents" "$DOC" || { echo "FAIL: subagent automation contract"; exit 1; }
-grep -q "5pm" "$DOC" || { echo "FAIL: triage time contract"; exit 1; }
-grep -q "9pm" "$DOC" || { echo "FAIL: executor time contract"; exit 1; }
 grep -q "If the user says.*done" "$DOC" || { echo "FAIL: done trigger contract"; exit 1; }
-grep -q "skip the scheduled 9pm executor" "$DOC" || { echo "FAIL: skip executor contract"; exit 1; }
+grep -q "same-day audit marker" "$DOC" || { echo "FAIL: skip maintenance marker"; exit 1; }
+grep -q "next scheduled maintenance run" "$DOC" || { echo "FAIL: skip maintenance contract"; exit 1; }
 grep -q "Each cron invocation is repo-scoped" "$DOC" || { echo "FAIL: learning doc repo-scoped automation"; exit 1; }
 grep -q "Do not leave successful automation runs dirty" "$DOC" || { echo "FAIL: learning doc automation git hygiene"; exit 1; }
 grep -q "snapshot baseline dirty paths" "$DOC" || { echo "FAIL: learning doc baseline dirty snapshot"; exit 1; }
@@ -124,58 +128,64 @@ fi
 
 AUTOMATION_HOME="${CODEX_HOME:-$HOME/.codex}/automations"
 CANONICAL_AUTOMATION_HOME=".codex/automations"
-TRIAGE_AUTOMATION="$AUTOMATION_HOME/daily-learning-triage/automation.toml"
-EXECUTOR_AUTOMATION="$AUTOMATION_HOME/daily-learning-executor/automation.toml"
-test -f "$CANONICAL_AUTOMATION_HOME/daily-learning-triage/automation.toml" || { echo "FAIL: triage automation canonical copy missing"; exit 1; }
-test -f "$CANONICAL_AUTOMATION_HOME/daily-learning-executor/automation.toml" || { echo "FAIL: executor automation canonical copy missing"; exit 1; }
+JOURNOLOGY_AUTOMATION="$AUTOMATION_HOME/daily-learning-triage/automation.toml"
+DOTFILES_AUTOMATION="$AUTOMATION_HOME/daily-learning-executor/automation.toml"
+test -f "$CANONICAL_AUTOMATION_HOME/daily-learning-triage/automation.toml" || { echo "FAIL: Journology maintenance automation canonical copy missing"; exit 1; }
+test -f "$CANONICAL_AUTOMATION_HOME/daily-learning-executor/automation.toml" || { echo "FAIL: dotfiles maintenance automation canonical copy missing"; exit 1; }
 grep -q ".codex/automations" symlink.sh || { echo "FAIL: symlink.sh mirrors codex automations"; exit 1; }
-if test -f "$TRIAGE_AUTOMATION"; then
-  test -L "$TRIAGE_AUTOMATION" || { echo "FAIL: triage automation live file should symlink to dotfiles"; exit 1; }
-  grep -q "docs/ai/learning-system.md" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage reads canonical learning doc"; exit 1; }
-  grep -q "Abstraction Ladder" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage applies abstraction ladder"; exit 1; }
-  grep -q "sample-backed clusters" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage clusters from samples"; exit 1; }
-  grep -q "Do not manufacture one guidance line per bug" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage avoids per-bug guidance churn"; exit 1; }
-  grep -q "dashboard is optional calibration" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage treats dashboard as optional"; exit 1; }
-  grep -q "current working directory only" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage scoped to current cwd"; exit 1; }
-  grep -q "git status --short" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage checks dirty worktree"; exit 1; }
-  grep -q "baseline dirty paths" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage snapshots baseline dirt"; exit 1; }
-  grep -q "Do not touch or stage those baseline dirty paths" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage preserves baseline dirt"; exit 1; }
-  grep -q "fix the failure and rerun verification" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage repairs verification failures"; exit 1; }
-  grep -q "create one local commit" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage commits successful changes"; exit 1; }
-  grep -q "Do not push" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage no-push contract"; exit 1; }
-  grep -q "friendly plain-English summary" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage plain-English reporting"; exit 1; }
-  grep -q "Do not use.*Executed" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage avoids bare executed report"; exit 1; }
-  grep -q "context-switched" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage rehydrates context"; exit 1; }
-  grep -q 'Do not say "receipt" or "prevention artifact"' "$TRIAGE_AUTOMATION" || { echo "FAIL: triage bans internal labels in user report"; exit 1; }
-  grep -q "supporting details" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage puts technical details after explanation"; exit 1; }
-  ! grep -q "stop before writing" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage should not stop on baseline dirt"; exit 1; }
-  ! grep -q "For each configured repo" "$TRIAGE_AUTOMATION" || { echo "FAIL: triage must not loop configured repos"; exit 1; }
+if test -f "$JOURNOLOGY_AUTOMATION"; then
+  test -L "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology automation live file should symlink to dotfiles"; exit 1; }
+  grep -q "MWF Journology learning maintenance" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology automation name"; exit 1; }
+  grep -q 'rrule = "FREQ=WEEKLY;BYDAY=MO,WE,FR;BYHOUR=17;BYMINUTE=0;BYSECOND=0"' "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology MWF schedule"; exit 1; }
+  grep -q 'cwds = \["/Users/david/Dropbox (Personal)/code/journology"\]' "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology cwd only"; exit 1; }
+  grep -q "one combined run: first do a triage sweep, then act" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology combines sweep and action"; exit 1; }
+  grep -q "docs/ai/learning-system.md" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology reads canonical learning doc"; exit 1; }
+  grep -q "Abstraction Ladder" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology applies abstraction ladder"; exit 1; }
+  grep -q "sample-backed clusters" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology clusters from samples"; exit 1; }
+  grep -q "Do not manufacture one guidance line per bug" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology avoids per-bug guidance churn"; exit 1; }
+  grep -q "dashboard review" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology does not wait for dashboard"; exit 1; }
+  grep -q "current working directory only" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology scoped to current cwd"; exit 1; }
+  grep -q "git status --short" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology checks dirty worktree"; exit 1; }
+  grep -q "baseline dirty paths" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology snapshots baseline dirt"; exit 1; }
+  grep -q "Do not touch or stage those baseline dirty paths" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology preserves baseline dirt"; exit 1; }
+  grep -q "fix the failure and rerun verification" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology repairs verification failures"; exit 1; }
+  grep -q "create one local commit" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology commits successful changes"; exit 1; }
+  grep -q "Do not push" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology no-push contract"; exit 1; }
+  grep -q "friendly plain-English summary" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology plain-English reporting"; exit 1; }
+  grep -q "Do not use.*Executed" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology avoids bare executed report"; exit 1; }
+  grep -q "context-switched" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology rehydrates context"; exit 1; }
+  grep -q 'Do not say "receipt" or "prevention artifact"' "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology bans internal labels in user report"; exit 1; }
+  grep -q "status labels were speaking too soon" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology includes concrete voice example"; exit 1; }
+  ! grep -q "For each configured repo" "$JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology must not loop configured repos"; exit 1; }
 fi
-if test -f "$EXECUTOR_AUTOMATION"; then
-  test -L "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor automation live file should symlink to dotfiles"; exit 1; }
-  grep -q "docs/ai/learning-system.md" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor reads canonical learning doc"; exit 1; }
-  grep -q "Abstraction Ladder" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor applies abstraction ladder"; exit 1; }
-  grep -q "Act by default" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor hands-off action contract"; exit 1; }
-  grep -q "Do not wait for a daily dashboard review" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor no daily review gate"; exit 1; }
-  grep -q "current working directory only" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor scoped to current cwd"; exit 1; }
-  grep -q "git status --short" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor checks dirty worktree"; exit 1; }
-  grep -q "baseline dirty paths" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor snapshots baseline dirt"; exit 1; }
-  grep -q "Do not touch or stage those baseline dirty paths" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor preserves baseline dirt"; exit 1; }
-  grep -q "fix the failure and rerun verification" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor repairs verification failures"; exit 1; }
-  grep -q "create one local commit" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor commits successful changes"; exit 1; }
-  grep -q "Do not push" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor no-push contract"; exit 1; }
-  grep -q "Autopick the top one or two obvious high-leverage next actions" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor autopicks obvious prevention work"; exit 1; }
-  grep -q "Ask the user only for true product choices" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor avoids micro-decision handoff"; exit 1; }
-  grep -q "friendly plain-English summary" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor plain-English reporting"; exit 1; }
-  grep -q "Do not use.*Executed" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor avoids bare executed report"; exit 1; }
-  grep -q "context-switched" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor rehydrates context"; exit 1; }
-  grep -q 'Do not say "receipt" or "prevention artifact"' "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor bans internal labels in user report"; exit 1; }
-  grep -q "supporting details" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor puts technical details after explanation"; exit 1; }
-  grep -q "Do not attempt to serve a live dashboard" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor must stay file-only"; exit 1; }
-  ! grep -q "CEO-style summary" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor should not request CEO-style summary"; exit 1; }
-  ! grep -q "stop before writing" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor should not stop on baseline dirt"; exit 1; }
-  ! grep -q "If verification fails, do not commit" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor should fix own verification failures"; exit 1; }
-  ! grep -q "For each configured repo" "$EXECUTOR_AUTOMATION" || { echo "FAIL: executor must not loop configured repos"; exit 1; }
+if test -f "$DOTFILES_AUTOMATION"; then
+  test -L "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles automation live file should symlink to dotfiles"; exit 1; }
+  grep -q "Weekly dotfiles learning maintenance" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles automation name"; exit 1; }
+  grep -q 'rrule = "FREQ=WEEKLY;BYDAY=TU;BYHOUR=17;BYMINUTE=0;BYSECOND=0"' "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles weekly schedule"; exit 1; }
+  grep -q 'cwds = \["/Users/david/Dropbox (Personal)/code/dotfiles"\]' "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles cwd only"; exit 1; }
+  grep -q "one combined run: first do a triage sweep, then act" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles combines sweep and action"; exit 1; }
+  grep -q "docs/ai/learning-system.md" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles reads canonical learning doc"; exit 1; }
+  grep -q "Abstraction Ladder" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles applies abstraction ladder"; exit 1; }
+  grep -q "act by default" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles hands-off action contract"; exit 1; }
+  grep -q "Do not wait for a daily dashboard review" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles no daily review gate"; exit 1; }
+  grep -q "current working directory only" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles scoped to current cwd"; exit 1; }
+  grep -q "git status --short" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles checks dirty worktree"; exit 1; }
+  grep -q "baseline dirty paths" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles snapshots baseline dirt"; exit 1; }
+  grep -q "Do not touch or stage those baseline dirty paths" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles preserves baseline dirt"; exit 1; }
+  grep -q "fix the failure and rerun verification" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles repairs verification failures"; exit 1; }
+  grep -q "create one local commit" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles commits successful changes"; exit 1; }
+  grep -q "Do not push" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles no-push contract"; exit 1; }
+  grep -q "Autopick the top one or two obvious high-leverage next actions" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles autopicks obvious work"; exit 1; }
+  grep -q "Ask the user only for true product choices" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles avoids micro-decision handoff"; exit 1; }
+  grep -q "friendly plain-English summary" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles plain-English reporting"; exit 1; }
+  grep -q "Do not use.*Executed" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles avoids bare executed report"; exit 1; }
+  grep -q "context-switched" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles rehydrates context"; exit 1; }
+  grep -q 'Do not say "receipt" or "prevention artifact"' "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles bans internal labels in user report"; exit 1; }
+  grep -q "status labels were speaking too soon" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles includes concrete voice example"; exit 1; }
+  grep -q "Do not attempt to serve a live dashboard" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles must stay file-only"; exit 1; }
+  ! grep -q "CEO-style summary" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles should not request CEO-style summary"; exit 1; }
+  ! grep -q "If verification fails, do not commit" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles should fix own verification failures"; exit 1; }
+  ! grep -q "For each configured repo" "$DOTFILES_AUTOMATION" || { echo "FAIL: dotfiles must not loop configured repos"; exit 1; }
 fi
 
 echo "OK: learn structural check passed"

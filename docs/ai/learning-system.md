@@ -12,7 +12,7 @@
 - Use binaries only for boring glue: initializing files, appending structured entries, assigning row IDs, serving the dashboard, recording decisions, safe markdown moves, and checks.
 - Store prevention work as one readable list: `Prevention artifacts: docs (required), test (required), skill (proposed)`. Required artifacts describe the prevention work needed; proposed artifacts are worthwhile ideas to consider. The executor decides what is executable now.
 - Fingerprint matching is not semantic dedupe. It is only a row identity and exact replay guard. Agents do all meaningful duplicate detection, semantic clustering, and pattern formation.
-- Daily agentic automation should sweep participating repos, cluster new evidence, autopick the top one or two obvious high-leverage prevention actions, execute or prototype low-risk/high-clarity work, regenerate dashboards, and report what changed plus only true product tradeoffs or review needs.
+- Agentic maintenance should sweep the current repo, cluster new evidence, autopick the top one or two obvious high-leverage actions, execute or prototype low-risk/high-clarity work, regenerate dashboards, and report what changed plus only true product tradeoffs or review needs.
 - Automation reports must rehydrate context in plain English. "CEO-friendly" means decision-ready and easy to understand after the reader has context-switched, not terse corporate shorthand. Translate labels before using them: say "make every UI counter use the same shared calculation" before "shared-count/source-boundary rule."
 - Review is optional calibration, not a daily approval gate. Do not make the user process a large dashboard every day before useful work happens; act by default and let later feedback tune future runs.
 - Let abstractions emerge from batches of evidence. Raw bugs are useful samples; cluster them when several examples point to the same class, or when one high-risk incident has an obvious prevention surface. Do not manufacture one guidance line per bug.
@@ -99,13 +99,18 @@ control, or merge decision, automatically loads the rule before implementation.
 
 ## Automation
 
-Daily maintenance is split into focused automations so one agent does not become a giant context soup. The default posture is hands-off: the system collects samples, acts on clear clusters, commits successful changes locally, and tells the user what happened afterward.
+Learning maintenance is one repo-scoped agent run: first it does a triage sweep,
+then it executes the clearest useful work, then it sends one friendly summary.
+This keeps the workflow hands-off and avoids making the user close separate
+triage and executor reports for the same repo. Dotfiles runs weekly by default;
+Journology runs Monday, Wednesday, and Friday while that project is changing
+quickly.
 
-Use a frontier reasoning parent model for daily learning automations. Triage and
-executor parents make clustering, abstraction, safety, and calibration
-decisions, so prefer `gpt-5.5` with high reasoning while calibration is young.
-Executor-dispatched coding subagents may use focused coding models such as
-`gpt-5.3-codex` for bounded implementation, review, or verification slices.
+Use a frontier reasoning parent model for learning automations. The parent makes
+clustering, abstraction, safety, and calibration decisions, so prefer `gpt-5.5`
+with high reasoning while calibration is young. Coding subagents may use focused
+coding models such as `gpt-5.3-codex` for bounded implementation, review, or
+verification slices.
 
 Each cron invocation is repo-scoped. When an automation has multiple `cwds`,
 the scheduler starts separate runs, one per working directory. A run must operate
@@ -140,14 +145,14 @@ work. After a successful run with changes, verify automation-owned paths and
 focused checks, stage only files changed by the automation, create one local commit, and report the commit hash. If verification fails, fix verification failures caused by its own changes and rerun verification before committing.
 Do not push.
 
-Daily automations should read the canonical global learning-system contract
+Scheduled automations should read the canonical global learning-system contract
 from the durable dotfiles master checkout, not from a temporary feature
 worktree. They may also read a repo-local `docs/ai/learning-system.md` as a
 supplement for the current cwd.
 
 ### Reporting style
 
-Daily reports should read like a teammate explaining what happened, not a
+Maintenance reports should read like a teammate explaining what happened, not a
 corporate status rollup. The reader may have context-switched from something
 unrelated, so each unrelated item needs enough context to stand on its own.
 
@@ -168,9 +173,16 @@ thing instead: test, helper, docs update, check, or "the thing that stops this
 from happening again." If the technical phrase is still needed in a file format
 or command, keep it there and translate it before speaking to the user.
 
-### Triage automation
+Concrete voice target:
 
-Triage automation runs daily around 5pm. It clusters and prepares work. It should not edit product code.
+> Bad: "Async status summaries now have a clearer rule: chips, banners, and callouts that depend on multiple async inputs should show a neutral loading/unknown state until all inputs that can change the conclusion have resolved. That prevents brief 'no groups' or missing-warning states that make architects distrust the header. Receipt:"
+>
+> Good: "Some of these little status labels were speaking too soon. They'd say 'no groups' or hide a warning while the page was still loading the rest of the data, which makes the header feel flaky even if it fixes itself a second later. I changed them so they basically say 'still checking...' until the actual data has loaded, then they give the real answer."
+
+### Maintenance Sweep
+
+Each scheduled run starts with a triage sweep. This pass clusters and prepares
+work before any code edits.
 
 For the current repo:
 
@@ -184,9 +196,10 @@ For the current repo:
 8. Do not attempt to serve a live dashboard from automation runs — sandboxed contexts block binding 127.0.0.1, and the live surface is owned by the user. Regenerate `docs/learnings/dashboard.md` and `dashboard.html` and end the report with a one-liner telling the user to run `learn live` in a terminal tab whenever they want to review (the URL stays at `http://127.0.0.1:60000`).
 9. Treat the dashboard as optional calibration. Surface it when it helps, but do not ask for daily review unless a true product decision, risky action, or blocked item needs the user's judgment.
 
-### Executor automation
+### Maintenance Action
 
-Executor automation runs daily around 9pm unless it already ran after the user said `done`. It acts on triaged, high-confidence, narrow work. Do not wait for a daily dashboard review before acting on clear work.
+After the sweep, the same run acts on triaged, high-confidence, narrow work. Do
+not wait for a daily dashboard review before acting on clear work.
 
 1. Read candidates, auto-action notes, calibration, and any explicit dashboard decisions.
 2. Act by default. Autopick the top one or two next actions from high-confidence evidence. Prefer items that are repeated, recent, user-visible, reversible, and able to prevent several candidate patterns at once.
@@ -200,9 +213,10 @@ Executor automation runs daily around 9pm unless it already ran after the user s
 10. Append plain-English audit lines to `docs/learnings/auto-actions.md`.
 11. Regenerate the static dashboard artifacts without serving a live dashboard, then report execution results grouped by outcome: executed, prototyped, verified, and needs product decision.
 
-If the user says `done` in a dashboard/triage thread, run the executor immediately against the current repo, append a same-day audit marker, and skip the scheduled 9pm executor for that repo.
-
-Weekly review can summarize the daily work, but daily maintenance is the default while calibration is young.
+If the user says `done` in a dashboard/triage thread, run maintenance
+immediately against the current repo, append a same-day audit marker, and skip
+the next scheduled maintenance run for that repo if it would only repeat the
+same work.
 
 ## Canonical Files
 
