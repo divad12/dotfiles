@@ -1,0 +1,33 @@
+#!/bin/bash
+# Last-ditch shell fallback for agents that mistakenly invoke task-observer as a command.
+
+set -euo pipefail
+
+note="${*:-task-observer invoked without details}"
+note="${note//$'\n'/ }"
+
+if git_root="$(git rev-parse --show-toplevel 2>/dev/null)"; then
+  project_slug="$(basename "$git_root")"
+else
+  project_slug="_meta"
+fi
+
+log_dir="$HOME/.agents/observations/$project_slug"
+log_path="$log_dir/log.md"
+timestamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+day="$(date +%F)"
+
+mkdir -p "$log_dir"
+
+{
+  printf '\n### Observation %s: task-observer CLI fallback\n' "$timestamp"
+  printf -- '- Date: %s\n' "$day"
+  printf -- '- Status: OPEN\n'
+  printf -- '- Scope: tool:task-observer\n'
+  printf -- '- Trigger: %s\n' "$note"
+  printf -- '- Ramification: Shell-only invocations no longer lose user feedback when an agent confuses the task-observer Skill with a command.\n'
+  printf -- '- Recommendation: Use the task-observer Skill/tool when available; route durable learnings through `/learn` and keep this fallback as an audit note only.\n'
+} >>"$log_path"
+
+printf 'task-observer fallback observation captured: %s\n' "$log_path"
+printf 'Use the task-observer Skill/tool when available; this command is only a shell fallback.\n'

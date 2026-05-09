@@ -116,8 +116,8 @@ When the user types `/graphify`, invoke the `graphify` skill before doing anythi
 
 ## Session Tools
 
-- **MANDATORY for interactive parent sessions: invoke `task-observer` BEFORE your first tool call** when tools will produce deliverables. Delegated/non-interactive subagents, review-only workers, verify-only workers, and Codex/Claude print-mode reviewers skip it; the parent agent owns observation logging.
-- `task-observer` is the ambient sensor for durable feedback, not the durable store. Route project learnings through `/learn` into `docs/learnings/`; route global agent-system learnings through `/learn` in dotfiles. Use observation files only as fallback/session audit notes when a learning cannot yet be routed cleanly.
+- **MANDATORY for interactive parent sessions: invoke the `task-observer` Skill/tool BEFORE your first tool call** when tools will produce deliverables. Do not run `task-observer` as a shell command. If the Skill/tool is unavailable, read `.agents/skills/task-observer/SKILL.md` directly and follow its fallback observation contract; never say a failed shell command means an observation was "logged in my head." Delegated/non-interactive subagents, review-only workers, verify-only workers, and Codex/Claude print-mode reviewers skip it; the parent agent owns observation logging.
+- `task-observer` is the ambient sensor for durable feedback, not the durable store. Route project learnings through `/learn` into `docs/learnings/`; route global agent-system learnings through `/learn` in dotfiles. Use observation files only as fallback/session audit notes when a learning cannot yet be routed cleanly. `bin/task-observer` exists only as a shell fallback for mistaken invocations.
 - If fallback observation files are needed, store them centrally:
 
 | Default | Use instead |

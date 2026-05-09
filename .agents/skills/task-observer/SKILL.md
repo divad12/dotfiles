@@ -9,6 +9,10 @@ description: "Use when starting an interactive parent task session, when the use
 If this is a delegated/non-interactive subagent, reviewer, verifier, or print-mode worker, stop using this skill now. Do not read observation logs, do not write observation logs, and do not mention this skill. The parent interactive session owns observation logging.
 </SUBAGENT-STOP>
 
+## Invocation
+
+Invoke this through the agent Skill/tool system. Do not run a shell command named `task-observer`; if the Skill/tool is unavailable, read this file directly and continue with the fallback observation path below. The `bin/task-observer` command is only a last-ditch shell fallback for mistaken invocations, not the normal interface.
+
 ## Contract
 
 - Run only in interactive parent sessions where user feedback can shape future behavior.
