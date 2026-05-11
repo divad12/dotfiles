@@ -78,6 +78,36 @@ For each CONCERN, plain English with the user-facing impact:
    - **CONCERNs** - include in the build report for the user to decide.
    - **All PASS** - note it in the build report ("QA: all scenarios passed").
 
+## Bug Severity Triage
+
+Not all failures are equal. When the test surfaces multiple issues, prioritize in this order:
+
+1. **Interaction timing bugs** (highest priority) — optimistic update that reverts then re-applies, visible flicker, stale cache that shows old data after save, revert-then-correct sequences. These break user trust in saved work. File as FAIL even if the final state is correct.
+2. **Broken functionality** — actions that produce no result or the wrong result.
+3. **Orientation affordances** — missing map legend, unlabeled icon, confusing layout. Route as CONCERN unless they block task completion.
+4. **Polish** — color, spacing, copy tweaks. Route as CONCERN only.
+
+## Persisted-Data Invariant Checks
+
+For scenarios that write or generate data that is stored (database records, cache entries, generated output files): browser flow success is not sufficient verification. After the flow completes, run a focused check against the persisted state for the exact quality invariant being tested.
+
+Add to the subagent prompt when relevant:
+```
+After completing [scenario], also verify persisted data:
+- [Specific check, e.g. "confirm no duplicate clues across legs in the DB"]
+- Report FAIL if the invariant is violated even when the UI shows success
+```
+
+Record both the browser result and the persisted-state result in the report.
+
+## Scale and Coverage
+
+For complex products, a single-path test on a small fixture misses bugs that only appear under realistic load or on neglected surfaces. Periodically include:
+
+- A **scale scenario**: generate a large representative fixture (e.g. 60 groups, 500+ participants) and verify every major tab loads and displays correctly.
+- **Neglected surfaces**: tabs or views not touched by the main feature path. Single-fixture assumptions often hide there.
+- Note which surfaces were tested and which were skipped so the user knows the coverage gap.
+
 ## Output
 
 When called by another skill, return the QA report for inclusion in the build report. When called standalone, present the report directly and offer to fix any FAILs.
