@@ -16,6 +16,17 @@ Read this before changing root `AGENTS.md`, `.agents/skills/`, nested `AGENTS.md
 - Keep reference docs free of session history, one-off fixes, and stale examples.
 - Preserve lint rules, contract tests, allowlists, and nested guardrails unless the user explicitly approves a weaker contract.
 
+## When Tightening or Compressing
+
+When reducing the size of agent instructions, compress redundancy — not enforcement strength. Corrective guardrails often use imperative wording ("stop immediately", explicit fallback options) specifically because softer alternatives were tried and failed. Preserve that force even when cutting words.
+
+Checklist for any compression pass:
+
+- **Keep failure-mode rationale for hard rules.** A bare imperative ("never do X") is weaker than one paired with the failure it prevents and the allowed alternative. The rationale helps the model recognize when the rule applies under pressure.
+- **Keep rationale for judgment-heavy rules.** When correct behavior requires choosing *how* to frame output rather than following a mechanical command, a one-sentence *why* is part of the instruction, not decoration. Models generalize judgment rules correctly when they understand the underlying goal.
+- **Prefer positive instructions over prohibitions.** "If a scope tradeoff is needed, ask the user" is easier to act on than "never make tradeoffs silently." Reserve all-caps prohibition wording for data-loss, security, or guardrail-bypass risks.
+- **Remove redundancy, not specificity.** Two rules that say the same thing can merge. One rule that is longer than it needs to be can be shortened. But a rule that is specific for a reason should stay specific.
+
 ## Layers
 
 | Layer | Files | Purpose |
