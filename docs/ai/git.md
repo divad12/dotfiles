@@ -78,6 +78,18 @@ across a rebase.
 Before using the exception, tell the user the ramification: the target branch
 will include a merge commit, but conflict resolution happens once.
 
+## Worktrees
+
+Before creating a new worktree, check whether a clean suitable one already exists:
+
+```bash
+git worktree list
+```
+
+If an existing worktree has no uncommitted changes and no branch-only commits ahead of the target, fast-forward it to the target branch and use it instead of creating another. This avoids unnecessary workspace sprawl and the recovery overhead of deciding which worktree owns which work later.
+
+If work accidentally landed in the main checkout, checkpoint it (commit or stash) first, then reuse a clean worktree rather than adding another.
+
 ## Guardrails
 
 ### Never `git reset --hard` on the target branch
