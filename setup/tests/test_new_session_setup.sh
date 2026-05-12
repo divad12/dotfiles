@@ -4,6 +4,7 @@ set -eu
 
 repo_root="$(cd "$(dirname "$0")/../.." && pwd)"
 script="$repo_root/.agents/skills/new-session/setup.sh"
+skills_doc="$repo_root/SKILLS.md"
 tmpdir="$(mktemp -d)"
 trap 'rm -rf "$tmpdir"' EXIT
 
@@ -45,6 +46,18 @@ if [ ! -f "$worktree/.claude/launch.json" ]; then
   echo "new-session setup did not still write launch.json" >&2
   exit 1
 fi
+if [ -e "$worktree/.claude/ports" ]; then
+  echo "new-session setup should not create port lock files" >&2
+  exit 1
+fi
+if grep -q "lock files per port" "$skills_doc"; then
+  echo "SKILLS.md still describes obsolete port lock files" >&2
+  exit 1
+fi
+grep -q "random unused port" "$skills_doc" || {
+  echo "SKILLS.md should describe random port assignment" >&2
+  exit 1
+}
 
 (cd "$worktree" && bash "$script" >/tmp/new-session-port-rerun.out)
 second_port="$(cat /tmp/new-session-port-rerun.out)"

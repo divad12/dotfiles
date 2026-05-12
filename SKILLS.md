@@ -19,7 +19,7 @@ This repo hosts my global Claude Code skills (and agent-agnostic rules) at `.cla
     ├── learn/             # Capture durable project learnings
     ├── dashboard/         # Review and execute learning dashboard decisions
     ├── learn-init/        # Initialize docs/learnings in a repo
-    ├── close-session/     # Teardown: merge, stop server, delete worktree + branch
+    ├── close-session/     # Teardown: verify merged, delete worktree + branch
     ├── critique/          # Visual UI/UX critique via Playwright MCP
     ├── deep-review/       # 6-way parallel review: audit + diff + rules + simplify + codex + UI
     ├── merge/             # Rebase onto local main, fast-forward
@@ -172,9 +172,9 @@ Claude's Skill tool can't be called from inside another skill. So `build` reads 
 
 Skills NEVER run `/ship` automatically. Only the user decides when to ship. This is enforced in `build`, `autopilot`, and any skill that presents "next step" options via AskUserQuestion.
 
-### Worktree session isolation with atomic port locks
+### Worktree session port assignment
 
-`new-session` and `close-session` use **lock files per port** (`.claude/ports/3001` containing the branch name) to avoid race conditions between parallel worktrees. Port 3000 is permanently reserved for the main repo.
+`new-session` assigns a random unused port in the worktree's `.claude/launch.json`; port 3000 is permanently reserved for the main repo. `close-session` leaves port metadata and runtime artifacts alone; it only removes the merged git worktree and branch.
 
 ### TDD is symptom-first
 
