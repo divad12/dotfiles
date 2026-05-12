@@ -44,10 +44,35 @@ if [ "$(readlink "$home/.agents/skills")" != "$repo_root/.agents/skills" ]; then
   exit 1
 fi
 
-if [ "$(readlink "$home/.codex/AGENTS.md")" != "$repo_root/.claude/AGENTS.md" ]; then
-  echo "~/.codex/AGENTS.md does not point at the shared instructions" >&2
+if [ -L "$repo_root/.claude/CLAUDE.md" ]; then
+  echo ".claude/CLAUDE.md must be a real Claude wrapper, not a symlink to AGENTS.md" >&2
   exit 1
 fi
+
+grep -q '@/Users/david/dotfiles/.claude/AGENTS.md' "$repo_root/.claude/CLAUDE.md" || {
+  echo "Claude wrapper must include the shared global instructions" >&2
+  exit 1
+}
+
+grep -q '^@RTK.md$' "$repo_root/.claude/CLAUDE.md" || {
+  echo "Claude wrapper must include RTK using the relative reference expected by rtk init --show" >&2
+  exit 1
+}
+
+if [ "$(readlink "$home/.codex/AGENTS.md")" != "$repo_root/.codex/AGENTS.md" ]; then
+  echo "~/.codex/AGENTS.md does not point at the tracked Codex wrapper" >&2
+  exit 1
+fi
+
+grep -q '@/Users/david/dotfiles/.claude/AGENTS.md' "$repo_root/.codex/AGENTS.md" || {
+  echo "tracked Codex wrapper must include the shared global instructions" >&2
+  exit 1
+}
+
+grep -q '@/Users/david/.codex/RTK.md' "$repo_root/.codex/AGENTS.md" || {
+  echo "tracked Codex wrapper must include Codex-specific RTK instructions" >&2
+  exit 1
+}
 
 if [ "$(readlink "$home/.claude/settings.json")" != "$repo_root/.claude/settings.json" ]; then
   echo "~/.claude/settings.json drift was not restored to the dotfiles symlink" >&2

@@ -8,8 +8,8 @@ This repo hosts my global Claude Code skills (and agent-agnostic rules) at `.cla
 
 ```
 .claude/
-├── AGENTS.md              # Universal agent rules (CLAUDE.md is a symlink to this)
-├── CLAUDE.md -> AGENTS.md # One source of truth
+├── AGENTS.md              # Universal agent rules shared by Codex and Claude
+├── CLAUDE.md              # Claude wrapper: imports AGENTS.md + Claude RTK
 ├── settings.json          # Global settings (enabled plugins, permissions)
 ├── commands/              # Slash command definitions
 ├── templates/             # Templates used by skills
@@ -231,4 +231,4 @@ Common iteration patterns that came up:
 - Don't let skills duplicate workflow logic. Reference shared steps inline if a skill is invoked.
 - Don't auto-commit or auto-ship from skills. User decides.
 - Don't add `/save` cleanup as a footgun - it should update files in place, not append per-session sections.
-- Don't edit `.claude/CLAUDE.md` - it's a symlink. Edit `.claude/AGENTS.md`.
+- Don't put shared rules in `.claude/CLAUDE.md` or `.codex/AGENTS.md`; those are thin wrappers for agent-specific imports. Edit `.claude/AGENTS.md`.

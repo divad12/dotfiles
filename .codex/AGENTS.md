@@ -1,2 +1,2 @@
 @/Users/david/dotfiles/.claude/AGENTS.md
-@RTK.md
+@/Users/david/.codex/RTK.md

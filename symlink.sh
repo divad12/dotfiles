@@ -36,8 +36,8 @@ done
 
 # .claude/ - per-file symlinks into ~/.claude/. Claude Code owns ~/.claude
 # (sessions, plugins, projects) so we only mirror specific config files.
-# AGENTS.md, CLAUDE.md, settings.json all live in dotfiles; everything else
-# is runtime state that stays local.
+# AGENTS.md is the shared rulebook, CLAUDE.md is the Claude wrapper, and
+# settings.json is Claude-specific runtime config. Everything else stays local.
 if [ -d "$dir/.claude" ]; then
     mkdir -p "$HOME/.claude"
     for f in "$dir"/.claude/*; do
@@ -57,11 +57,11 @@ if [ -d "$dir/.agents" ]; then
     link_path "$dir/.agents/skills" "$HOME/.agents/skills"
 fi
 
-# .codex/ - Codex owns this directory. Mirror the shared global instructions
-# and checked-in automation definitions. Runtime state such as sessions,
-# plugins, worktrees, and automation memory stays local.
+# .codex/ - Codex owns this directory. Mirror the tracked Codex wrapper and
+# checked-in automation definitions. Runtime state such as sessions, plugins,
+# worktrees, and automation memory stays local.
 mkdir -p "$HOME/.codex"
-link_path "$dir/.claude/AGENTS.md" "$HOME/.codex/AGENTS.md"
+link_path "$dir/.codex/AGENTS.md" "$HOME/.codex/AGENTS.md"
 if [ -d "$dir/.codex/automations" ]; then
     mkdir -p "$HOME/.codex/automations"
     for automation in "$dir"/.codex/automations/*; do
