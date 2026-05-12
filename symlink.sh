@@ -62,6 +62,9 @@ fi
 # worktrees, and automation memory stays local.
 mkdir -p "$HOME/.codex"
 link_path "$dir/.codex/AGENTS.md" "$HOME/.codex/AGENTS.md"
+if [ -f "$dir/.codex/config.toml" ]; then
+    link_path "$dir/.codex/config.toml" "$HOME/.codex/config.toml"
+fi
 if [ -d "$dir/.codex/automations" ]; then
     mkdir -p "$HOME/.codex/automations"
     for automation in "$dir"/.codex/automations/*; do

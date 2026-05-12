@@ -8,6 +8,10 @@
 
 source /etc/profile
 
+if [ -f "$HOME/.config/codex/env" ]; then
+    . "$HOME/.config/codex/env"
+fi
+
 # If not running interactively, don't do anything
 [ -z "$PS1" ] && return
 

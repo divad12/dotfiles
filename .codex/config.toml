@@ -1,0 +1,128 @@
+model = "gpt-5.5"
+model_reasoning_effort = "xhigh"
+personality = "friendly"
+[projects."/Users/david/Dropbox (Personal)/code/deji-diary"]
+trust_level = "trusted"
+
+[projects."/Users/david/Dropbox (Personal)/code/copy-trader"]
+trust_level = "trusted"
+
+[projects."/Users/david/Dropbox (Personal)/code/journology"]
+trust_level = "trusted"
+
+[projects."/Users/david/.codex"]
+trust_level = "trusted"
+
+[projects."/Users/david"]
+trust_level = "trusted"
+
+[projects."/Users/david/Dropbox (Personal)/code/dotfiles"]
+trust_level = "trusted"
+
+[projects."/Users/david/Dropbox (Personal)/code/tg-digest"]
+trust_level = "trusted"
+
+[projects."/Users/david/Documents/Codex/2026-04-26/google-drive-plugin-computer-use-openai"]
+trust_level = "trusted"
+
+[mcp_servers.chrome-devtools]
+command = "npx"
+args = [
+  "-y",
+  "chrome-devtools-mcp@0.23.0",
+  "--isolated",
+  "--no-usage-statistics",
+  "--no-performance-crux",
+]
+
+[notice.model_migrations]
+"gpt-5.2" = "gpt-5.2-codex"
+"gpt-5.2-codex" = "gpt-5.3-codex"
+"gpt-5.3-codex" = "gpt-5.4"
+
+[features]
+web_search_request = true # allow the model to request web searches
+multi_agent = true # graphify uses parallel extraction agents for semantic graph builds
+goals = true
+
+[sandbox_workspace_write]
+network_access = true
+
+[plugins."github@openai-curated"]
+enabled = true
+
+[plugins."browser-use@openai-bundled"]
+enabled = true
+
+[plugins."documents@openai-primary-runtime"]
+enabled = true
+
+[plugins."spreadsheets@openai-primary-runtime"]
+enabled = true
+
+[plugins."presentations@openai-primary-runtime"]
+enabled = true
+
+[plugins."superpowers@openai-curated"]
+enabled = true
+
+[plugins."computer-use@openai-bundled"]
+enabled = true
+
+[plugins."gmail@openai-curated"]
+enabled = true
+
+[plugins."figma@openai-curated"]
+enabled = true
+
+[plugins."build-web-apps@openai-curated"]
+enabled = true
+
+[plugins."expo@openai-curated"]
+enabled = true
+
+[plugins."google-drive@openai-curated"]
+enabled = true
+
+[plugins."vercel@openai-curated"]
+enabled = true
+
+[plugins."supabase@openai-curated"]
+enabled = true
+
+[marketplaces.openai-bundled]
+last_updated = "2026-05-09T19:18:58Z"
+source_type = "local"
+source = "/Users/david/.codex/.tmp/bundled-marketplaces/openai-bundled"
+
+[marketplaces.openai-primary-runtime]
+last_updated = "2026-05-08T13:56:38Z"
+source_type = "local"
+source = "/Users/david/.cache/codex-runtimes/codex-primary-runtime/plugins/openai-primary-runtime"
+
+[tui.model_availability_nux]
+"gpt-5.5" = 2
+
+[mcp_servers.context7]
+url = "https://mcp.context7.com/mcp"
+env_http_headers = { "CONTEXT7_API_KEY" = "CONTEXT7_API_KEY" }
+
+
+[mcp_servers.pal]
+command = "bash"
+args = ["-c", "for p in $(which uvx 2>/dev/null) $HOME/.local/bin/uvx /opt/homebrew/bin/uvx /usr/local/bin/uvx uvx; do [ -x \"$p\" ] && exec \"$p\" --from git+https://github.com/BeehiveInnovations/pal-mcp-server.git pal-mcp-server; done; echo 'uvx not found' >&2; exit 1"]
+tool_timeout_sec = 1200
+
+[mcp_servers.pal.env]
+PATH = "/usr/local/bin:/usr/bin:/bin:/opt/homebrew/bin:$HOME/.local/bin:$HOME/.cargo/bin:$HOME/bin"
+AZURE_OPENAI_ENDPOINT = "https://your-resource.openai.azure.com/"
+DEFAULT_MODEL = "auto"
+DEFAULT_THINKING_MODE_THINKDEEP = "high"
+CONVERSATION_TIMEOUT_HOURS = "24"
+MAX_CONVERSATION_TURNS = "40"
+LOG_LEVEL = "DEBUG"
+DISABLED_TOOLS = "analyze,refactor,testgen,secaudit,docgen,tracer"
+PAL_MCP_FORCE_ENV_OVERRIDE = "false"
+COMPOSE_PROJECT_NAME = "pal-mcp"
+TZ = "UTC"
+LOG_MAX_SIZE = "10MB"
