@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 
+import importlib.machinery
+import importlib.util
 import os
 import subprocess
 import tempfile
 import time
 import unittest
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -12,7 +15,62 @@ ROOT = Path(__file__).resolve().parents[2]
 SCRIPT = ROOT / "bin" / "ask-intern-audit"
 
 
+def load_audit_module():
+    loader = importlib.machinery.SourceFileLoader("ask_intern_audit_under_test", str(SCRIPT))
+    spec = importlib.util.spec_from_loader(loader.name, loader)
+    module = importlib.util.module_from_spec(spec)
+    loader.exec_module(module)
+    return module
+
+
 class AskInternAuditTest(unittest.TestCase):
+    def test_event_log_timestamps_are_utc(self):
+        module = load_audit_module()
+
+        expected = datetime(2026, 5, 9, 4, 30, tzinfo=timezone.utc).timestamp()
+
+        self.assertEqual(module.event_epoch("2026-05-09 04:30:00"), expected)
+
+    def test_since_until_filter_events_with_iso_offsets(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            events = tmpdir / "events.tsv"
+            events.write_text(
+                "\n".join(
+                    [
+                        "timestamp\tsource\tstatus\treason\tmodel\tfile_count\ttarget\tlatency_s\tcwd\tfiles\tinvocation",
+                        "2026-05-09 04:29:59\tclaude\tsuccess\tok\tdeepseek/deepseek-v4-flash\t1\t\t1.00\t/repo\tbefore.md\task-intern -f before.md prompt",
+                        "2026-05-09 04:30:00\tclaude\tsuccess\tok\tdeepseek/deepseek-v4-flash\t1\t\t1.00\t/repo\tinside.md\task-intern -f inside.md prompt",
+                        "2026-05-12 03:03:01\tclaude\tsuccess\tok\tdeepseek/deepseek-v4-flash\t1\t\t1.00\t/repo\tafter.md\task-intern -f after.md prompt",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    str(SCRIPT),
+                    "--events",
+                    str(events),
+                    "--log-root",
+                    str(tmpdir / "missing-logs"),
+                    "--since",
+                    "2026-05-09T01:30:00-03:00",
+                    "--until",
+                    "2026-05-12T00:03:00-03:00",
+                ],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("ask-intern calls: 1 (success 1, failure 0)", result.stdout)
+        self.assertNotIn("before.md", result.stdout)
+        self.assertNotIn("after.md", result.stdout)
+
     def test_reports_failures_direct_reads_and_missed_sessions(self):
         with tempfile.TemporaryDirectory() as tmp:
             tmpdir = Path(tmp)

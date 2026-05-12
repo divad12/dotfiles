@@ -8,6 +8,7 @@ import os
 import sys
 import tempfile
 import unittest
+from datetime import datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -398,6 +399,7 @@ class AskInternConfigTest(unittest.TestCase):
             "Names only, not exact code.",
             "Do not quote exact code or full source; line numbers are not needed.",
             "Also note exact source-of-truth files/functions I should inspect next.",
+            "Summarize all imports at the top and the test mock pattern. Identifiers and contract shapes only, no verbatim source.",
         ]
         denied = [
             "Show me the exact code with line numbers.",
@@ -509,6 +511,7 @@ class AskInternConfigTest(unittest.TestCase):
             config_dir.mkdir(parents=True)
             module.STATS_FILE = str(config_dir / "stats.tsv")
             module.EVENTS_FILE = str(config_dir / "events.tsv")
+            now_date = datetime.now().strftime("%Y-%m-%d")
             (config_dir / "stats.tsv").write_text(
                 "timestamp\tmodel\tin_tokens\tout_tokens\tcost_usd\topus_equivalent_usd\tlatency_s\n",
                 encoding="utf-8",
@@ -517,10 +520,10 @@ class AskInternConfigTest(unittest.TestCase):
                 "\n".join(
                     [
                         "timestamp\tsource\tstatus\treason\tmodel\tfile_count\ttarget\tlatency_s\tcwd\tfiles\tinvocation",
-                        "2026-05-03 19:00:00\tclaude\tfailure\tmissing_file\tdeepseek/deepseek-v4-flash\t1\t\t0.00\t/tmp\tmissing.md\task-intern -f missing.md prompt",
-                        "2026-05-03 19:01:00\tcodex\tfailure\tapi_error\tdeepseek/deepseek-v4-flash\t2\t\t0.10\t/tmp\ta.md,b.md\task-intern -f a.md -f b.md prompt",
-                        "2026-05-03 19:02:00\tunknown\tfailure\tmissing_file\tdeepseek/deepseek-v4-flash\t1\t\t0.00\t/tmp\tdefinitely-missing-intern-smoke.md\task-intern -f definitely-missing-intern-smoke.md",
-                        "2026-05-03 19:03:00\tclaude\tfailure\tmissing_file\tdeepseek/deepseek-v4-flash\t2\t\t0.00\t/repo\t/private/tmp/stale.log,src/source.py\task-intern -f /private/tmp/stale.log -f src/source.py prompt",
+                        f"{now_date} 19:00:00\tclaude\tfailure\tmissing_file\tdeepseek/deepseek-v4-flash\t1\t\t0.00\t/tmp\tmissing.md\task-intern -f missing.md prompt",
+                        f"{now_date} 19:01:00\tcodex\tfailure\tapi_error\tdeepseek/deepseek-v4-flash\t2\t\t0.10\t/tmp\ta.md,b.md\task-intern -f a.md -f b.md prompt",
+                        f"{now_date} 19:02:00\tunknown\tfailure\tmissing_file\tdeepseek/deepseek-v4-flash\t1\t\t0.00\t/tmp\tdefinitely-missing-intern-smoke.md\task-intern -f definitely-missing-intern-smoke.md",
+                        f"{now_date} 19:03:00\tclaude\tfailure\tmissing_file\tdeepseek/deepseek-v4-flash\t2\t\t0.00\t/repo\t/private/tmp/stale.log,src/source.py\task-intern -f /private/tmp/stale.log -f src/source.py prompt",
                     ]
                 )
                 + "\n",

@@ -165,6 +165,7 @@ run_hook "$(read_json "$medium_a" s22)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(read_json "$medium_b" s22)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(bash_json "cat '$long_log' | tail -5" s22)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(bash_json "cat '$long_log' | wc -l && tail -80 '$long_log' | head -40" s22)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(bash_json "cat '$large' | head -150 | tail -50" s23)" >/tmp/guard.out 2>/tmp/guard.err
 
 run_hook "$(read_json "$marked_control" s6)" >/tmp/guard.out 2>/tmp/guard.err
 

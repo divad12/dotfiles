@@ -85,7 +85,6 @@ EXACT_SOURCE_RE = re.compile(
     r"line[- ]numbered|line\s+numbers?|"
     r"complete\s+source|full\s+source|"
     r"full\s+implementation|"
-    r"all\s+imports|"
     r"show\s+(?:me\s+)?all\s+\d+\s+lines?|"
     r"print\s+(?:the\s+)?(?:file|source|code)|"
     r"quote\s+(?:the\s+)?(?:exact|key|\d+[-–]\d+)"

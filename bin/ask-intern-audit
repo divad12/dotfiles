@@ -15,7 +15,7 @@ import shlex
 import sys
 import time
 from collections import Counter, defaultdict
-from datetime import datetime
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -129,9 +129,31 @@ def command_values(record):
 
 def event_epoch(timestamp):
     try:
-        return time.mktime(time.strptime(timestamp, "%Y-%m-%d %H:%M:%S"))
+        parsed = datetime.strptime(timestamp, "%Y-%m-%d %H:%M:%S")
+        return parsed.replace(tzinfo=timezone.utc).timestamp()
     except (TypeError, ValueError):
         return 0
+
+
+def parse_time_arg(value):
+    if not value:
+        return None
+    normalized = value.replace("Z", "+00:00")
+    try:
+        parsed = datetime.fromisoformat(normalized)
+    except ValueError as exc:
+        raise argparse.ArgumentTypeError(f"invalid timestamp {value!r}") from exc
+    if parsed.tzinfo is None:
+        return parsed.timestamp()
+    return parsed.timestamp()
+
+
+def cutoff_from_args(args):
+    if args.since:
+        return parse_time_arg(args.since)
+    if args.since_days is not None:
+        return time.time() - args.since_days * 24 * 60 * 60
+    return None
 
 
 def iso_epoch(value):
@@ -164,7 +186,7 @@ def record_epoch(record):
     return 0
 
 
-def load_events(path, since_days=None):
+def load_events(path, cutoff=None, until=None):
     summary = {
         "total": 0,
         "success": 0,
@@ -175,12 +197,13 @@ def load_events(path, since_days=None):
     }
     if not path.exists():
         return summary
-    cutoff = time.time() - since_days * 24 * 60 * 60 if since_days is not None else None
-
     with path.open(newline="") as f:
         reader = csv.DictReader(f, delimiter="\t")
         for row in reader:
-            if cutoff is not None and event_epoch(row.get("timestamp")) < cutoff:
+            ts = event_epoch(row.get("timestamp"))
+            if cutoff is not None and ts < cutoff:
+                continue
+            if until is not None and ts > until:
                 continue
             summary["rows"].append(row)
             status = row.get("status", "")
@@ -283,15 +306,11 @@ def summarize_over_delegations(rows, limit):
             )
 
 
-def load_jsonl_events(path, since_days=None):
+def load_jsonl_events(path, cutoff=None, until=None):
     try:
         lines = path.read_text(encoding="utf-8").splitlines()
     except FileNotFoundError:
         return []
-
-    cutoff = None
-    if since_days is not None:
-        cutoff = time.time() - since_days * 24 * 60 * 60
 
     events = []
     for line in lines:
@@ -299,7 +318,10 @@ def load_jsonl_events(path, since_days=None):
             event = json.loads(line)
         except json.JSONDecodeError:
             continue
-        if cutoff is not None and event.get("ts", 0) < cutoff:
+        ts = event.get("ts", 0)
+        if cutoff is not None and ts < cutoff:
+            continue
+        if until is not None and ts > until:
             continue
         events.append(event)
     return events
@@ -405,7 +427,7 @@ def describe_guard_event(event):
     return " | ".join(parts)
 
 
-def discover_logs(paths, roots, since_days=None):
+def discover_logs(paths, roots, cutoff=None):
     discovered = [Path(p).expanduser() for p in paths]
     for root in roots:
         root = Path(root).expanduser()
@@ -413,10 +435,9 @@ def discover_logs(paths, roots, since_days=None):
             continue
         discovered.extend(root.rglob("*.jsonl"))
     logs = sorted({p for p in discovered if p.exists() and p.is_file()})
-    if since_days is None:
+    if cutoff is None:
         return logs
 
-    cutoff = time.time() - (since_days * 24 * 60 * 60)
     return [p for p in logs if p.stat().st_mtime >= cutoff]
 
 
@@ -604,7 +625,7 @@ def is_exempt_direct_read_path(path):
     return False
 
 
-def scan_log(path, cutoff=None):
+def scan_log(path, cutoff=None, until=None):
     result = {
         "ask_intern": 0,
         "direct_reads": [],
@@ -623,6 +644,8 @@ def scan_log(path, cutoff=None):
             continue
         timestamp = record_epoch(record)
         if cutoff is not None and timestamp and timestamp < cutoff:
+            continue
+        if until is not None and timestamp and timestamp > until:
             continue
         for command, _cwd in command_values(record):
             if ASK_INTERN_RE.search(command):
@@ -681,6 +704,8 @@ def main():
     parser.add_argument("--guard-events", default=str(DEFAULT_GUARD_EVENTS), help="Path to read-guard events.jsonl")
     parser.add_argument("--log", action="append", default=[], help="Session JSONL log to scan (repeatable)")
     parser.add_argument("--log-root", action="append", default=[], help="Directory of JSONL logs to scan recursively")
+    parser.add_argument("--since", default="", help="Only scan records at or after this ISO timestamp")
+    parser.add_argument("--until", default="", help="Only scan records at or before this ISO timestamp")
     parser.add_argument("--since-days", type=float, default=None, help="Only scan session logs modified in the last N days")
     parser.add_argument("--min-direct-reads", type=int, default=3, help="Direct-read count that flags a session")
     parser.add_argument("--top", type=int, default=10, help="Number of top paths/sessions to print")
@@ -688,9 +713,12 @@ def main():
     parser.add_argument("--slow-call-seconds", type=float, default=180, help="Latency threshold for hang-shaped calls")
     args = parser.parse_args()
 
-    events = load_events(Path(args.events).expanduser(), since_days=args.since_days)
-    attempts = load_jsonl_events(Path(args.attempts).expanduser(), since_days=args.since_days)
-    guard_events = load_jsonl_events(Path(args.guard_events).expanduser(), since_days=args.since_days)
+    cutoff = cutoff_from_args(args)
+    until = parse_time_arg(args.until) if args.until else None
+
+    events = load_events(Path(args.events).expanduser(), cutoff=cutoff, until=until)
+    attempts = load_jsonl_events(Path(args.attempts).expanduser(), cutoff=cutoff, until=until)
+    guard_events = load_jsonl_events(Path(args.guard_events).expanduser(), cutoff=cutoff, until=until)
     guard_blocked = [event for event in guard_events if event.get("action") == "blocked"]
     chunk_bypasses = possible_chunk_read_bypasses(guard_events)
     if args.log_root:
@@ -699,7 +727,7 @@ def main():
         log_roots = []
     else:
         log_roots = DEFAULT_LOG_ROOTS
-    logs = discover_logs(args.log, log_roots, since_days=args.since_days)
+    logs = discover_logs(args.log, log_roots, cutoff=cutoff)
 
     total_direct_reads = 0
     total_raw_diffs = 0
@@ -707,10 +735,8 @@ def main():
     missed_sessions = []
     raw_diff_sessions = []
 
-    cutoff = time.time() - (args.since_days * 24 * 60 * 60) if args.since_days is not None else None
-
     for log_path in logs:
-        scan = scan_log(log_path, cutoff=cutoff)
+        scan = scan_log(log_path, cutoff=cutoff, until=until)
         direct_reads = scan["direct_reads"]
         raw_diffs = scan["raw_diffs"]
         total_direct_reads += len(direct_reads)
@@ -746,7 +772,14 @@ def main():
     print(f"possible chunk-read bypasses: {len(chunk_bypasses)}")
     for _ts, path, count, total, source in chunk_bypasses[-args.guard_limit :]:
         print(f"- {source} {path}: {count} chunks, {total} total lines")
-    if args.since_days is not None:
+    if args.since or args.until:
+        window_parts = []
+        if args.since:
+            window_parts.append(f"since {args.since}")
+        if args.until:
+            window_parts.append(f"until {args.until}")
+        print(f"session log window: {'; '.join(window_parts)}")
+    elif args.since_days is not None:
         print(f"session log window: last {args.since_days:g} days")
     print(f"session logs scanned: {len(logs)}")
     print(f"suspicious direct reads: {total_direct_reads}")

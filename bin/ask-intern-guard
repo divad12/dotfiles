@@ -570,6 +570,9 @@ def extract_segment_read_candidates(segment, cwd):
             elif sed_index is not None and line_limit is not None:
                 total = line_count(normalized)
                 lines = line_limit if total is None else min(line_limit, total)
+            elif line_limit is not None:
+                total = line_count(normalized)
+                lines = line_limit if total is None else min(line_limit, total)
             else:
                 lines = line_count(normalized)
             candidates.append(read_candidate(normalized, lines))

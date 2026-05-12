@@ -111,6 +111,7 @@ After `--target`, review the output and edit only what needs fixing.
 - The invocation field may include prompt text. Keep this while tuning adoption, then remove or redact it once common failure modes are understood.
 - `ask-intern-audit` flags likely over-delegation patterns such as exact/verbatim-code prompts, single small-file calls, and docs/control-only calls. It filters docs/control/generated/temp/binary reads and also reports possible raw-diff misses and possible chunk-read bypasses when one session reads the same non-exempt file in repeated large chunks. Exact source text should come from direct small reads or narrow snippets, not from `ask-intern`.
 - `ask-intern` hard-denies exact/verbatim source requests before any API call and logs `exact_source_request`; the matcher is negation-aware, so prompts like "do not quote exact code" are allowed. Use direct `rg`/`sed`/narrow `Read` snippets for exact text; set `--allow-exact-source` or `ASK_INTERN_ALLOW_EXACT_SOURCE=1` only for deliberate manual debugging.
+- Structural prompts may ask for import/module names, schemas, helper names, and contract shapes as long as they do not ask for verbatim import lines or exact source text.
 - `ask-intern` hard-denies broad review-shaped requests that are likely to time out before any API call and logs `high_risk_review`. This targets prompts like "review this uncommitted diff" or "deep-review this patch" when paired with a large piped diff or too many files. Split these into subsystem-sized reviews: one diff slice or about 3-5 related files per call. Use `--allow-broad-review` or `ASK_INTERN_ALLOW_BROAD_REVIEW=1` only for deliberate manual debugging.
 - Successful read-mode calls print a short stderr reminder that exact code and line numbers should come from direct narrow snippets after the summary.
 - API calls have a total wall-clock timeout (`INTERN_TIMEOUT_SECONDS`, default 240s) in addition to the socket inactivity timeout (`INTERN_SOCKET_TIMEOUT_SECONDS`, default 120s). Timeout failures are logged as `timeout`; narrow the prompt/file set or override the timeout only when the long run is intentional.
@@ -132,6 +133,12 @@ For hang investigations, check:
 
 ```bash
 ask-intern-audit --since-days 1 --slow-call-seconds 180
+```
+
+For exact local-time windows, prefer ISO timestamps with offsets so UTC `ask-intern` event rows and local guard/session rows line up:
+
+```bash
+ask-intern-audit --since '2026-05-09T01:30:00-03:00' --until '2026-05-12T00:03:00-03:00'
 ```
 
 2. Review false positives:
