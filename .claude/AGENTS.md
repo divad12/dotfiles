@@ -97,6 +97,15 @@ Usage dashboard: `graphify-stats`.
 
 When the user types `/graphify`, invoke the `graphify` skill before doing anything else.
 
+## Validation Scope
+
+Do not run full validation suites after every small edit by habit. Run the narrowest validation that can catch the likely regression for the change, then broaden validation at integration checkpoints or before landing a multi-change batch.
+
+- Docs/config/wording-only changes usually need diff inspection, not tests.
+- Single helper or localized behavior changes need the targeted test/typecheck for that area.
+- UI, API, data-flow, migration, security, or cross-module contract changes need broader validation.
+- If validation output is long, summarize logs with `ask-intern` before reading broadly.
+
 ## Before Work
 
 - Read root `PROGRESS.md` at session start.
