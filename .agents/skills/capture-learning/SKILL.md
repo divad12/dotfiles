@@ -122,6 +122,17 @@ After adding to a doc, check if any indexes need updating. Common index location
 
 Usually the indexes don't need changing (the learning goes into an existing doc). Only update indexes if you created a new file or significantly changed a file's scope.
 
+## Extended bug-bash workstreams
+
+When a multi-session bug-bash or shakedown is running, maintain two living docs in parallel with individual captures:
+
+- **Calibration file** (`docs/specs/<workstream>/calibration.md` or similar): durable user product direction, severity rules, and scope decisions that any agent picking up the workstream should follow without re-asking the user.
+- **Lessons-learned file** (`docs/specs/<workstream>/lessons.md` or similar): one entry per bug class with root cause, principle, anti-pattern, current enforcement, and next enforcement candidate.
+
+**Compaction maintenance.** When context compacts, re-read and slim both files: promote completed items to `docs/ai/` or tests, delete resolved entries, and keep the current-state section sharper than the history beneath it.
+
+**Promotion threshold.** When a lesson has recurred or carries high blast radius (many callers, a core data path), promote it to a mechanical guardrail — regression test, lint rule, schema scan, shared helper, or `docs/ai/` rule — whichever is fastest to enforce.
+
 ## Writing principles
 
 - **One canonical location.** Never write the same principle in two docs. Other docs can reference it.
