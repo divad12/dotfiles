@@ -40,7 +40,7 @@ You MUST use `ask-intern` when any rule below applies and no direct-read excepti
 - You need broad context from multiple medium/large files.
 - You are reading long logs, diffs, transcripts, generated output, or non-exception documentation for a summary.
 - Before reading raw `git diff` output over ~200 lines, pipe it to `ask-intern` for a first-pass summary; read exact hunks directly afterward.
-- You are drafting boilerplate: tests, config, docstrings, fixtures, sample data, repetitive code, or format conversions.
+- You are drafting boilerplate: tests, documentation, config, docstrings, fixtures, sample data, repetitive code, or format conversions.
 
 Build the file list from actual paths (`rg --files` is fine), then use the summary instead of reading those files yourself. If `ask-intern` reports `Cannot read`, correct the paths and retry.
 
@@ -75,6 +75,7 @@ ask-intern -f src/models.py -f src/api.py "how does auth work?"
 # Write-to-file mode (output goes directly to disk, never enters your context)
 ask-intern -t tests/test_user.py -f src/user.py "write pytest tests for all public methods"
 ask-intern -t src/types.ts -f schema.prisma "generate TypeScript interfaces for each model"
+ask-intern -t docs/api.md -f src/routes.ts "draft API docs for the exported routes"
 
 # Piped input
 git diff HEAD~5 | ask-intern "summarize these changes"
