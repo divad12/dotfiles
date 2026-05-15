@@ -78,6 +78,26 @@ For each CONCERN, plain English with the user-facing impact:
    - **CONCERNs** - include in the build report for the user to decide.
    - **All PASS** - note it in the build report ("QA: all scenarios passed").
 
+## Severity calibration
+
+Some issues deserve FAIL, not CONCERN, even when the correct final state eventually appears.
+
+**Always FAIL — interaction timing issues:**
+
+- Optimistic updates that don't reflect immediately, or that briefly revert before settling
+- Visible flicker: content appears, disappears, and reappears within a second
+- Stale-cache reads that show data the user just changed right after they saved it
+
+These break user trust in the persistence of their own actions. If a user saves something and the UI briefly shows the old value, that is a bug — not a concern.
+
+**Route to CONCERN (not FAIL):**
+
+- Missing orientation affordances (legends, labels, helper text) that make the UI harder to navigate but don't block task completion
+- Visual polish issues that work correctly but feel rough
+- Interaction paths that are one step slower than optimal
+
+The line: timing regressions break trust in saved work; orientation gaps slow the user down but don't silently discard it.
+
 ## Output
 
 When called by another skill, return the QA report for inclusion in the build report. When called standalone, present the report directly and offer to fix any FAILs.
