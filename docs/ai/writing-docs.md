@@ -10,6 +10,7 @@ Read this before changing root `AGENTS.md`, `.agents/skills/`, nested `AGENTS.md
 - Keep root `AGENTS.md` under 100 lines unless the user explicitly approves growth.
 - Keep activation text separate from reference content so agents load the source doc instead of guessing from summaries.
 - Write contracts as action + reason + verification. Models follow direct instructions better when the why is visible.
+- For correctness-critical rules guarding against known agent failure modes, include a compact failure-mode note: name the rationalization pattern the rule guards against (e.g. "for now", "just this once", "MVP"), state what goes wrong if it fires, and give the safe alternative. The rationale is what makes the rule hold under pressure, not just under ideal conditions.
 - Lead with the positive action. Use negative wording for known cliff edges, then immediately state the safe path. Reserve `NEVER` or all-caps wording for data-loss, security, or guardrail-bypass risks.
 - Keep one source of truth per concept. Point to it instead of restating it.
 - Move enforceable rules into tooling. Docs are for judgment calls and routing.
