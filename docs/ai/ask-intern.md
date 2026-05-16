@@ -106,7 +106,7 @@ After `--target`, review the output and edit only what needs fixing.
 - `ask-intern --stats` includes recent failure counts by reason, such as `missing_file`, `missing_api_key`, `api_error`, or `empty_response`.
 - The event log records source (`claude`, `codex`, or `unknown`), status, reason, model, cwd, file paths, target path, latency, and the exact `ask-intern` invocation for early debugging.
 - The attempt log records one `start` row before the API request and one `end` row after success or handled failure. If an agent kills a stale `ask-intern` process, the start row remains without an end row and `ask-intern-audit` reports it as an abandoned attempt.
-- The read-guard log records every catch with reason, paths, inferred agent source (`claude`, `codex`, or `unknown`), source tool, original hook input (`Read` `file_path`/`offset`/`limit` or Bash `command`), and computed line/count estimates when available.
+- The read-guard log records every catch with reason, paths, inferred agent source (`claude`, `codex`, or `unknown`), source tool, original hook input (`Read` `file_path`/`offset`/`limit`, Bash `command`, or RTK pre-command), and computed line/count estimates when available.
 - Source is inferred from `ASK_INTERN_SOURCE`, agent-specific environment variables, working directory, and process ancestry; old rows are backfilled from `cwd` when obvious and otherwise remain `unknown`.
 - The invocation field may include prompt text. Keep this while tuning adoption, then remove or redact it once common failure modes are understood.
 - `ask-intern-audit` flags likely over-delegation patterns such as exact/verbatim-code prompts, single small-file calls, and docs/control-only calls. It filters docs/control/generated/temp/binary reads and also reports possible raw-diff misses and possible chunk-read bypasses when one session reads the same non-exempt file in repeated large chunks. Exact source text should come from direct small reads or narrow snippets, not from `ask-intern`.
@@ -217,6 +217,19 @@ ask-intern-guard --allow-next path/to/file.md "verbatim user request"
 ```
 
 The allowance is one-shot and expires after one hour. Use it when the user explicitly asks for a direct read and the file is not already marked.
+
+## Codex RTK Read Guard
+
+Codex does not have the same `PreToolUse` hook surface, so the checked-in `~/bin/rtk` wrapper guards the shell path agents already use. Live setup should point `/usr/local/bin/rtk` at `~/bin/rtk`; the wrapper then delegates to the real Homebrew binary at `/usr/local/opt/rtk/bin/rtk`.
+
+The wrapper blocks only high-signal misses:
+
+- `rtk read` on a non-exempt file over 400 lines
+- `rtk read` across several medium files that cross the cumulative budget
+- broad `rtk cat`, `rtk sed`, `rtk head`, `rtk tail`, or `rtk nl` reads
+- raw `rtk proxy git diff` / `rtk run git diff` output unless it is a summary or bounded snippet
+
+It allows normal RTK-filtered commands such as `rtk git diff`, small `rtk read --max-lines N` snippets, validation commands, and metadata probes. Set `RTK_ASK_INTERN_GUARD_DISABLED=1` for deliberate manual bypasses, or `ASK_INTERN_GUARD_MODE=warn` while tuning.
 
 ## Configuration
 

@@ -1,0 +1,309 @@
+#!/usr/bin/env python3
+"""
+Thin RTK wrapper that runs the ask-intern broad-read guard before real RTK.
+
+Codex has no Claude-style PreToolUse hook, but our sessions already route shell
+commands through `rtk`. This catches the obvious broad-read misses there.
+"""
+
+import json
+import hashlib
+import os
+import re
+import shlex
+import subprocess
+import sys
+import time
+from pathlib import Path
+
+
+REAL_RTK_CANDIDATES = [
+    "/usr/local/opt/rtk/bin/rtk",
+    "/opt/homebrew/opt/rtk/bin/rtk",
+]
+READ_COMMANDS = {"cat", "head", "tail", "sed", "nl"}
+READ_OPTIONS_WITH_VALUES = {
+    "-l",
+    "--level",
+    "-m",
+    "--max-lines",
+    "--tail-lines",
+}
+READ_FLAG_OPTIONS = {
+    "-n",
+    "--line-numbers",
+    "-v",
+    "-vv",
+    "-vvv",
+    "--verbose",
+    "--ultra-compact",
+    "--skip-env",
+}
+NARROW_READ_MAX_LINES = 200
+DIFF_SUMMARY_FLAGS = {
+    "--check",
+    "--exit-code",
+    "--name-only",
+    "--name-status",
+    "--numstat",
+    "--quiet",
+    "--shortstat",
+    "--stat",
+    "--summary",
+}
+
+
+def find_real_rtk():
+    configured = os.environ.get("RTK_REAL", "").strip()
+    candidates = [configured] if configured else []
+    candidates.extend(REAL_RTK_CANDIDATES)
+
+    self_path = Path(__file__).resolve()
+    for entry in os.environ.get("PATH", "").split(os.pathsep):
+        if entry:
+            candidates.append(str(Path(entry) / "rtk"))
+
+    for candidate in candidates:
+        if not candidate:
+            continue
+        path = Path(candidate).expanduser()
+        try:
+            resolved = path.resolve()
+        except OSError:
+            continue
+        if resolved == self_path:
+            continue
+        if path.exists() and os.access(path, os.X_OK):
+            return str(path)
+
+    print("rtk wrapper: could not find real rtk binary; set RTK_REAL", file=sys.stderr)
+    sys.exit(127)
+
+
+def guard_path():
+    configured = os.environ.get("ASK_INTERN_GUARD", "").strip()
+    if configured:
+        return configured
+    return str(Path(__file__).resolve().with_name("ask-intern-guard"))
+
+
+def parse_positive_int(value):
+    try:
+        parsed = int(str(value))
+    except (TypeError, ValueError):
+        return None
+    return parsed if parsed >= 0 else None
+
+
+def read_max_lines(args):
+    max_lines = None
+    index = 0
+    while index < len(args):
+        token = args[index]
+        if token in {"-m", "--max-lines", "--tail-lines"} and index + 1 < len(args):
+            parsed = parse_positive_int(args[index + 1])
+            if parsed is not None:
+                max_lines = parsed if max_lines is None else min(max_lines, parsed)
+            index += 2
+            continue
+        for prefix in ("--max-lines=", "--tail-lines="):
+            if token.startswith(prefix):
+                parsed = parse_positive_int(token.split("=", 1)[1])
+                if parsed is not None:
+                    max_lines = parsed if max_lines is None else min(max_lines, parsed)
+        index += 1
+    return max_lines
+
+
+def read_file_args(args):
+    files = []
+    index = 0
+    while index < len(args):
+        token = args[index]
+        if token == "--":
+            files.extend(arg for arg in args[index + 1:] if arg != "-")
+            break
+        if token in READ_OPTIONS_WITH_VALUES:
+            index += 2
+            continue
+        if any(token.startswith(prefix) for prefix in ("--level=", "--max-lines=", "--tail-lines=")):
+            index += 1
+            continue
+        if token in READ_FLAG_OPTIONS or token.startswith("-v"):
+            index += 1
+            continue
+        if token != "-":
+            files.append(token)
+        index += 1
+    return files
+
+
+def is_ask_intern_command(args):
+    if not args:
+        return False
+    if Path(args[0]).name == "ask-intern":
+        return True
+    if args[0] in {"proxy", "run"} and len(args) > 1:
+        return Path(args[1]).name == "ask-intern" or "ask-intern" in shlex.join(args[1:])
+    return False
+
+
+def shell_tokens(command):
+    try:
+        return shlex.split(command)
+    except ValueError:
+        return command.split()
+
+
+def bounded_pipe(command):
+    if "|" not in command:
+        return False
+    if re.search(r"\|\s*wc\s+(?:-[A-Za-z]*l[A-Za-z]*|--lines)\b", command):
+        return True
+    head_tail = re.findall(r"\|\s*(?:head|tail)\b(?:\s+-n\s+|\s+-)(\d+)", command)
+    if head_tail and all(int(limit) <= NARROW_READ_MAX_LINES for limit in head_tail):
+        return True
+    sed_ranges = re.findall(r"\|\s*sed\s+-n\s+['\"]?(\d+),(\d+)p['\"]?", command)
+    return bool(sed_ranges) and all(
+        max(0, int(end) - int(start) + 1) <= NARROW_READ_MAX_LINES
+        for start, end in sed_ranges
+    )
+
+
+def is_raw_git_diff_command(command):
+    if not command or "ask-intern" in command:
+        return False
+
+    for segment in re.split(r"\s*(?:&&|\|\||;|\n)\s*", command):
+        if "git" not in segment or "diff" not in segment:
+            continue
+        before_pipe = segment.split("|", 1)[0]
+        tokens = shell_tokens(before_pipe)
+        for index, token in enumerate(tokens):
+            if Path(token).name != "git":
+                continue
+            arg_index = index + 1
+            while arg_index < len(tokens):
+                arg = tokens[arg_index]
+                if arg in {"-C", "-c"} and arg_index + 1 < len(tokens):
+                    arg_index += 2
+                    continue
+                if arg.startswith("-c"):
+                    arg_index += 1
+                    continue
+                break
+            if arg_index >= len(tokens) or tokens[arg_index] != "diff":
+                continue
+            args = tokens[arg_index + 1:]
+            if any(arg in DIFF_SUMMARY_FLAGS for arg in args):
+                continue
+            if bounded_pipe(segment):
+                continue
+            return True
+    return False
+
+
+def guarded_command(args):
+    if not args:
+        return None
+    if args[0] in {"-h", "--help", "-V", "--version", "help"}:
+        return None
+    if is_ask_intern_command(args):
+        return shlex.join(args)
+
+    command = args[0]
+    if command in {"proxy", "run"}:
+        return shlex.join(args[1:]) if len(args) > 1 else None
+
+    if command == "read":
+        max_lines = read_max_lines(args[1:])
+        if max_lines is not None and max_lines <= NARROW_READ_MAX_LINES:
+            return None
+        files = read_file_args(args[1:])
+        return shlex.join(["cat", *files]) if files else None
+
+    if command in READ_COMMANDS:
+        return shlex.join(args)
+
+    return None
+
+
+def guard_events_path():
+    root = Path(os.environ.get("ASK_INTERN_GUARD_DIR", "~/.config/ask-intern/read-guard")).expanduser()
+    root.mkdir(parents=True, exist_ok=True)
+    return root / "events.jsonl"
+
+
+def log_blocked_raw_diff(command):
+    event = {
+        "ts": int(time.time()),
+        "session": hashlib.sha256(session_id().encode("utf-8")).hexdigest()[:16],
+        "source": "codex" if os.environ.get("CODEX_SHELL") else "unknown",
+        "action": "blocked",
+        "reason": "raw_git_diff",
+        "paths": [],
+        "cwd": os.getcwd(),
+        "tool": "RTK",
+        "command": command,
+        "hook_event_name": "RTKPreCommand",
+        "tool_input": {"command": command},
+    }
+    try:
+        with guard_events_path().open("a", encoding="utf-8") as f:
+            f.write(json.dumps(event, sort_keys=True) + "\n")
+    except OSError:
+        pass
+
+
+def block_raw_git_diff(command):
+    reason = (
+        "ask-intern guard: this would read raw git diff output. "
+        "Use `git diff ... | ask-intern \"summarize changed contracts and risky hunks\"` first, "
+        "or use `rtk git diff` / `git diff --stat` for compact direct inspection."
+    )
+    log_blocked_raw_diff(command)
+    print(reason, file=sys.stderr)
+    if os.environ.get("ASK_INTERN_GUARD_MODE") != "warn":
+        sys.exit(1)
+
+
+def session_id():
+    for key in ("RTK_GUARD_SESSION_ID", "CODEX_SESSION_ID", "CLAUDE_SESSION_ID"):
+        value = os.environ.get(key, "").strip()
+        if value:
+            return value
+    # Codex does not currently expose a stable session id to the shell. A
+    # daily per-repo bucket catches repeated broad reads without holding stale
+    # state forever.
+    return f"rtk:{os.getcwd()}:{time.strftime('%Y-%m-%d')}"
+
+
+def run_guard(command):
+    if not command or os.environ.get("RTK_ASK_INTERN_GUARD_DISABLED"):
+        return
+    if is_raw_git_diff_command(command):
+        block_raw_git_diff(command)
+
+    env = os.environ.copy()
+    env.setdefault("ASK_INTERN_SOURCE", "codex" if env.get("CODEX_SHELL") else "unknown")
+    record = {
+        "session_id": session_id(),
+        "cwd": os.getcwd(),
+        "hook_event_name": "RTKPreCommand",
+        "tool_name": "Bash",
+        "tool_input": {"command": command},
+    }
+    result = subprocess.run([guard_path()], input=json.dumps(record), text=True, env=env, check=False)
+    if result.returncode != 0:
+        sys.exit(result.returncode)
+
+
+def main():
+    args = sys.argv[1:]
+    run_guard(guarded_command(args))
+    real = find_real_rtk()
+    os.execv(real, [real, *args])
+
+
+if __name__ == "__main__":
+    main()

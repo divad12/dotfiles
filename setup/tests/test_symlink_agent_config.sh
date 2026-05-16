@@ -69,6 +69,11 @@ if [ "$(readlink "$home/.codex/config.toml")" != "$repo_root/.codex/config.toml"
   exit 1
 fi
 
+if [ "$(readlink "$home/.codex/RTK.md")" != "$repo_root/.codex/RTK.md" ]; then
+  echo "~/.codex/RTK.md does not point at the tracked RTK instructions" >&2
+  exit 1
+fi
+
 grep -q '@/Users/david/dotfiles/.claude/AGENTS.md' "$repo_root/.codex/AGENTS.md" || {
   echo "tracked Codex wrapper must include the shared global instructions" >&2
   exit 1
