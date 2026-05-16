@@ -116,7 +116,7 @@ After `--target`, review the output and edit only what needs fixing.
 - Successful read-mode calls print a short stderr reminder that exact code and line numbers should come from direct narrow snippets after the summary.
 - API calls have a total wall-clock timeout (`INTERN_TIMEOUT_SECONDS`, default 240s) in addition to the socket inactivity timeout (`INTERN_SOCKET_TIMEOUT_SECONDS`, default 120s). Timeout failures are logged as `timeout`; narrow the prompt/file set or override the timeout only when the long run is intentional.
 - Missing temp/log files are treated as stale optional context and skipped with a warning; missing project/source files still fail so the agent corrects guessed paths.
-- Adoption audit: `ask-intern-audit` scans the event log, attempt log, read-guard catches, and Claude/Codex JSONL logs. It reports slow/hang-shaped calls, abandoned attempts, recent guard blocks, suspicious direct reads, and likely missed delegations. Use `ask-intern-audit --since-days 1` for recent sessions, or `ask-intern-audit --log path/to/session.jsonl` to inspect a specific session.
+- Adoption audit: `ask-intern-audit` scans the event log, attempt log, read-guard catches, and Claude/Codex JSONL logs. It reports slow/hang-shaped calls, abandoned attempts, recent guard blocks, suspicious direct reads, and likely missed delegations. It records the last completed audit in `~/.config/ask-intern/audit-state.json`; use `ask-intern-audit --since-last --record-run` after the first recorded run, or `ask-intern-audit --log path/to/session.jsonl` to inspect a specific session.
 
 ## Daily Adoption Audit Runbook
 
@@ -126,13 +126,19 @@ Run this when tuning `ask-intern` adoption or reviewing the last day of Claude/C
 
 ```bash
 ask-intern --stats
-ask-intern-audit --since-days 1 --guard-limit 20
+ask-intern-audit --since-last --record-run --guard-limit 20
+```
+
+For the first run on a machine, or when anchoring a known window, seed the state explicitly:
+
+```bash
+ask-intern-audit --since '2026-05-12T00:03:00-03:00' --until '2026-05-15T23:49:29-03:00' --record-run
 ```
 
 For hang investigations, check:
 
 ```bash
-ask-intern-audit --since-days 1 --slow-call-seconds 180
+ask-intern-audit --since-last --slow-call-seconds 180
 ```
 
 For exact local-time windows, prefer ISO timestamps with offsets so UTC `ask-intern` event rows and local guard/session rows line up:
@@ -160,7 +166,7 @@ ask-intern-audit --since '2026-05-09T01:30:00-03:00' --until '2026-05-12T00:03:0
 4. Inspect the transcript only after the dashboard points to a concrete candidate:
 
 ```bash
-ask-intern-audit --since-days 1 --log path/to/session.jsonl --guard-limit 20
+ask-intern-audit --since-last --log path/to/session.jsonl --guard-limit 20
 ```
 
 Classify each candidate as:
@@ -174,7 +180,7 @@ Classify each candidate as:
 - Add or update a regression test that captures the failure mode.
 - Prefer hook/audit fixes over prose when the pattern is mechanically detectable.
 - Update `AGENTS.md` or skill prompts only for judgment/routing problems that tooling cannot see.
-- Re-run the focused tests and `ask-intern-audit --since-days 1` before committing.
+- Re-run the focused tests and `ask-intern-audit --since-last` before committing. Use `--record-run` only once you are ready to advance the durable audit cursor.
 
 Daily summary format:
 

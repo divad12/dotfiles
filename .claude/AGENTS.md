@@ -66,6 +66,8 @@ Stop signals — if you think any of these, delegate instead:
 
 Latency/chaining guardrails: Max 2 sequential `ask-intern` calls for the same parent task. Prefer one consolidated prompt over many micro-calls. If `ask-intern` needs retries, times out, or returns low-confidence output, split the task or keep it on Codex/Claude.
 
+After compaction, session resume, or any long-running session where loaded instructions may have fallen out of context, re-apply this Token Delegation section before broad context gathering or dispatching more subagents. Treat the next large/multi-file/log/diff/transcript/draft step like session start: delegate first when the thresholds match, then use narrow direct reads for exact edits, and copy this section verbatim into any new worker prompts.
+
 ### Usage
 
 ```bash

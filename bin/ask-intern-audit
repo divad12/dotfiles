@@ -22,6 +22,7 @@ from pathlib import Path
 DEFAULT_EVENTS = Path("~/.config/ask-intern/events.tsv").expanduser()
 DEFAULT_ATTEMPTS = Path("~/.config/ask-intern/attempts.jsonl").expanduser()
 DEFAULT_GUARD_EVENTS = Path("~/.config/ask-intern/read-guard/events.jsonl").expanduser()
+DEFAULT_AUDIT_STATE = Path("~/.config/ask-intern/audit-state.json").expanduser()
 DEFAULT_LOG_ROOTS = [
     Path("~/.codex/sessions").expanduser(),
     Path("~/.codex/archived_sessions").expanduser(),
@@ -154,6 +155,61 @@ def cutoff_from_args(args):
     if args.since_days is not None:
         return time.time() - args.since_days * 24 * 60 * 60
     return None
+
+
+def load_audit_state(path):
+    try:
+        with path.open(encoding="utf-8") as f:
+            state = json.load(f)
+    except FileNotFoundError:
+        return {}
+    except json.JSONDecodeError:
+        return {}
+    return state if isinstance(state, dict) else {}
+
+
+def last_audit_until_epoch(state):
+    last_run = state.get("last_run")
+    if not isinstance(last_run, dict):
+        return None
+    until_epoch = last_run.get("until_epoch")
+    if isinstance(until_epoch, (int, float)) and until_epoch > 0:
+        return float(until_epoch)
+    until = iso_epoch(last_run.get("until"))
+    return until or None
+
+
+def iso_utc(ts):
+    if ts is None:
+        return None
+    return datetime.fromtimestamp(float(ts), timezone.utc).isoformat().replace("+00:00", "Z")
+
+
+def write_audit_state(path, *, cutoff, until, events, guard_events, logs, total_direct_reads, missed_sessions):
+    now = time.time()
+    path.parent.mkdir(parents=True, exist_ok=True)
+    state = load_audit_state(path)
+    state["last_run"] = {
+        "since_epoch": cutoff,
+        "since": iso_utc(cutoff),
+        "until_epoch": until,
+        "until": iso_utc(until),
+        "recorded_at_epoch": now,
+        "recorded_at": iso_utc(now),
+        "calls": events["total"],
+        "success": events["success"],
+        "failure": events["failure"],
+        "sources": dict(events["sources"]),
+        "guard_events": len(guard_events),
+        "session_logs_scanned": len(logs),
+        "suspicious_direct_reads": total_direct_reads,
+        "likely_missed_delegations": len(missed_sessions),
+    }
+    tmp = path.with_suffix(path.suffix + ".tmp")
+    with tmp.open("w", encoding="utf-8") as f:
+        json.dump(state, f, indent=2, sort_keys=True)
+        f.write("\n")
+    tmp.replace(path)
 
 
 def iso_epoch(value):
@@ -702,19 +758,38 @@ def main():
     parser.add_argument("--events", default=str(DEFAULT_EVENTS), help="Path to ask-intern events.tsv")
     parser.add_argument("--attempts", default=str(DEFAULT_ATTEMPTS), help="Path to ask-intern attempts.jsonl")
     parser.add_argument("--guard-events", default=str(DEFAULT_GUARD_EVENTS), help="Path to read-guard events.jsonl")
+    parser.add_argument("--state", default=str(DEFAULT_AUDIT_STATE), help="Path to persisted audit state")
     parser.add_argument("--log", action="append", default=[], help="Session JSONL log to scan (repeatable)")
     parser.add_argument("--log-root", action="append", default=[], help="Directory of JSONL logs to scan recursively")
     parser.add_argument("--since", default="", help="Only scan records at or after this ISO timestamp")
     parser.add_argument("--until", default="", help="Only scan records at or before this ISO timestamp")
     parser.add_argument("--since-days", type=float, default=None, help="Only scan session logs modified in the last N days")
+    parser.add_argument("--since-last", action="store_true", help="Use the end of the last recorded audit as --since")
+    parser.add_argument("--record-run", action="store_true", help="Record this audit window as the next --since-last start")
     parser.add_argument("--min-direct-reads", type=int, default=3, help="Direct-read count that flags a session")
     parser.add_argument("--top", type=int, default=10, help="Number of top paths/sessions to print")
     parser.add_argument("--guard-limit", type=int, default=8, help="Number of recent read-guard blocks to print")
     parser.add_argument("--slow-call-seconds", type=float, default=180, help="Latency threshold for hang-shaped calls")
     args = parser.parse_args()
 
-    cutoff = cutoff_from_args(args)
+    if args.since_last and (args.since or args.since_days is not None):
+        parser.error("--since-last cannot be combined with --since or --since-days")
+
+    state_path = Path(args.state).expanduser()
+    if args.since_last:
+        state = load_audit_state(state_path)
+        cutoff = last_audit_until_epoch(state)
+        if cutoff is None:
+            parser.error(f"No previous ask-intern audit state at {state_path}; run with --since/--since-days --record-run first")
+        since_label = f"last recorded audit ({iso_utc(cutoff)})"
+    else:
+        cutoff = cutoff_from_args(args)
+        since_label = args.since
+
     until = parse_time_arg(args.until) if args.until else None
+    if args.record_run and until is None:
+        until = time.time()
+    until_label = args.until or (iso_utc(until) if until is not None else "")
 
     events = load_events(Path(args.events).expanduser(), cutoff=cutoff, until=until)
     attempts = load_jsonl_events(Path(args.attempts).expanduser(), cutoff=cutoff, until=until)
@@ -772,12 +847,14 @@ def main():
     print(f"possible chunk-read bypasses: {len(chunk_bypasses)}")
     for _ts, path, count, total, source in chunk_bypasses[-args.guard_limit :]:
         print(f"- {source} {path}: {count} chunks, {total} total lines")
-    if args.since or args.until:
+    if args.since_last or args.since or until_label:
         window_parts = []
-        if args.since:
-            window_parts.append(f"since {args.since}")
-        if args.until:
-            window_parts.append(f"until {args.until}")
+        if args.since_last or args.since:
+            window_parts.append(f"since {since_label}")
+        elif args.since_days is not None:
+            window_parts.append(f"last {args.since_days:g} days")
+        if until_label:
+            window_parts.append(f"until {until_label}")
         print(f"session log window: {'; '.join(window_parts)}")
     elif args.since_days is not None:
         print(f"session log window: last {args.since_days:g} days")
@@ -797,6 +874,18 @@ def main():
         print(f"- {path}: {count} direct reads, no ask-intern")
         if sample_paths:
             print(f"  sample paths: {', '.join(sample_paths)}")
+    if args.record_run:
+        write_audit_state(
+            state_path,
+            cutoff=cutoff,
+            until=until,
+            events=events,
+            guard_events=guard_events,
+            logs=logs,
+            total_direct_reads=total_direct_reads,
+            missed_sessions=missed_sessions,
+        )
+        print(f"recorded audit state: {state_path} until {iso_utc(until)}")
 
 
 if __name__ == "__main__":

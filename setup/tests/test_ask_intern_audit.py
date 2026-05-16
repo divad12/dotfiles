@@ -2,6 +2,7 @@
 
 import importlib.machinery
 import importlib.util
+import json
 import os
 import subprocess
 import tempfile
@@ -70,6 +71,88 @@ class AskInternAuditTest(unittest.TestCase):
         self.assertIn("ask-intern calls: 1 (success 1, failure 0)", result.stdout)
         self.assertNotIn("before.md", result.stdout)
         self.assertNotIn("after.md", result.stdout)
+
+    def test_since_last_requires_recorded_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            events = tmpdir / "events.tsv"
+            state = tmpdir / "audit-state.json"
+            events.write_text(
+                "timestamp\tsource\tstatus\treason\tmodel\tfile_count\ttarget\tlatency_s\tcwd\tfiles\tinvocation\n",
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    str(SCRIPT),
+                    "--events",
+                    str(events),
+                    "--log-root",
+                    str(tmpdir / "missing-logs"),
+                    "--state",
+                    str(state),
+                    "--since-last",
+                ],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn("No previous ask-intern audit state", result.stderr)
+
+    def test_record_run_and_since_last_state(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            tmpdir = Path(tmp)
+            events = tmpdir / "events.tsv"
+            state = tmpdir / "audit-state.json"
+            events.write_text(
+                "\n".join(
+                    [
+                        "timestamp\tsource\tstatus\treason\tmodel\tfile_count\ttarget\tlatency_s\tcwd\tfiles\tinvocation",
+                        "2026-05-12 03:02:59\tclaude\tsuccess\tok\tdeepseek/deepseek-v4-flash\t1\t\t1.00\t/repo\tbefore.md\task-intern -f before.md prompt",
+                        "2026-05-12 03:03:01\tcodex\tsuccess\tok\tdeepseek/deepseek-v4-flash\t1\t\t1.00\t/repo\tafter.md\task-intern -f after.md prompt",
+                    ]
+                )
+                + "\n",
+                encoding="utf-8",
+            )
+
+            seed_until = datetime(2026, 5, 12, 3, 3, tzinfo=timezone.utc).timestamp()
+            state.write_text(
+                json.dumps({"last_run": {"until_epoch": seed_until, "until": "2026-05-12T03:03:00Z"}}),
+                encoding="utf-8",
+            )
+
+            result = subprocess.run(
+                [
+                    str(SCRIPT),
+                    "--events",
+                    str(events),
+                    "--log-root",
+                    str(tmpdir / "missing-logs"),
+                    "--state",
+                    str(state),
+                    "--since-last",
+                    "--until",
+                    "2026-05-12T00:04:00-03:00",
+                    "--record-run",
+                ],
+                check=False,
+                text=True,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.PIPE,
+            )
+
+            stored = json.loads(state.read_text(encoding="utf-8"))
+
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("ask-intern calls: 1 (success 1, failure 0)", result.stdout)
+        self.assertIn("since last recorded audit", result.stdout)
+        self.assertNotIn("before.md", result.stdout)
+        self.assertEqual(stored["last_run"]["until"], "2026-05-12T03:04:00Z")
+        self.assertEqual(stored["last_run"]["sources"], {"codex": 1})
 
     def test_reports_failures_direct_reads_and_missed_sessions(self):
         with tempfile.TemporaryDirectory() as tmp:
