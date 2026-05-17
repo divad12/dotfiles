@@ -290,6 +290,7 @@ class AskInternAuditTest(unittest.TestCase):
                 "\n".join(
                     [
                         '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"cat docs/spec.md\\"}"}}',
+                        '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"cat /Users/david/.codex/RTK.md\\"}"}}',
                         '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"cat graphify-out/wiki/index.md\\"}"}}',
                         '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"cat assets/screenshot.png\\"}"}}',
                         '{"type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\\"cmd\\":\\"cat /tmp/generated.txt\\"}"}}',
@@ -324,6 +325,7 @@ class AskInternAuditTest(unittest.TestCase):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("suspicious direct reads: 1", result.stdout)
         self.assertIn("src/large.ts", result.stdout)
+        self.assertNotIn("RTK.md", result.stdout)
         self.assertNotIn("screenshot.png", result.stdout)
 
     def test_filters_session_records_by_record_timestamp_not_only_file_mtime(self):
@@ -437,6 +439,7 @@ class AskInternAuditTest(unittest.TestCase):
                         json_line({"timestamp": now, "type": "response_item", "payload": {"type": "function_call", "name": "exec_command", "arguments": "{\"cmd\":\"git diff -- src/b.ts\"}"}}),
                         json_line({"timestamp": now, "type": "response_item", "payload": {"type": "function_call", "name": "exec_command", "arguments": "{\"cmd\":\"git diff -- src/tiny.ts | head -40\"}"}}),
                         json_line({"timestamp": now, "type": "response_item", "payload": {"type": "function_call", "name": "exec_command", "arguments": "{\"cmd\":\"git diff --stat\"}"}}),
+                        json_line({"timestamp": now, "type": "response_item", "payload": {"type": "function_call", "name": "exec_command", "arguments": "{\"cmd\":\"rtk git diff -- src/filtered.ts\"}"}}),
                     ]
                 )
                 + "\n",
@@ -471,6 +474,7 @@ class AskInternAuditTest(unittest.TestCase):
         self.assertIn("possible raw diff missed delegations: 2", result.stdout)
         self.assertIn("diff-missed.jsonl: 2 raw diff reads, no ask-intern", result.stdout)
         self.assertIn("src/a.ts", result.stdout)
+        self.assertNotIn("filtered.ts", result.stdout)
         self.assertNotIn("src/c.ts", result.stdout)
 
     def test_reports_slow_calls_and_abandoned_attempts(self):

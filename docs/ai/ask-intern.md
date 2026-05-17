@@ -200,6 +200,7 @@ ask-intern daily audit
 
 - whole-file reads of any non-instruction file over 400 lines
 - cumulative broad reads over 800 lines across 3+ distinct non-instruction context files, counting only files/ranges of roughly 200+ lines
+- repeated same-file chunk reads over 800 total lines across 3+ chunks
 - Bash commands that directly read enough file content to cross that cumulative budget
 
 The hook allows small files, narrow `Read` chunks with `offset`/`limit`, bounded output probes such as `wc -l`, small `head`/`tail`, and `cat file | tail/head/wc` pipelines, plus binary/media reads. It ignores required instruction/project documentation files (`AGENTS.md`, `CLAUDE.md`, `PROGRESS.md`, `SKILL.md`, any path segment named `docs`) and resets the session counter when Claude runs `ask-intern`. Tune the cumulative budget with `ASK_INTERN_GUARD_MAX_CUMULATIVE_LINES` and the small-file floor with `ASK_INTERN_GUARD_MIN_CUMULATIVE_FILE_LINES`. Set `ASK_INTERN_GUARD_DISABLED=1` to bypass it, or `ASK_INTERN_GUARD_MODE=warn` to allow reads with an advisory while tuning.
@@ -229,7 +230,7 @@ The wrapper blocks only high-signal misses:
 - broad `rtk cat`, `rtk sed`, `rtk head`, `rtk tail`, or `rtk nl` reads
 - raw `rtk proxy git diff` / `rtk run git diff` output unless it is a summary or bounded snippet
 
-It allows normal RTK-filtered commands such as `rtk git diff`, small `rtk read --max-lines N` snippets, validation commands, and metadata probes. Set `RTK_ASK_INTERN_GUARD_DISABLED=1` for deliberate manual bypasses, or `ASK_INTERN_GUARD_MODE=warn` while tuning.
+It allows normal RTK-filtered commands such as `rtk git diff`, small `rtk read --max-lines N` snippets, validation commands, and metadata probes. Repeated same-file chunks still count toward the broad-read budget; if you need hundreds of lines from one file, use `ask-intern` first. Set `RTK_ASK_INTERN_GUARD_DISABLED=1` for deliberate manual bypasses, or `ASK_INTERN_GUARD_MODE=warn` while tuning.
 
 ## Configuration
 

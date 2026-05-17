@@ -70,7 +70,7 @@ POST_NEGATED_EXACT_PROMPT_RE = re.compile(
     r"\b(?:not\s+needed|not\s+required|not\s+necessary|unneeded|unnecessary|not\s+wanted)\b",
     re.IGNORECASE,
 )
-CONTROL_BASENAMES = {"AGENTS.md", "CLAUDE.md", "PROGRESS.md", "SKILL.md"}
+CONTROL_BASENAMES = {"AGENTS.md", "CLAUDE.md", "PROGRESS.md", "RTK.md", "SKILL.md"}
 SENSITIVE_BASENAMES = {".env", ".env.local"}
 GENERATED_SEGMENTS = {"graphify-out", "node_modules"}
 CONTROL_SEGMENTS = {".git"}
@@ -528,6 +528,8 @@ def git_diff_segments(command):
         tokens = shell_tokens(segment)
         for index, token in enumerate(tokens):
             if os.path.basename(token) != "git":
+                continue
+            if index > 0 and os.path.basename(tokens[index - 1]) == "rtk":
                 continue
             arg_index = index + 1
             while arg_index < len(tokens):

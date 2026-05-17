@@ -28,6 +28,7 @@ snippet_b="$work/snippet-b.ts"
 snippet_c="$work/snippet-c.ts"
 edge_a="$work/edge-a.ts"
 edge_b="$work/edge-b.ts"
+chunky="$work/chunky.ts"
 large="$work/large.py"
 marked_control="$work/arbitrary-queue.md"
 docs_control="$work/docs/implementation-plan.txt"
@@ -50,6 +51,7 @@ printf '' >"$snippet_b"
 printf '' >"$snippet_c"
 printf '' >"$edge_a"
 printf '' >"$edge_b"
+printf '' >"$chunky"
 printf '<!-- agent-control: direct-read -->\n' >"$marked_control"
 printf 'Durable implementation plan\n\n- [ ] Read this verbatim\n' >"$docs_control"
 printf '# Manual queue\n\n- [ ] Read this verbatim\n' >"$manual_control"
@@ -77,6 +79,7 @@ while [ "$i" -lt 401 ]; do
     printf 'edge a %s\n' "$i" >>"$edge_a"
     printf 'edge b %s\n' "$i" >>"$edge_b"
   fi
+  printf 'chunky %s\n' "$i" >>"$chunky"
   printf 'pixel-ish line %s\n' "$i" >>"$image"
   printf 'log line %s\n' "$i" >>"$long_log"
   if [ "$i" -lt 88 ]; then
@@ -86,6 +89,7 @@ while [ "$i" -lt 401 ]; do
 done
 while [ "$i" -lt 1000 ]; do
   printf 'log line %s\n' "$i" >>"$long_log"
+  printf 'chunky %s\n' "$i" >>"$chunky"
   i=$((i + 1))
 done
 
@@ -144,6 +148,17 @@ if run_hook "$(partial_read_json "$large" s20 500)" >/tmp/guard.out 2>/tmp/guard
   exit 1
 fi
 run_hook "$(read_json "$image" s21)" >/tmp/guard.out 2>/tmp/guard.err
+
+run_hook "$(partial_read_json "$chunky" s24 300)" >/tmp/guard.out 2>/tmp/guard.err
+run_hook "$(partial_read_json "$chunky" s24 300)" >/tmp/guard.out 2>/tmp/guard.err
+if run_hook "$(partial_read_json "$chunky" s24 300)" >/tmp/guard.out 2>/tmp/guard.err; then
+  echo "same-file chunk bypass was not blocked" >&2
+  exit 1
+fi
+if ! grep -q "across 3 chunks" /tmp/guard.err || ! grep -q "ask-intern" /tmp/guard.err; then
+  echo "same-file chunk block did not explain the chunk budget" >&2
+  exit 1
+fi
 
 run_hook "$(read_json "$medium_a" s10)" >/tmp/guard.out 2>/tmp/guard.err
 run_hook "$(read_json "$medium_b" s10)" >/tmp/guard.out 2>/tmp/guard.err

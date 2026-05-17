@@ -27,12 +27,14 @@ DEFAULT_MIN_DISTINCT = 3
 DEFAULT_MAX_LINES = 400
 DEFAULT_MAX_CUMULATIVE_LINES = 800
 DEFAULT_MIN_CUMULATIVE_FILE_LINES = 200
+DEFAULT_MAX_SINGLE_FILE_CHUNK_LINES = 800
+DEFAULT_MIN_SINGLE_FILE_CHUNKS = 3
 DEFAULT_PROBE_MAX_LINES = 40
 DEFAULT_ALLOW_TTL_SECONDS = 3600
 CONTROL_MARKER = "agent-control: direct-read"
 CONTROL_MARKER_SCAN_LINES = 40
 READ_COMMANDS = {"cat", "head", "tail", "nl"}
-INSTRUCTION_BASENAMES = {"AGENTS.md", "CLAUDE.md", "PROGRESS.md", "SKILL.md"}
+INSTRUCTION_BASENAMES = {"AGENTS.md", "CLAUDE.md", "PROGRESS.md", "RTK.md", "SKILL.md"}
 REDIRECT_TARGET_TOKENS = {">", ">>", "1>", "1>>", "2>", "2>>", "&>", "<<", "<<<"}
 BINARY_EXTENSIONS = {
     ".avif",
@@ -605,6 +607,7 @@ def reset_after_delegation(record, session_id, state):
     if tool_name == "Bash" and isinstance(command, str) and is_ask_intern_command(command):
         state["paths"] = []
         state["reads"] = []
+        state["chunk_reads"] = {}
         state["delegated_at"] = int(time.time())
         save_state(session_id, state)
         log_event(
@@ -746,6 +749,58 @@ def cumulative_candidates(candidates):
     return relevant
 
 
+def check_single_file_chunk_reads(candidates, session_id, state, record):
+    min_lines = config_int("ASK_INTERN_GUARD_MIN_CUMULATIVE_FILE_LINES", DEFAULT_MIN_CUMULATIVE_FILE_LINES)
+    max_lines = config_int("ASK_INTERN_GUARD_MAX_SINGLE_FILE_CHUNK_LINES", DEFAULT_MAX_SINGLE_FILE_CHUNK_LINES)
+    min_chunks = config_int("ASK_INTERN_GUARD_MIN_SINGLE_FILE_CHUNKS", DEFAULT_MIN_SINGLE_FILE_CHUNKS)
+    chunk_reads = state.get("chunk_reads")
+    if not isinstance(chunk_reads, dict):
+        chunk_reads = {}
+
+    changed = False
+    for candidate in candidates:
+        path = candidate_path(candidate)
+        if is_exempt_path(path):
+            continue
+        lines = candidate_lines(candidate)
+        if lines is None or lines < min_lines:
+            continue
+        entry = chunk_reads.get(path)
+        if not isinstance(entry, dict):
+            entry = {"count": 0, "total": 0}
+        entry["count"] = int(entry.get("count") or 0) + 1
+        entry["total"] = int(entry.get("total") or 0) + int(lines)
+        chunk_reads[path] = entry
+        changed = True
+
+        if entry["count"] >= min_chunks and entry["total"] >= max_lines:
+            reason = (
+                f"ask-intern guard: this would read about {entry['total']} lines from {path} "
+                f"across {entry['count']} chunks. "
+                f"Use `ask-intern -f {shlex.quote(path)} \"summarize what I need\"` first, "
+                "then read only narrow snippets needed for exact line numbers, verification, or edits."
+            )
+            log_event(
+                session_id,
+                "blocked",
+                reason="single_file_chunks",
+                paths=[path],
+                cwd=record.get("cwd", ""),
+                tool_name=record.get("tool_name", ""),
+                command=(record.get("tool_input") or {}).get("command", ""),
+                record=record,
+                read_lines=lines,
+                total_lines=entry["total"],
+                distinct_files=1,
+            )
+            warn_or_deny(reason)
+            return
+
+    if changed:
+        state["chunk_reads"] = chunk_reads
+        save_state(session_id, state)
+
+
 def check_cumulative_reads(candidates, session_id, state, record):
     min_distinct = config_int("ASK_INTERN_GUARD_MIN_DISTINCT", DEFAULT_MIN_DISTINCT)
     max_cumulative = config_int("ASK_INTERN_GUARD_MAX_CUMULATIVE_LINES", DEFAULT_MAX_CUMULATIVE_LINES)
@@ -835,6 +890,7 @@ def main():
 
     candidates = consume_allowed_candidates(candidates, session_id, record)
     check_large_file(candidates, session_id, record)
+    check_single_file_chunk_reads(candidates, session_id, state, record)
     check_cumulative_reads(candidates, session_id, state, record)
 
 
