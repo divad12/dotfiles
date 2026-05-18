@@ -16,6 +16,15 @@ Read this before changing root `AGENTS.md`, `.agents/skills/`, nested `AGENTS.md
 - Keep reference docs free of session history, one-off fixes, and stale examples.
 - Preserve lint rules, contract tests, allowlists, and nested guardrails unless the user explicitly approves a weaker contract.
 
+## When Tightening Existing Instructions
+
+Compressing agent instructions differs from writing them from scratch. Rules that feel redundant may be structural guardrails:
+
+- **Preserve enforcement strength.** Remove redundancy, not force. If a phrase counters a known agent failure mode — "stop immediately", "no rationalizing", explicit fallback options — keep its wording even when cutting for context budget.
+- **Keep rationale for judgment-heavy rules.** When a rule requires the agent to choose how to frame output or exercise judgment, a short "why" paragraph is part of the instruction. Stripping it turns a calibrated rule into a bare imperative the agent will satisfy only at its literal surface.
+- **Keep failure-mode context for hard rules.** For correctness- or safety-critical guardrails, preserve: what goes wrong if violated, what thought pattern is a stop signal, and what the safe alternative is.
+- **Prefer positive phrasing for tradeoff guidance.** State the desired behavior rather than the prohibition, especially when the correct alternative is simple: "If a tradeoff is needed, ask the user" is easier to follow than "never make tradeoffs silently."
+
 ## Layers
 
 | Layer | Files | Purpose |
