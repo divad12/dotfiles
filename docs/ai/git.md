@@ -149,13 +149,15 @@ fixup commits into 2 feature commits" or "landed 1 clean commit as-is."
 
 If the branch revealed a durable bug class, review finding, failed-command
 lesson, merge conflict pattern, or workflow issue, capture it during closeout.
-First check recent active learnings and same-session captures so duplicates are
-skipped or updated instead of recreated.
+First check the last five active learnings and same-session captures so
+duplicates are skipped or updated instead of recreated. Announce successful
+captures as `🧠 Captured learning: <plain-English summary>`.
 
-Do not run `learn --repo "$PWD" check-merge` as a required merge gate. Learning
-files such as `docs/learnings/inbox.md` and `docs/learnings/candidates.md` are
-normal tracked project notes; unrelated open items should merge like other docs
-and should not block a clean branch from landing.
+Use `learn`, not repo-local `bin/learn`, when invoking learning glue. Do not run
+`learn --repo "$PWD" check-merge` as a required merge gate. Learning files such
+as `docs/learnings/inbox.md` and `docs/learnings/candidates.md` are normal
+tracked project notes; unrelated open items should merge like other docs and
+should not block a clean branch from landing.
 
 After browser or review-server tools finish, re-run `git status --short` before
 the final commit or target advance. Generated review state can change after an

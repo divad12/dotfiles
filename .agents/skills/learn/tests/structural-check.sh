@@ -149,6 +149,8 @@ grep -q "Do not manufacture one guidance line per bug" "$SHARED_MAINTENANCE_PROM
 grep -q "friendly plain-English summary" "$SHARED_MAINTENANCE_PROMPT" || { echo "FAIL: shared prompt plain-English reporting"; exit 1; }
 grep -q "Do not use.*Executed" "$SHARED_MAINTENANCE_PROMPT" || { echo "FAIL: shared prompt avoids bare executed report"; exit 1; }
 grep -q "status labels were speaking too soon" "$SHARED_MAINTENANCE_PROMPT" || { echo "FAIL: shared prompt includes concrete voice example"; exit 1; }
+grep -q "do not retry the same blocked write" "$SHARED_MAINTENANCE_PROMPT" || { echo "FAIL: shared prompt avoids repeated blocked writes"; exit 1; }
+grep -q "workspace-boundary failure" "$SHARED_MAINTENANCE_PROMPT" || { echo "FAIL: shared prompt keeps sandbox mechanics out of reports"; exit 1; }
 if test -f "$LIVE_JOURNOLOGY_AUTOMATION"; then
   test -L "$LIVE_JOURNOLOGY_AUTOMATION" || { echo "FAIL: Journology automation live file should symlink to dotfiles"; exit 1; }
 fi

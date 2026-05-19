@@ -13,7 +13,10 @@ and merge-commit exceptions.
 
 Default path: inspect `<target>..HEAD`, squash noisy commits when needed,
 rebase onto the local target branch, fast-forward the target worktree with
-`git merge --ff-only <branch>`, then verify both refs. Do not run
-`learn --repo "$PWD" check-merge` as a required merge gate; branch-relevant
-learnings can be captured during normal closeout without blocking unrelated
-landings.
+`git merge --ff-only <branch>`, then verify both refs.
+
+## Capture landing learnings
+
+Do not run `learn --repo "$PWD" check-merge` as a required merge gate.
+Branch-relevant learnings can be captured during normal closeout without
+blocking unrelated landings.

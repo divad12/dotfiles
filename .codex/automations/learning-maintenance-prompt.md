@@ -76,6 +76,14 @@ parent maintenance run. Tell subagents they are not alone in the codebase, must
 not revert others' edits, must respect token-delegation rules, and must list
 changed files.
 
+If a high-confidence narrow fix is blocked by filesystem or sandbox write
+permissions, do not retry the same blocked write in future runs and do not make
+the user read another workspace-boundary failure as the main result. Preserve
+the exact patch or command as the smallest follow-up artifact, record the
+blocked path and verification command, and move on to another non-overlapping
+safe action. In the user-facing summary, say what remains actionable and where
+the follow-up artifact landed instead of foregrounding the sandbox mechanics.
+
 Do not silently make broad product behavior changes, architecture changes,
 global instruction changes, root `AGENTS.md` changes, risky shared skill
 changes, ambiguous code changes, or cross-caller behavior changes. If those are
