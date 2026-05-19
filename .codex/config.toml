@@ -73,19 +73,19 @@ enabled = true
 enabled = true
 
 [plugins."figma@openai-curated"]
-enabled = true
+enabled = false
 
 [plugins."build-web-apps@openai-curated"]
 enabled = true
 
 [plugins."expo@openai-curated"]
-enabled = true
+enabled = false
 
 [plugins."google-drive@openai-curated"]
 enabled = true
 
 [plugins."vercel@openai-curated"]
-enabled = true
+enabled = false
 
 [plugins."supabase@openai-curated"]
 enabled = true
