@@ -88,7 +88,13 @@ REVIEWS_DIR="$PLAN_DIR/reviews"
 # We find the project dir whose encoded cwd matches our current working dir,
 # then pick the newest <session-id>.jsonl inside it.
 
-CWD="$(pwd)"
+# Use the PHYSICAL (symlink-resolved) path. CC encodes the resolved path, but a
+# shell's logical `pwd` keeps symlinks. In a git worktree reached via a symlink
+# (e.g. /Users/x/code/proj -> "/Users/x/Dropbox (Personal)/code/proj"), the
+# logical path encodes differently from CC's project dir and the match fails,
+# forcing the unreliable fallback below. `pwd -P` resolves symlinks so the
+# encoding matches CC's. (Bug fix: worktree symlink mismatch.)
+CWD="$(pwd -P)"
 # CC encoding: every non-alphanumeric character becomes `-`. Examples:
 #   /Users/david/Dropbox (Personal)/code/dotfiles
 #     -> -Users-david-Dropbox--Personal--code-dotfiles
@@ -99,13 +105,14 @@ ENCODED_CWD="$(printf '%s' "$CWD" | sed 's|[^A-Za-z0-9]|-|g')"
 PROJECT_DIR="$HOME/.claude/projects/$ENCODED_CWD"
 
 if [ ! -d "$PROJECT_DIR" ]; then
-  # Fall back: newest project dir that contains a .jsonl file modified in the
-  # last hour. We detect "active" project dirs by looking at file mtime of
-  # session files inside, not the dir mtime itself.
-  PROJECT_DIR=$(find "$HOME/.claude/projects" -mindepth 2 -maxdepth 2 -type f -name '*.jsonl' -mmin -60 2>/dev/null \
-    | xargs -n1 dirname 2>/dev/null \
-    | sort -u \
+  # Fall back: the project dir whose most-recently-MODIFIED .jsonl session file
+  # was touched in the last hour. We pick by mtime (true "newest active"), NOT
+  # `sort -u | head -1` (which returns the alphabetically-first dir — e.g. a
+  # parent repo sorts before its worktree child and gets wrongly chosen).
+  NEWEST_JSONL=$(find "$HOME/.claude/projects" -mindepth 2 -maxdepth 2 -type f -name '*.jsonl' -mmin -60 -print0 2>/dev/null \
+    | xargs -0 ls -t 2>/dev/null \
     | head -1 || true)
+  [ -n "$NEWEST_JSONL" ] && PROJECT_DIR="$(dirname "$NEWEST_JSONL")"
 fi
 
 if [ -z "${PROJECT_DIR:-}" ] || [ ! -d "$PROJECT_DIR" ]; then
@@ -153,8 +160,21 @@ for F in "${EXPECTED_FILES[@]}"; do
   [ "$MTIME" -gt "$TASK_TIME" ] \
     || { echo "HALT: review file mtime <= task commit time: $F"; exit 1; }
   SIZE=$(wc -c < "$F")
-  [ "$SIZE" -gt 500 ] \
-    || { echo "HALT: review file suspiciously small ($SIZE bytes, expected >500): $F"; exit 1; }
+  if [ "$SIZE" -le 500 ]; then
+    # Exempt the canonical honest-null review. reviewer-override.md explicitly
+    # permits a clean diff to be reported as exactly "No issues." (a ~120-byte
+    # file). Only treat a small file as drift when it is NOT a clean honest-null:
+    # findings-count must be 0 AND the body's sole substantive line is "No issues."
+    # This is safe — the real anti-forgery guard is the subagent-transcript
+    # authorship + model check below, which still runs. (Bug fix: honest-null floor.)
+    FINDINGS=$(grep -iE '^findings-count:[[:space:]]*[0-9]+' "$F" | head -1 | grep -oE '[0-9]+' | head -1)
+    if [ "${FINDINGS:-x}" = "0" ] && grep -qiE '^[[:space:]]*No issues\.?[[:space:]]*$' "$F"; then
+      : # legitimate honest-null review; the size floor does not apply
+    else
+      echo "HALT: review file suspiciously small ($SIZE bytes, expected >500): $F"
+      exit 1
+    fi
+  fi
 done
 
 # For each expected review file, verify a subagent transcript shows a real
