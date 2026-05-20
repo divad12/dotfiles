@@ -73,10 +73,19 @@ For each CONCERN, plain English with the user-facing impact:
   - **Why I didn't fail it:** <one short sentence - works as built, just suboptimal>
 ```
 
+2.5 **Triage severity heuristic.** Include in the subagent prompt for any product that saves or updates data:
+
+- **Treat as FAILs** (not CONCERNs): optimistic updates that flicker, show stale values, or revert-then-correct; cache misses that cause visible inconsistency; mutations that do not reflect on the same page without a refresh. These break user trust in their own saved work.
+- **Treat as CONCERNs** (not FAILs): orientation affordances (map legends, markers, labels) and general UX polish that improves clarity without blocking task completion.
+
 3. **Act on the results:**
    - **FAILs** - fix them. These are real bugs.
    - **CONCERNs** - include in the build report for the user to decide.
    - **All PASS** - note it in the build report ("QA: all scenarios passed").
+
+4. **Verify persisted state when the feature writes data.** For features that write to a database or persistent store, after the browser flow succeeds add a direct data check: query the relevant records and verify the exact invariant the feature is supposed to maintain (no duplicates, correct field values, expected count, etc.). Browser success alone does not prove data quality — a flow can complete while silently writing incorrect data.
+
+5. **Include a scale-realism scenario when appropriate.** For features that will be used with many groups, rows, or records, add one scenario that loads a realistic volume (e.g., 50–100 items rather than 2–3). Single-record fixtures can hide bugs in pagination, counts, selectors, and tab navigation that only appear under load.
 
 ## Output
 
