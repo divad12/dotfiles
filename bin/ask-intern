@@ -112,6 +112,28 @@ POST_NEGATED_EXACT_SOURCE_RE = re.compile(
     re.IGNORECASE,
 )
 EXACT_SOURCE_OF_TRUTH_RE = re.compile(r"\bexact\s+source[- ]of[- ]truth\b", re.IGNORECASE)
+REVIEW_FINDINGS_EXTRACTION_RE = re.compile(
+    r"\b(?:extract|list|summarize|pull|report)\b"
+    r"(?:(?!\n\n).){0,240}"
+    r"\b(?:review\s+findings?|findings?|verdict|issues?|severity|file:line|p[123]|critical|major|minor)\b",
+    re.IGNORECASE | re.DOTALL,
+)
+REVIEW_OUTPUT_CONTEXT_RE = re.compile(
+    r"\b(?:codex\s+review|review\s+output|review\s+findings?|tool\s+output|command\s+output|"
+    r"generated\s+output|session\s+output|transcript|streamed\s+code\s+diff)\b",
+    re.IGNORECASE,
+)
+EXACT_CODE_OR_SOURCE_RE = re.compile(
+    r"\b("
+    r"verbatim\s+(?:source|code|contents?|text|lines?)|"
+    r"exact\s+(?:source|code|contents?|lines?|text)|"
+    r"line[- ]numbered|line\s+numbers?|"
+    r"complete\s+source|full\s+source|full\s+implementation|"
+    r"print\s+(?:the\s+)?(?:file|source|code)|"
+    r"quote\s+(?:the\s+)?(?:exact|key|\d+[-–]\d+)"
+    r")\b",
+    re.IGNORECASE,
+)
 REVIEW_PROMPT_RE = re.compile(
     r"\b("
     r"deep[- ]?review|"
@@ -230,7 +252,18 @@ def is_negated_exact_source_match(text, match):
     )
 
 
+def is_review_findings_extraction_request(prompt):
+    text = prompt or ""
+    if not REVIEW_FINDINGS_EXTRACTION_RE.search(text):
+        return False
+    if not REVIEW_OUTPUT_CONTEXT_RE.search(text):
+        return False
+    return not EXACT_CODE_OR_SOURCE_RE.search(text)
+
+
 def is_exact_source_request(prompt):
+    if is_review_findings_extraction_request(prompt):
+        return False
     text = prompt or ""
     for match in EXACT_SOURCE_RE.finditer(text):
         if is_negated_exact_source_match(text, match):

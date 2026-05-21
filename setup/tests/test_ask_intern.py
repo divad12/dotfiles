@@ -400,11 +400,19 @@ class AskInternConfigTest(unittest.TestCase):
             "Do not quote exact code or full source; line numbers are not needed.",
             "Also note exact source-of-truth files/functions I should inspect next.",
             "Summarize all imports at the top and the test mock pattern. Identifiers and contract shapes only, no verbatim source.",
+            (
+                "This is the output of 'codex review' on a buddy-pairing feature diff. "
+                "Extract ONLY the review FINDINGS (Codex's verdict/issues), not the diff. "
+                "For each finding: severity (P1/P2/P3 or critical/major/minor), the file:line, "
+                "and what the issue is. If Codex reported 'no issues' or a clean verdict, say so. "
+                "List every finding verbatim-enough that I can act on it. Ignore the streamed code diff."
+            ),
         ]
         denied = [
             "Show me the exact code with line numbers.",
             "Print the file.",
             "Quote exact lines 20-40.",
+            "From this codex review output, extract the exact code snippets with line numbers.",
         ]
 
         for prompt in allowed:
