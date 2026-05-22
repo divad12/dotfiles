@@ -105,6 +105,15 @@ Use this shape unless a doc has a clear reason to differ:
 Keep examples only when they prevent a known repeat bug. Put the rule and reason first, then the example.
 Use negative rules when a specific shortcut has caused bugs or bypasses; pair each one with the replacement pattern.
 
+## Compression
+
+When tightening or compressing existing agent instructions:
+
+- **Preserve corrective guardrail strength.** Imperative phrases such as "stop immediately", "no rationalizing", and explicit fallback options exist because softer wording has caused repeated agent failures. Remove redundancy; do not reduce enforcement force. If a phrase is a guardrail against a known failure mode, keep the force even when cutting characters.
+- **Keep rationale for judgment-heavy rules.** Rules that require the agent to choose how to frame output — not merely follow a mechanical command — need a short explanation of why. Without it, the model satisfies the literal surface form of the rule while missing the intent. A one-sentence "because" is part of the instruction, not padding.
+- **Keep compact failure-mode rationale for safety-critical rules.** For rules that prevent correctness bugs or data loss, preserve three things alongside the imperative: what goes wrong, what thought pattern is a stop signal, and what action is allowed instead. This triples the character cost but prevents the model from rationalizing exceptions under context pressure.
+- **Lead with the positive action.** Phrase tradeoff guidance as the desired behavior, not as a prohibition. "If a scope/correctness tradeoff is needed, ask the user" is more reliably followed than "never make scope/correctness tradeoffs silently."
+
 ## Enforcement
 
 When a rule can be checked, add or reference the check.
