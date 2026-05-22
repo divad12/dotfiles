@@ -84,6 +84,22 @@ For each CONCERN, plain English with the user-facing impact:
    jargon. If a FAIL is fixed immediately, still capture the pattern so the
    prevention artifact can be tracked.
 
+## Shakedown Mode
+
+Use these rules when QA runs as part of a multi-round bug bash or product shakedown (not just a single-pass verification):
+
+**Triage severity — interaction timing bugs come first.** Treat these as bugs, not polish:
+- Optimistic updates that do not reflect immediately after a save action.
+- Visible flicker: UI shows one state, reverts, then shows the correct state.
+- Stale cache: data appears outdated until a reload or navigation.
+- Revert-then-correct: the UI shows a value, snaps back to the previous value, then settles on the new value.
+
+Route intuitive-but-working orientation affordances (map legends, final-venue markers, count badges) to the enhancements list rather than treating them as bugs, unless they block task completion or make the user distrust saved work.
+
+**Persisted-state invariant check.** When a flow applies or generates persisted data (database records, generated content, cached results), run a focused invariant check on the persisted output after the browser flow succeeds. Browser-pass and persisted-invariant-pass are separate requirements — a flow can pass the browser test while still violating product-quality invariants in the stored data. Record the invariant and the check result before closing the bug loop.
+
+**Scale-realism scenario backlog.** For products with variable load (multi-group events, multi-user data, long lists), maintain a scenario backlog that includes at least one realistic large-scale fixture. Inspect every major tab or surface under that load, not just the feature path on a small fixture. Treat single-entity assumptions as a first-class shakedown risk — bugs that appear only at realistic scale are often the trust-breaking class.
+
 ## Output
 
 When called by another skill, return the QA report for inclusion in the build report. When called standalone, present the report directly and offer to fix any FAILs.
