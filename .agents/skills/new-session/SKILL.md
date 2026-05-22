@@ -16,7 +16,13 @@ Set up a worktree with everything needed to run the dev server: env files, `node
    ```
    If the path is inside `.claude/worktrees/`, you're in a worktree (created externally, e.g. by Claude Code desktop). Skip to step 3.
 
-   If you're in the main repo, use the `EnterWorktree` tool to create one. Let it generate a name, or use one the user provides.
+   If you're in the main repo, first check whether a clean reusable worktree already exists before creating a new one:
+   ```bash
+   git worktree list
+   ```
+   If an existing worktree is clean (no untracked or modified files, no branch-only commits ahead of the target), fast-forward it to the target branch and assign it instead. Creating another worktree when a clean candidate exists adds unnecessary workspace clutter.
+
+   If no clean worktree exists, use the `EnterWorktree` tool to create one. Let it generate a name, or use one the user provides.
 
 2. **Identify the worktree directory** (it should now be your CWD).
 
