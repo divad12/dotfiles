@@ -50,3 +50,12 @@ Multiple worktrees share the same database. To avoid conflicts, **create worktre
 - Filter to your worktree's entity when testing in the browser or e2e tests.
 
 **Schema migrations are the exception.** If your feature requires `prisma db push` with breaking changes, check `git worktree list` and warn the user before pushing.
+
+## Recovery: work accidentally in the main checkout
+
+If work has landed in the main checkout and needs to move to a worktree:
+
+1. **Check existing worktrees first:** `git worktree list`. A clean worktree is the safest landing zone and avoids adding clutter.
+2. **Verify a candidate is clean:** in that worktree, run `git log --oneline <target>..HEAD`. Zero results means no branch-only commits — safe to reuse.
+3. **Fast-forward and reuse:** checkout the appropriate branch, fast-forward to the current target ref, and confirm the launch port from its `launch.json`.
+4. **Only create a new worktree** when no clean candidate exists.
