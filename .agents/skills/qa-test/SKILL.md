@@ -75,10 +75,13 @@ For each CONCERN, plain English with the user-facing impact:
 
 3. **Act on the results:**
    - **FAILs** - fix them. These are real bugs.
-   - **CONCERNs** - include in the build report for the user to decide.
+     - **Severity note:** Treat optimistic-update freshness, visible flicker, stale cache, and revert-then-correct behavior as FAILs, not CONCERNs. These break user trust in saved work.
+   - **CONCERNs** - include in the build report for the user to decide. Route orientation/discovery affordances (map legends, completion markers, etc.) here unless they block task completion.
    - **All PASS** - note it in the build report ("QA: all scenarios passed").
 
-4. **Capture durable learnings.** For each FAIL or CONCERN that reveals a
+4. **Verify persisted state.** For features that generate or persist data (DB writes, file creation, generated content), browser PASS does not guarantee data quality. After the flow completes, run a focused integrity check for the exact invariant being tested — a direct DB query, an API read, or a file existence check — and include the result in the QA report.
+
+5. **Capture durable learnings.** For each FAIL or CONCERN that reveals a
    reusable bug class, missing guardrail, scale issue, or workflow problem,
    invoke `/learn` capture. Lead with the user-facing experience, not test
    jargon. If a FAIL is fixed immediately, still capture the pattern so the
