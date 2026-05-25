@@ -213,6 +213,16 @@ if the fixes are substantial enough to warrant their own history entry.
 Only amend if the commit has not been merged to the target branch yet, or if you
 can safely rebase afterward without losing other work.
 
+## Worktree Recovery
+
+When work has accidentally landed in the wrong checkout (e.g., main checkout instead of a worktree), before creating a new worktree:
+
+1. Run `git worktree list` to see existing worktrees and their branches.
+2. If a clean worktree already exists on a suitable branch (no uncommitted changes, no branch-only commits to preserve), prefer fast-forwarding it to the target branch rather than creating another worktree.
+3. Only create a new worktree when no clean candidate exists.
+
+This keeps the workspace tidy. Worktree sprawl accumulates quickly in long-running projects and each extra worktree adds port, process, and branch-name overhead.
+
 ## Verification
 
 - `git log --oneline <target>..HEAD` shows only meaningful commits before
