@@ -78,6 +78,12 @@ For each CONCERN, plain English with the user-facing impact:
    - **CONCERNs** - include in the build report for the user to decide.
    - **All PASS** - note it in the build report ("QA: all scenarios passed").
 
+   **Triage priority:** Treat interaction timing issues as bugs first: optimistic update staleness, visible flicker, stale-cache display, and revert-then-correct sequences break user trust in saved data. Route orientation affordances (missing map legend, unlabeled status) and polish to enhancements unless they block task completion.
+
+   **Generated data quality:** For features that persist generated output (AI assignments, computed recommendations, etc.), browser flow success does not prove the persisted data is correct. After browser scenarios pass, run a focused data-layer check for the specific quality invariant being exercised (e.g. uniqueness, completeness, no stale references). Record both the invariant and the observed result before closing the loop.
+
+   **Scale realism:** Include at least one scenario with realistic data load rather than the minimal seed fixture. Bugs in counters, selectors, tab navigation, and pagination often only appear at real-world scale. Treat hidden single-item assumptions as a first-class QA risk.
+
 4. **Capture durable learnings.** For each FAIL or CONCERN that reveals a
    reusable bug class, missing guardrail, scale issue, or workflow problem,
    invoke `/learn` capture. Lead with the user-facing experience, not test
