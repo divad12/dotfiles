@@ -10,6 +10,9 @@ Read this before changing root `AGENTS.md`, `.agents/skills/`, nested `AGENTS.md
 - Keep root `AGENTS.md` under 100 lines unless the user explicitly approves growth.
 - Keep activation text separate from reference content so agents load the source doc instead of guessing from summaries.
 - Write contracts as action + reason + verification. Models follow direct instructions better when the why is visible.
+- Preserve enforcement strength when compressing. Remove redundancy, not force: behavior-shaping phrases, imperative wording, and stop signals must survive tightening even when they seem obvious.
+- For judgment-heavy rules, keep short rationale paragraphs. Rationale is part of the instruction when the model must choose how to apply a rule, not just execute it mechanically.
+- For safety-critical or correctness-critical rules, keep compact failure-mode rationale alongside the imperative: what goes wrong, what thought pattern is a stop signal, and what safe path exists instead.
 - Lead with the positive action. Use negative wording for known cliff edges, then immediately state the safe path. Reserve `NEVER` or all-caps wording for data-loss, security, or guardrail-bypass risks.
 - Keep one source of truth per concept. Point to it instead of restating it.
 - Move enforceable rules into tooling. Docs are for judgment calls and routing.
