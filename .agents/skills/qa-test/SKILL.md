@@ -84,6 +84,16 @@ For each CONCERN, plain English with the user-facing impact:
    jargon. If a FAIL is fixed immediately, still capture the pattern so the
    prevention artifact can be tracked.
 
+## Shakedown priorities
+
+When doing a broader product shakedown rather than a single-feature QA pass, apply these rules:
+
+**Triage severity:** Optimistic update timing regressions, visible flicker, stale cached state, and revert-then-correct UI behavior are bugs — they break the user's trust in saved work. Route missing affordances, map legends, and product polish ideas to enhancements unless they actively block task completion.
+
+**Generated-data flows:** When a browser flow persists or generates data (AI-generated content, bulk operations, data mutations), a passing end-to-end flow does not verify output quality. After the browser pass, check the persisted state directly (DB query or API read) against the quality invariant you are testing. Record the invariant and the persisted result before closing the loop.
+
+**Scale-realism scenarios:** Keep a backlog of realistic-scale scenarios: large fixtures, every major product tab, edge-case data volumes. Run them periodically — bugs that only appear under multi-group or large-dataset load will not surface on a small happy-path fixture. Treat single-group or small-fixture assumptions as a first-class shakedown risk.
+
 ## Output
 
 When called by another skill, return the QA report for inclusion in the build report. When called standalone, present the report directly and offer to fix any FAILs.
