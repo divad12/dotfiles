@@ -52,6 +52,22 @@ ref.
 If a command contains `origin`, `fetch`, or `pull`, stop and ask unless the user
 explicitly requested the remote.
 
+## Worktree Recovery
+
+When work accidentally lands in the main checkout and needs to move, inspect existing worktrees before creating a new one:
+
+```bash
+git worktree list
+```
+
+If a clean worktree already exists — no branch-only commits, already wired to a port and environment — fast-forward it to the target branch and use it instead of creating another:
+
+```bash
+git merge --ff-only <target>   # run inside the existing worktree
+```
+
+Creating a new worktree when a clean reusable one exists adds sprawl. A clean existing worktree is the better landing zone.
+
 ## Before Merging to the Target
 
 Inspect the commits that would land:
