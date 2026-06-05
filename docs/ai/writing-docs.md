@@ -129,6 +129,16 @@ Escape hatches must be loud. New lint disables, allowlist entries, skipped contr
 | Is enforceable mechanically | Lint, tests, or grep check |
 | Is a one-off note | Nowhere |
 
+## Compression
+
+When reducing doc length for context budget, preserve rather than cut:
+
+- **Guardrail wording.** Phrases like "stop immediately", "no rationalizing", and explicit fallback options counter known agent failure modes. Compression that softens these produces agents that rationalize around the rule.
+- **Rationale for judgment-heavy rules.** For rules where the model must choose how to frame output rather than follow a mechanical command, the why is part of the instruction. A compressed rule without its rationale satisfies only the literal surface form, not the intent.
+- **Failure-mode context on safety-critical rules.** For rules that prevent data loss, security issues, or correctness regressions, keep compact failure-mode context alongside the imperative: what goes wrong and what thought pattern is a stop signal. Bare imperatives are easier for agents to rationalize away under context pressure.
+
+Compression should remove redundancy, not reduce enforcement strength.
+
 ## Maintenance
 
 When adding, removing, or renaming a `docs/ai` file, update:
