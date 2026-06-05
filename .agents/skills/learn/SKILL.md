@@ -102,6 +102,13 @@ Real entries already in the canonical voice. Match this shape and rhythm — the
 
 ### Abstraction
 
+When the evidence is a bug fix, ask before writing:
+
+1. Did a shared contract change — hook shape, API payload, schema field, cache key, type, or fixture? If so, name the contract and list the consumer classes that could have the same gap. Climb to a contract-ownership principle rather than stopping at the symptom (e.g. "when a shared contract changes, update every consumer" rather than "removed fields must be omitted from selects").
+2. What mechanical guardrail would prevent the whole class? Name the concrete prevention artifact: regression test, lint rule, schema scan, shared helper, checklist item, or docs/ai rule.
+
+Stopping one rung too low limits the learning to the last bug shape and misses sibling failures across related consumers.
+
 Use the abstraction ladder from `docs/ai/learning-system.md`, but do not force a polished rule out of every single bug. Raw bugs are useful samples. When several samples point to the same class, cluster them into the highest still-actionable principle; when there is only one sample, capture it directly only if the prevention surface is already clear or the risk is high. If a claim says a workflow "should" do something, verify the actual trigger, prompt, hook, test, structural check, or code path that makes it happen.
 
 After identifying the principle, note what would enforce it next time: a regression test, lint rule, schema/contract scan, shared helper, checklist, docs update, skill tweak, or automation.
