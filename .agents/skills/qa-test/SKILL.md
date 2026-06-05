@@ -87,3 +87,11 @@ For each CONCERN, plain English with the user-facing impact:
 ## Output
 
 When called by another skill, return the QA report for inclusion in the build report. When called standalone, present the report directly and offer to fix any FAILs.
+
+## Product Shakedown Notes
+
+When running an exploratory shakedown across the full product (not just a specific feature):
+
+- **Prioritize interaction timing bugs.** Optimistic updates that flicker, revert-then-correct, or show stale state are trust-breaking bugs. Route general UX polish (legend labels, visual affordances, orientation aids) to enhancements unless they block task completion or make the product feel unsafe to use.
+- **Check persisted state after browser flows.** A passing browser flow does not prove generated-data quality. After any flow that persists generated output, run a focused DB invariant check for the specific product-quality bug under investigation. Record the invariant result in scratch/triage before closing the loop.
+- **Test under realistic scale.** Keep a scenario backlog that includes large realistic fixtures. Hidden single-group or small-fixture assumptions are a first-class shakedown risk — bugs in Designer, Messages, Simulator, counts, selectors, and map surfaces may only appear at realistic multi-group scale. Inspect every major tab/surface, not just the primary feature path.
