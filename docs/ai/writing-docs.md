@@ -16,6 +16,12 @@ Read this before changing root `AGENTS.md`, `.agents/skills/`, nested `AGENTS.md
 - Keep reference docs free of session history, one-off fixes, and stale examples.
 - Preserve lint rules, contract tests, allowlists, and nested guardrails unless the user explicitly approves a weaker contract.
 
+## When Compressing Instructions
+
+- Remove redundancy, not enforcement strength. Behavior-shaping phrases such as "stop immediately", "no rationalizing", and explicit fallback options counter known agent failure modes — preserve their imperative force even when reducing context budget.
+- For judgment-heavy rules where the model must choose how to frame output, keep the rationale alongside the imperative. Without the why, the rule gets satisfied only at its literal surface; the model cannot generalize it correctly under pressure.
+- For safety-critical or correctness-critical rules, include a compact failure-mode note: what goes wrong, what thought pattern is a stop signal, and what action is allowed instead. The note is what helps a model recognize when the rule applies.
+
 ## Layers
 
 | Layer | Files | Purpose |
