@@ -17,6 +17,16 @@ Launch a browser-only subagent that tests the running app like a real user. The 
 
 **Don't use for:** simple UI changes (copy, colors, layout tweaks), non-frontend work, or features that are just a single page with no interactions.
 
+### Priority bug classes
+
+Treat these as immediate FAILs regardless of whether the scenario explicitly targets them:
+
+- **Optimistic update failures** — the UI shows a state that hasn't been server-confirmed, reverts after save, or briefly shows the wrong value before settling. These break user trust that changes were actually saved.
+- **Visible flicker / revert-then-correct** — any sequence where the UI shows stale or incorrect state before correcting itself, even momentarily.
+- **Stale cache** — UI shows outdated data after a mutation that should have invalidated it.
+
+Route things like "the map legend is missing" or "add a star to the final venue" to CONCERNs or enhancements unless they block task completion.
+
 ## How to run
 
 1. **Identify the test URL and scenarios.** Look at what was built and determine:
@@ -38,7 +48,8 @@ Test these scenarios:
 3. [Edge case - invalid input, form validation errors]
 4. [Edge case - very long text, special characters]
 5. [Navigation - back button, URL changes, refresh]
-6. [Any feature-specific scenarios]
+6. [Realistic-scale scenario - test with realistic data volume, not just the minimal fixture, to catch bugs that only appear under real load]
+7. [Any feature-specific scenarios]
 
 For each scenario:
 - Navigate to the starting point
@@ -77,6 +88,8 @@ For each CONCERN, plain English with the user-facing impact:
    - **FAILs** - fix them. These are real bugs.
    - **CONCERNs** - include in the build report for the user to decide.
    - **All PASS** - note it in the build report ("QA: all scenarios passed").
+
+   For features that persist or generate data (forms that save, workflows that produce records, bulk operations), add a persisted-state verification step after the browser flow: run a direct data check (API query, DB query, or equivalent) to confirm the persisted output matches the product invariant. UI success is not sufficient verification for data quality — a browser flow can pass while the stored data violates the invariant the fix was meant to enforce.
 
 4. **Capture durable learnings.** For each FAIL or CONCERN that reveals a
    reusable bug class, missing guardrail, scale issue, or workflow problem,
