@@ -16,6 +16,15 @@ Read this before changing root `AGENTS.md`, `.agents/skills/`, nested `AGENTS.md
 - Keep reference docs free of session history, one-off fixes, and stale examples.
 - Preserve lint rules, contract tests, allowlists, and nested guardrails unless the user explicitly approves a weaker contract.
 
+## Compression
+
+When shortening or rewriting agent instructions:
+
+- **Preserve guardrail force.** Behavior-shaping phrases — "stop immediately", "no rationalizing", explicit fallbacks, `FIXME:` markers — exist to counter specific agent failure modes. Keep their exact force even when tightening; softening an imperative invites the rationalization it was meant to prevent.
+- **Preserve rationale for judgment-heavy rules.** Rules that require the model to choose how to frame output or act (rather than follow a mechanical step) work better when the why is visible. A model satisfying only the literal surface form of a rule misses the cases the rationale would have caught.
+- **Keep failure-mode context for safety-critical rules.** State what goes wrong, what thought pattern is a stop signal, and what the allowed alternative is. Bare imperatives without failure-mode framing lose enforcement power under context pressure.
+- **Use positive phrasing for tradeoff guidance.** State the desired action rather than the prohibition. "If a scope/correctness tradeoff is needed, ask the user" enforces better than "Never make tradeoffs silently."
+
 ## Layers
 
 | Layer | Files | Purpose |
