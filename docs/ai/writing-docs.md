@@ -16,6 +16,16 @@ Read this before changing root `AGENTS.md`, `.agents/skills/`, nested `AGENTS.md
 - Keep reference docs free of session history, one-off fixes, and stale examples.
 - Preserve lint rules, contract tests, allowlists, and nested guardrails unless the user explicitly approves a weaker contract.
 
+## Compressing Instructions
+
+When tightening existing instructions for context budget, apply compression asymmetrically.
+
+- **Remove redundancy freely.** Duplicate wording, restated examples, and filler that carries no new contract are always safe to cut.
+- **Do not soften corrective guardrails.** If a phrase is a guardrail against a known agent failure mode ("stop immediately", "no rationalizing", explicit fallback options), keep the force even when the surrounding instruction shrinks. Compression should reduce token count, not enforcement strength.
+- **Preserve rationale for judgment-heavy rules.** When a rule requires the model to choose how to frame output or weigh a tradeoff, a short "why" clause helps the model generalize correctly. Cutting the rationale leaves the model satisfying only the literal surface form.
+- **Keep failure-mode context for correctness-critical rules.** A guardrail is more robust when it names what goes wrong, what thought pattern is a stop signal, and what action is allowed instead — not just the bare imperative.
+- **Prefer positive phrasing for directive rules.** Name the desired behavior rather than prohibiting the unwanted one, especially when the correct alternative is simple and actionable. Use prohibitions only for true cliff-edge cases.
+
 ## Layers
 
 | Layer | Files | Purpose |
