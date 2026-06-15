@@ -175,6 +175,27 @@ across a rebase.
 Before using the exception, tell the user the ramification: the target branch
 will include a merge commit, but conflict resolution happens once.
 
+## Worktree Recovery
+
+When work accidentally lands in the main checkout rather than the intended
+worktree, inspect existing worktrees before creating a new one:
+
+```bash
+git worktree list
+```
+
+If a worktree is clean — no uncommitted changes and no branch-only commits ahead
+of the integration branch — prefer fast-forwarding it to the current target
+branch and using it as the landing zone rather than adding another worktree:
+
+```bash
+# In the candidate worktree
+git merge --ff-only <target>
+```
+
+Creating another worktree adds workspace sprawl and requires more cleanup later.
+Only create a new worktree when no clean reusable candidate exists.
+
 ## Guardrails
 
 ### Never `git reset --hard` on the target branch
