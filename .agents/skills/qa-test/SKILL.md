@@ -22,6 +22,8 @@ Launch a browser-only subagent that tests the running app like a real user. The 
 1. **Identify the test URL and scenarios.** Look at what was built and determine:
    - The starting URL (from `launch.json` port)
    - 3-7 test scenarios covering happy path, edge cases, and navigation
+   - **Interaction-timing scenarios** — include at least one test where the UI writes data and immediately re-reads it. Optimistic update freshness, visible revert-then-correct cycles, and stale-cache states are trust-breaking bugs that belong in **FAILs**, not CONCERNs.
+   - **Scale-realism** — if the feature lists, filters, or renders collections, include one scenario with a realistic large dataset. Small fixtures hide single-item assumptions that only surface under real load.
 
 2. **Launch a subagent** with `model: "sonnet"` and this prompt (fill in the specifics):
 
@@ -77,6 +79,7 @@ For each CONCERN, plain English with the user-facing impact:
    - **FAILs** - fix them. These are real bugs.
    - **CONCERNs** - include in the build report for the user to decide.
    - **All PASS** - note it in the build report ("QA: all scenarios passed").
+   - **Persisted-data features** — if the flow creates, updates, or deletes records, run a targeted database or store invariant check for the specific quality assertion under investigation after the browser suite passes. Browser success does not prove persisted-data correctness. Record the invariant and the check result in the QA report.
 
 4. **Capture durable learnings.** For each FAIL or CONCERN that reveals a
    reusable bug class, missing guardrail, scale issue, or workflow problem,
