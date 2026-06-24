@@ -84,6 +84,26 @@ For each CONCERN, plain English with the user-facing impact:
    jargon. If a FAIL is fixed immediately, still capture the pattern so the
    prevention artifact can be tracked.
 
+## Shakedown Patterns
+
+These apply when QA is part of a bug-bash or product shakedown, not just routine feature testing.
+
+### Generated data needs a persisted-state invariant check
+
+When a browser flow persists generated output (auto-populated data, recommendations, assignments), UI success does not prove data quality. After the browser flow passes, run a focused DB or API invariant check for the specific bug class under investigation. Record both the invariant checked and the persisted result before closing the loop.
+
+### Triage: flicker = bug, polish = enhancement
+
+When shakedown surfaces timing issues, calibrate severity by user trust impact:
+- **Bug class:** Optimistic updates that revert and re-apply, visible flicker on save, stale cache after mutation, immediate-state disagreements. These break trust in saved work and should be fixed before enhancements.
+- **Enhancement class:** Map legends, orientation affordances, copy improvements. Route to an enhancement backlog unless they block task completion.
+
+Don't let orientation polish displace critical bug-bashing.
+
+### Include scale-realism scenarios
+
+A surface that works on a small fixture can hide bugs under realistic load. Keep a scale-realism scenario backlog: generate a large fixture, inspect every major surface, and run representative reads/writes/previews under load. Treat single-group or small-fixture assumptions as a first-class shakedown risk.
+
 ## Output
 
 When called by another skill, return the QA report for inclusion in the build report. When called standalone, present the report directly and offer to fix any FAILs.
