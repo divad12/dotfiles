@@ -125,6 +125,7 @@ Do not run full validation suites after every small edit by habit. Run the narro
   | Editing AGENTS.md, .agents/skills/, docs/ai/ | writing-docs.md |
   | Maintaining or troubleshooting ask-intern | ask-intern.md |
   | Operating or changing the learning system | learning-system.md |
+  | Managing a multi-hour or multi-session autonomous workstream | long-running-workstreams.md |
 - Re-read the hard rules before implementation.
 
 ## Session Tools
