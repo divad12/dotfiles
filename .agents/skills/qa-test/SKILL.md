@@ -56,7 +56,7 @@ X scenarios tested: Y PASS, Z FAIL, W CONCERN
 
 ### Results
 | # | Scenario | Status | Notes |
-|---|----------|--------|-------|
+|---|----------|--------| ------|
 | 1 | [name]   | PASS   | [brief note] |
 | 2 | [name]   | FAIL   | [what went wrong] |
 
@@ -83,6 +83,49 @@ For each CONCERN, plain English with the user-facing impact:
    invoke `/learn` capture. Lead with the user-facing experience, not test
    jargon. If a FAIL is fixed immediately, still capture the pattern so the
    prevention artifact can be tracked.
+
+## Shakedown mode
+
+When using QA test as part of a bug bash or shakedown loop, apply these additional rules.
+
+### Generated-data invariant checks
+
+Browser flow success does not prove generated data quality. After fixing any bug where persisted data was wrong:
+
+- Run a focused invariant check in the data layer (database query, API response inspection) for the exact bug being fixed.
+- Record the persisted result before closing the loop.
+- Do not treat UI success or unit tests as sufficient proof.
+
+### Triage severity
+
+Treat these as first-class bugs, not UX polish:
+
+- **Optimistic flicker** — state that reverts, flickers, or shows stale values after a save.
+- **Stale cache** — visible data that does not match the server after a mutation.
+- **Revert-then-correct** — UI that updates, rolls back, then re-updates.
+
+Route orientation affordances (map legends, visual aids, hover previews) to enhancements unless they block task completion or architect trust.
+
+### Scale realism
+
+Shakedowns on tiny fixtures overfit to the happy path. Keep a scenario backlog that includes:
+
+- A realistic large fixture (60+ groups, 500+ participants) to surface single-group or single-user assumptions.
+- Every major product surface: all tabs, maps, counts, selectors, preview modes, and navigation flows.
+- Representative reads, writes, and previews under realistic data volume.
+
+Treat hidden single-entity assumptions as a first-class shakedown risk class.
+
+### Bug-bash immunity loop
+
+After each deterministic bug fix, capture:
+
+- Root cause and the writing pattern that produced it (anti-pattern).
+- Principle: the class of bugs this reveals.
+- Current enforcement: tests added, helpers extracted, docs updated.
+- Next enforcement candidate: lint rule, schema scan, shared factory, docs/ai rule.
+
+When a lesson repeats or has blast radius beyond the current feature, promote it via `/learn` into docs/ai/, regression tests, ESLint restrictions, shared factories, or API contracts.
 
 ## Output
 
