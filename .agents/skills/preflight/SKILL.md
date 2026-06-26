@@ -280,6 +280,8 @@ For each task, check whether the task has a `write failing test` + `verify test 
 
 The plan file is never modified. `/fly` instructs implementers to honor both plan steps and `[INJECTED]` checklist-only steps.
 
+For tasks touching data model types, external API shapes, or cache key structures (Prisma models, query-result shapes, cache keys), inject an additional verification step before the first test: `[INJECTED] Read and verify actual <schema/API> field names against plan assumptions`. Plan-authored code stubs often carry wrong assumptions about field names, key structures, and return shapes; verifying the source file before writing tests is cheaper than discovering the mismatch mid-implementation.
+
 ### Manual-test convertibility analysis
 
 For each phase, sweep ALL manual verification work the plan calls out. Sources:
