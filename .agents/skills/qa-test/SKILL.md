@@ -17,6 +17,22 @@ Launch a browser-only subagent that tests the running app like a real user. The 
 
 **Don't use for:** simple UI changes (copy, colors, layout tweaks), non-frontend work, or features that are just a single page with no interactions.
 
+## Severity rules
+
+Before testing, establish which outcomes are FAIL vs CONCERN:
+
+**Always FAIL** — these break trust in saved or displayed state:
+- **Optimistic update flicker** — a UI value updates, reverts, then updates again (stale cache or missing invalidation)
+- **Stale cache** — the UI shows a value that contradicts what was just saved or performed
+- **Revert-then-correct** — an action appears to succeed, the UI rolls back, then re-applies the change with a delay
+
+**CONCERN, not FAIL** — suboptimal but stable:
+- Confusing labels or missing affordances (map legend, empty-state copy, etc.)
+- Features that work correctly but could be one click faster
+- Visual polish issues that don't affect task completion
+
+Route CONCERNs to the user for prioritisation; don't auto-fix them.
+
 ## How to run
 
 1. **Identify the test URL and scenarios.** Look at what was built and determine:
@@ -46,6 +62,8 @@ For each scenario:
 - Use browser_snapshot after each interaction to verify the result
 - Use browser_take_screenshot for visual issues
 - Report: PASS (works as expected), FAIL (broken), or CONCERN (works but feels wrong)
+
+Severity guidance: optimistic update flicker, stale cache after save, and revert-then-correct behavior are FAIL (they break trust in saved state). Cosmetic issues and missing affordances that don't block the flow are CONCERN.
 
 After testing, produce a structured report:
 
