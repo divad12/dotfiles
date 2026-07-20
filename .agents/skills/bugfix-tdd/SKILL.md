@@ -62,6 +62,15 @@ class, missing guardrail, or project-specific workflow lesson. The canonical
 record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
+For each captured learning, climb to the highest actionable contract:
+
+- **Root cause** — not the symptom; trace to what structural gap allowed it.
+- **Principle** — the violated contract, stated broadly enough to catch sibling bugs.
+- **Anti-pattern** — the thought pattern or shortcut that produced the bug.
+- **Enforcement candidate** — at least one mechanical check that would prevent recurrence: a test, lint rule, schema scan, shared helper, or checklist item.
+
+A bug class is only fully learned when it leaves behind a candidate enforcement artifact, not just a narrative note. If no mechanical check is immediately practical, name the one that would be and record it as a candidate.
+
 ### 6. Summarize
 
 Tell the user:
