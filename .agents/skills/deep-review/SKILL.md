@@ -81,7 +81,7 @@ Treat the answer as review evidence, not as self-deprecation.
 
 **Why this exists:** The agent that wrote the code and the agent reviewing it share the same context window. Rules read at session start fade as context fills. This review step re-reads project rules with fresh eyes and systematically checks the diff against them.
 
-**Step 1: Re-read the project rules.** Read CLAUDE.md (or AGENTS.md) and any docs it references that are relevant to the changed files. Don't rely on what you "remember" from earlier in the session - actually re-read them now. If the project has a reference table mapping topics to docs (e.g. "forms -> docs/ai/form-guidelines.md"), read the docs that match the changed file types.
+**Step 1: Re-read the project rules.** Read CLAUDE.md (or AGENTS.md) and any docs it references that are relevant to the changed files. Don't rely on what you "remember" from earlier in the session - actually re-read them now. If the project has a reference table mapping topics to docs (e.g. "forms -> docs/ai/form-guidelines.md"), read the docs that match the changed file types. If `docs/ai/review.md` exists in the project, read it now — it contains project-specific review lenses and constraints that take precedence over global conventions.
 
 **Step 2: For each rule, grep the diff for violations.** Common patterns to check (adapt to the project's specific rules):
 
