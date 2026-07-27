@@ -62,6 +62,12 @@ class, missing guardrail, or project-specific workflow lesson. The canonical
 record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
+When capturing a bug class, name a candidate enforcement hook: a test, lint
+rule, schema scan, shared helper, checklist item, or docs/ai contract that
+would make the same class of mistake structurally harder to write in future.
+A learning without a guardrail candidate names the symptom but does not
+improve system immunity.
+
 ### 6. Summarize
 
 Tell the user:
