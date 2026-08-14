@@ -62,6 +62,22 @@ class, missing guardrail, or project-specific workflow lesson. The canonical
 record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
+After capturing the learning, also name the enforcement candidate: what
+mechanical guardrail would prevent this bug class from recurring? Options:
+
+- **Failing test** (just added — note it as the enforcement artifact)
+- **Lint rule** — flag the pattern statically
+- **Schema constraint** — make the invalid state unrepresentable
+- **Shared helper** — consolidate the logic so there is only one place to fix
+- **Checklist item** — add to docs/ai/ or AGENTS.md for repeated review steps
+- **No further enforcement needed** — state why (isolated, test is sufficient)
+
+If the bug has repeated before or its blast radius is high, promote the
+enforcement candidate from prose to a concrete artifact in the same session
+(add the lint rule, extract the shared helper, update the schema). A fixed bug
+is only fully learned when it leaves behind a guardrail that makes the same
+mistake structurally harder to write.
+
 ### 6. Summarize
 
 Tell the user:
