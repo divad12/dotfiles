@@ -81,7 +81,7 @@ Treat the answer as review evidence, not as self-deprecation.
 
 **Why this exists:** The agent that wrote the code and the agent reviewing it share the same context window. Rules read at session start fade as context fills. This review step re-reads project rules with fresh eyes and systematically checks the diff against them.
 
-**Step 1: Re-read the project rules.** Read CLAUDE.md (or AGENTS.md) and any docs it references that are relevant to the changed files. Don't rely on what you "remember" from earlier in the session - actually re-read them now. If the project has a reference table mapping topics to docs (e.g. "forms -> docs/ai/form-guidelines.md"), read the docs that match the changed file types.
+**Step 1: Re-read the project rules.** Read CLAUDE.md (or AGENTS.md) and any docs it references that are relevant to the changed files. Don't rely on what you "remember" from earlier in the session - actually re-read them now. If the project has a reference table mapping topics to docs (e.g. "forms -> docs/ai/form-guidelines.md"), read the docs that match the changed file types. If the project has a `docs/ai/review.md`, read it for project-specific review criteria; treat it as project deltas on top of this skill's default contracts, not a replacement for them.
 
 **Step 2: For each rule, grep the diff for violations.** Common patterns to check (adapt to the project's specific rules):
 
@@ -394,6 +394,13 @@ sibling. When a learning is newly captured, say:
 ```text
 🧠 Captured learning: <plain-English summary>
 ```
+
+**Routing:** when a finding is cross-project (the same failure mode or missing
+guardrail would apply across codebases, not just this one), route the learning
+to `dotfiles/docs/ai/<topic>.md` rather than the project's own `docs/ai/`.
+Project-local docs/ai/ files are for project-specific deltas — local conventions,
+scope exclusions, repo-specific workflows. Keeping a globally applicable rule only
+in a project doc means it silently diverges for every project that never sees it.
 
 ## Rules
 
