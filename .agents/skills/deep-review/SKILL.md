@@ -395,6 +395,11 @@ sibling. When a learning is newly captured, say:
 🧠 Captured learning: <plain-English summary>
 ```
 
+When a review contract, checklist principle, or review process pattern applies
+across projects — not just to this codebase — route it to `~/dotfiles/docs/ai/`
+rather than only to a project-local `docs/ai/` file. Project-local docs should
+point to the global doc and add only project-specific deltas.
+
 ## Rules
 
 - **Never commit during a review.** All fixes are left as uncommitted changes.
