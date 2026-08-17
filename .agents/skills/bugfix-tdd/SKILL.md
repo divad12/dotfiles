@@ -62,6 +62,18 @@ class, missing guardrail, or project-specific workflow lesson. The canonical
 record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
+Capture the root cause and principle, not just the symptom. For each entry, note
+the current enforcement (what now prevents recurrence) and the next enforcement
+candidate (what would make the class structurally impossible: a lint rule,
+regression test, shared helper, schema constraint, API contract, or `docs/ai`
+rule). When a bug class recurs or has blast radius across multiple callers,
+promote the next-enforcement candidate into an actual artifact now — don't leave
+it as a note.
+
+Route the fix to the right artifact category: the learning store for the
+principle, the project's enhancement backlog for follow-on work that doesn't
+belong in this fix.
+
 ### 6. Summarize
 
 Tell the user:
