@@ -62,6 +62,15 @@ class, missing guardrail, or project-specific workflow lesson. The canonical
 record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
+For high-blast-radius or repeat bug classes, structure the entry around four
+dimensions: **root cause** — what technical condition allowed the bug;
+**principle** — the contract it violated; **anti-pattern** — the pattern to
+recognize; **enforcement candidate** — the mechanical guardrail (regression test,
+lint rule, shared helper, `docs/ai/` rule) that makes recurrence harder to write.
+
+When the same class recurs across sessions or the enforcement candidate has broad
+scope, promote it into the codebase rather than leaving it as a prose note alone.
+
 ### 6. Summarize
 
 Tell the user:
