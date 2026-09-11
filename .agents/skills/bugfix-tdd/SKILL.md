@@ -55,12 +55,16 @@ Run the full test suite to confirm:
 npm test -- --run
 ```
 
-### 5. Route the learning
+### 5. Route the learning and lock in a guardrail
 
 After the fix passes verification, invoke `/learn` capture for any reusable bug
 class, missing guardrail, or project-specific workflow lesson. The canonical
 record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
+
+After logging the learning, identify the strongest enforcement hook for this bug class. Options in order of strength: a lint rule or ESLint restriction, a shared factory or helper that encodes the correct contract, a type guard, a propagation test, or a `docs/ai/` contract entry naming the anti-pattern and the safe replacement.
+
+When the same class has appeared before, or the blast radius is high, implement the hook as part of this fix rather than deferring it. A lesson with no guardrail leaves the next implementer one inattentive moment away from the same mistake.
 
 ### 6. Summarize
 
@@ -76,3 +80,4 @@ Tell the user:
 - **Test at the right level.** Unit test for logic bugs. Integration/API test for data flow bugs. E2E test only if the bug is purely a UI interaction issue.
 - **One test per bug.** Don't bundle multiple bug fixes into one test.
 - **3 failed fixes = stop and escalate.** If you've tried 3 fixes and the test still fails, stop. This is a signal the architecture is wrong, not that you haven't found the right tweak. Tell the user: "I've tried 3 approaches and none worked. This might be an architectural issue. Here's what I've learned so far: [findings]. How do you want to proceed?"
+- **A fixed bug is not fully learned until a guardrail exists.** Document the root cause and principle; then close the structural gap: lint rule, shared helper, propagation test, or `docs/ai/` contract entry. Recording the lesson is step one; making the wrong pattern harder to write is step two.
