@@ -62,6 +62,10 @@ class, missing guardrail, or project-specific workflow lesson. The canonical
 record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
+When capturing, climb to the highest actionable principle — not just the symptom. Ask: did a shared contract change? What are all the consumer classes? What mechanical guardrail would prevent this class of bug from recurring? Pair each principle with an enforcement candidate: regression test, lint rule, schema scan, shared helper, or `docs/ai/` rule.
+
+**For multi-session bug bashes:** keep a living `lessons-learned.md` (or equivalent per the project's docs convention) with one entry per deterministic bug class containing: root cause, principle, anti-pattern, current enforcement added, and next enforcement candidate. During compaction cleanup, compact this doc and promote high-blast-radius lessons into `docs/ai/`, regression tests, ESLint restrictions, shared factories, or API contracts. A bug is fully learned only when the bug class leaves behind a guardrail that makes the next similar mistake harder to write.
+
 ### 6. Summarize
 
 Tell the user:
