@@ -57,9 +57,16 @@ npm test -- --run
 
 ### 5. Route the learning
 
-After the fix passes verification, invoke `/learn` capture for any reusable bug
-class, missing guardrail, or project-specific workflow lesson. The canonical
-record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
+After the fix passes verification, invoke `/learn` capture for the bug class.
+Frame the learning by climbing to the highest actionable contract:
+
+- **Root cause:** what condition made this possible?
+- **Class:** does this generalize? (e.g., "shared contract changed but not all consumers updated", "optimistic state reverted before server confirmed", "plan stub diverged from actual schema")
+- **Enforcement candidate:** what would make this class mechanically harder to write next time? Name the artifact: regression test, lint rule, shared helper, schema constraint, type guard, or `docs/ai/` contract.
+
+When a bug class repeats or has high blast radius, promote beyond `docs/learnings/`: add a regression test, a lint restriction, a shared factory, or a new `docs/ai/` entry. The fix is only fully learned when it leaves behind a guardrail that makes the next similar mistake harder to write.
+
+The canonical record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
 ### 6. Summarize
