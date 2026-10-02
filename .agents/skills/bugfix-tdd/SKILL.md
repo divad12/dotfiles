@@ -57,10 +57,17 @@ npm test -- --run
 
 ### 5. Route the learning
 
-After the fix passes verification, invoke `/learn` capture for any reusable bug
-class, missing guardrail, or project-specific workflow lesson. The canonical
-record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
-`LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
+After the fix passes verification, invoke `/learn` capture. Include:
+
+- **Root cause and principle** — the generalizable rule that would prevent this class of bug
+- **Anti-pattern** — the specific shortcut or assumption to avoid
+- **Enforcement candidate** — the mechanical guardrail that would make this class hard to write: a lint restriction, contract test, shared helper, or docs/ai rule. If the fix added one, record it; if not, name the next candidate.
+
+When a pattern repeats or has high blast radius, promote it to the named enforcement artifact rather than leaving it as a narrative lesson only.
+
+The canonical learning record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
+
+**Diagnostic artifact triggers:** if a probe run or experiment produces implausible user-facing guidance (e.g. a diagnostic recommending an impossible value), treat it as a bug: pause the experiment queue, write a behavior test for the diagnostic output, fix the shared diagnostic source, and regenerate the probe artifact before promoting it to durable evidence.
 
 ### 6. Summarize
 
