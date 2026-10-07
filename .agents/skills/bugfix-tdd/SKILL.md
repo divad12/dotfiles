@@ -62,6 +62,13 @@ class, missing guardrail, or project-specific workflow lesson. The canonical
 record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
+Climb to the highest actionable prevention tier:
+1. **Root cause** — what category of bug is this?
+2. **Principle** — what contract or invariant was violated?
+3. **Enforcement** — what mechanical guardrail makes this class structurally harder to write? Candidates: regression test, lint rule, shared helper, API contract, schema constraint, checklist item, `docs/ai/` rule.
+
+When a lesson is high-blast-radius or has repeated, promote the enforcement artifact now rather than noting it for later.
+
 ### 6. Summarize
 
 Tell the user:
@@ -71,6 +78,7 @@ Tell the user:
 
 ## Rules
 
+- **Experiment output is a test fixture.** If a probe, diagnostic loop, or experiment produces implausible user-facing guidance or output, treat it as a bug report and apply this TDD workflow before continuing the experiment. Do not promote the artifact to durable evidence until the source is fixed and the probe reruns cleanly.
 - **Never skip the test.** Even if the fix is "obvious", the test prevents this exact bug from returning.
 - **Never modify the test after writing it** to make it pass. If the test is wrong, that's a different issue - fix the test to correctly describe the expected behavior, confirm it still fails, THEN fix the code.
 - **Test at the right level.** Unit test for logic bugs. Integration/API test for data flow bugs. E2E test only if the bug is purely a UI interaction issue.
