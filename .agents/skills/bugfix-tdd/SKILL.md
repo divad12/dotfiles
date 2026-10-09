@@ -62,6 +62,14 @@ class, missing guardrail, or project-specific workflow lesson. The canonical
 record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
+When capturing, climb to the highest actionable contract: name the root cause,
+the underlying principle, the anti-pattern that triggered the bug, and a
+candidate enforcement artifact (test, lint rule, shared helper, or docs/ai/
+rule). A principle is useful when it helps future agents find sibling bugs, not
+just describe this incident. When a pattern repeats or has high blast radius,
+promote it to mechanical guardrails: regression tests, lint restrictions, shared
+factories, or API contracts.
+
 ### 6. Summarize
 
 Tell the user:
