@@ -62,6 +62,13 @@ class, missing guardrail, or project-specific workflow lesson. The canonical
 record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
+For each durable learning, climb to the highest actionable principle: what
+shared contract broke, which consumer classes depend on it, and what mechanical
+enforcement would prevent the same mistake—regression test, lint rule, shared
+helper, architecture constraint, or `docs/ai` rule. When a lesson repeats or
+has blast radius beyond this component, promote it to mechanical enforcement
+rather than documentation alone.
+
 ### 6. Summarize
 
 Tell the user:
@@ -76,3 +83,4 @@ Tell the user:
 - **Test at the right level.** Unit test for logic bugs. Integration/API test for data flow bugs. E2E test only if the bug is purely a UI interaction issue.
 - **One test per bug.** Don't bundle multiple bug fixes into one test.
 - **3 failed fixes = stop and escalate.** If you've tried 3 fixes and the test still fails, stop. This is a signal the architecture is wrong, not that you haven't found the right tweak. Tell the user: "I've tried 3 approaches and none worked. This might be an architectural issue. Here's what I've learned so far: [findings]. How do you want to proceed?"
+- **Probes revealing bad guidance are bugs.** When exploratory or diagnostic work produces implausible product guidance (e.g. a recommendation a real user would reject), treat it as a bug report and apply this workflow before continuing the exploration. Fix the source, rerun the probe, and verify the corrected output before treating it as durable evidence.
