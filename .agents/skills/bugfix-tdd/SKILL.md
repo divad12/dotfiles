@@ -62,6 +62,14 @@ class, missing guardrail, or project-specific workflow lesson. The canonical
 record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
+**Bug bash workstream (multiple related bugs over multiple sessions):** maintain two living docs alongside the usual `/learn` captures:
+
+1. **Calibration file** — durable user product direction and triage priorities ("prioritize optimistic update freshness over enhancements", "no ARIA work yet"). When the user gives shakedown direction, record it here so future sessions start with the right triage. Read it at the start of each session before triage.
+
+2. **Lessons-learned file** — for every deterministic bug fix, record: root cause, generalized principle, anti-pattern, current enforcement added (test, lint rule, shared helper), and next enforcement candidate (what would prevent the next sibling bug). During compaction re-reads, compact completed items into a short archaeology section. When a lesson repeats or has high blast radius, promote it into `docs/ai/`, regression tests, ESLint rules, shared factories, or API contracts.
+
+A fixed bug is only fully learned when the bug class leaves behind a mechanical or documented guardrail that makes the next similar mistake harder to write. Incident logs capture what happened; lessons-learned converts that into system immunity.
+
 ### 6. Summarize
 
 Tell the user:
