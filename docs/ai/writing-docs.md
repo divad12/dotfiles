@@ -36,6 +36,10 @@ Two scopes share this contract:
 
 The same writing principles apply to both. Don't restate a global contract in a per-project doc - link to the global one and add only the project-specific delta.
 
+**Review contracts:** an orchestration skill (e.g. `deep-review`) says how to run the workflow; a global `docs/ai/review.md` holds reusable review lenses and contracts that apply across every project; a per-project `docs/ai/review.md` holds only project-specific constraints and points to the global doc. Extract review contracts globally once per-project wording stabilizes rather than duplicating them.
+
+**Bug-learning files:** form an abstraction ladder — fixed-incident logs record what happened; a lessons-learned file converts incidents into principles; pattern cards name the bug class; guardrails (tests, lint rules, shared helpers, docs/ai rules) enforce the class mechanically. Maintain one abstraction ladder, not competing ledgers across skills or sessions.
+
 ## Context Probes
 
 The `Context loaded: <file>` line at the top of each `docs/ai` file is intentional. It verifies which docs the harness actually loaded.
