@@ -62,6 +62,19 @@ class, missing guardrail, or project-specific workflow lesson. The canonical
 record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
+For each deterministic bug fix, the learning should include:
+
+- **Root cause** — the specific mechanism that allowed this bug to exist
+- **Principle** — the highest-level rule that prevents the class (not just this instance)
+- **Anti-pattern** — what the bad code pattern looks like, so it is recognizable
+- **Current enforcement** — what already prevents recurrence (new test, type constraint, etc.)
+- **Next enforcement candidate** — what mechanical guardrail would make the whole class structurally impossible (lint rule, contract test, shared helper, schema constraint, docs/ai rule)
+
+When the same class repeats across sessions or the blast radius is wide, promote
+the enforcement candidate: add the lint rule, write the contract test, extract the
+shared helper, or add a docs/ai rule. A fixed bug is only fully learned when the
+next similar mistake is harder to write.
+
 ### 6. Summarize
 
 Tell the user:
