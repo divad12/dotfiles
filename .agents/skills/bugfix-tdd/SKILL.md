@@ -62,6 +62,15 @@ class, missing guardrail, or project-specific workflow lesson. The canonical
 record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
+For each captured learning, extract:
+- **Root cause** — what code path or assumption made this possible?
+- **Principle** — the highest-level contract the bug violated
+- **Anti-pattern** — the specific shape of the mistake (so future agents can recognize it)
+- **Current enforcement** — the new test/check that guards against recurrence
+- **Next enforcement candidate** — if the pattern could recur elsewhere, name the mechanical guardrail: lint rule, shared helper, schema constraint, contract test, or docs/ai rule
+
+When a lesson repeats (second instance) or has high blast radius (multiple callers, shared schema), promote it to a durable guardrail rather than only documenting it.
+
 ### 6. Summarize
 
 Tell the user:
