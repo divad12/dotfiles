@@ -57,10 +57,13 @@ npm test -- --run
 
 ### 5. Route the learning
 
-After the fix passes verification, invoke `/learn` capture for any reusable bug
-class, missing guardrail, or project-specific workflow lesson. The canonical
-record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
-`LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
+After the fix passes verification, invoke `/learn` capture for any reusable bug class, missing guardrail, or project-specific workflow lesson. The canonical record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
+
+**Climb to the highest actionable principle.** Ask whether a shared contract changed and what other consumers could be affected. A specific fix ("removed field must be omitted") is less durable than its contract form ("when a shared contract changes, update every consumer"). The learning is complete when you can name the class of sibling bugs the principle would catch.
+
+**Pair with an enforcement candidate.** For each extracted principle, name the guardrail that would prevent the class: a test, a lint rule, a shared helper, a docs/ai rule, or an architecture constraint. If the guardrail exists, verify it. If it doesn't, record it as a next-enforcement TODO.
+
+**For multi-bug sessions (shakedowns, bug bashes).** After each fix, append a session-level lesson entry with: root cause, principle, anti-pattern, current enforcement, and next-enforcement candidate. During session compaction, compact the entry list and promote high-confidence principles to the learning store, regression tests, lint rules, or shared helpers. Keep user calibration notes (product direction, priority decisions) in a separate calibration file so they survive compaction without being confused with enforcement artifacts.
 
 ### 6. Summarize
 
