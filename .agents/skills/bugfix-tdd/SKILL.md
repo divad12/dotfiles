@@ -57,10 +57,15 @@ npm test -- --run
 
 ### 5. Route the learning
 
-After the fix passes verification, invoke `/learn` capture for any reusable bug
-class, missing guardrail, or project-specific workflow lesson. The canonical
-record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
-`LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
+After the fix passes verification, categorize the bug and route accordingly:
+
+- **One-off incident**: unusual or unrepeatable. Invoke `/learn` and note it briefly.
+- **Reusable pattern** (same class can recur): invoke `/learn` with root cause, principle, anti-pattern, current enforcement, and the best candidate mechanical guardrail (test, lint rule, schema check, shared helper, or API contract).
+- **Enhancement opportunity** (bug reveals a missing capability): capture in `docs/learnings/` and note as a deferred improvement.
+
+For extended bug-bash workstreams (multiple bugs over multiple sessions), maintain a living lessons-learned doc (`docs/learnings/bug-lessons.md` or equivalent) with one entry per deterministic fix: root cause, principle, anti-pattern, current enforcement, next enforcement candidate. During compaction cleanup, re-read and compact it. When a lesson repeats or has high blast radius, promote it into `docs/ai/`, regression tests, ESLint rules, shared helpers, or API contracts.
+
+The canonical record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
 ### 6. Summarize
 
