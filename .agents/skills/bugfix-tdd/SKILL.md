@@ -62,6 +62,15 @@ class, missing guardrail, or project-specific workflow lesson. The canonical
 record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
+**Escalate recurring or high-blast-radius classes to enforcement artifacts.** A bug is only fully learned when its class leaves behind something that makes the same mistake harder to write than to avoid. When the same class has recurred, or the blast radius spans many call sites or shared contracts, go beyond documentation:
+
+- **Regression test** – proves the class is impossible at the boundary.
+- **Lint rule or allowlist** – makes the wrong pattern unwritable.
+- **Shared helper or factory** – consolidates the correct pattern so callers can't drift.
+- **Schema or API contract constraint** – enforces at the data layer.
+
+Pick the lightest artifact that closes the gap. Note the chosen enforcement and any remaining candidate in the `/learn` entry.
+
 ### 6. Summarize
 
 Tell the user:
