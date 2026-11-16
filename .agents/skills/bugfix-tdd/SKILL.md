@@ -62,6 +62,16 @@ class, missing guardrail, or project-specific workflow lesson. The canonical
 record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
+For each captured bug class, ask: **what enforcement artifact would make this class harder to introduce next time?** Name the candidate and create it if it's small:
+
+- **Regression test** – already written in step 1; check that it covers the class broadly, not just the exact instance.
+- **Lint rule or type check** – if the mistake is structurally detectable (wrong field access, forbidden API, missing guard).
+- **Shared helper or factory** – if callers keep having to get the same contract right; extract the wrapper.
+- **docs/ai contract** – if the rule is a judgment call that future agents need to remember.
+- **Architecture constraint** – if the class reveals a missing layer or a leaky boundary that should be structural.
+
+If a strong candidate exists but is too big to create now, note it in the `/learn` capture and add a `FIXME:` or `docs/learnings/` entry so it stays visible. A fixed bug is only fully learned when the class leaves behind a guardrail that makes the next similar mistake harder to write.
+
 ### 6. Summarize
 
 Tell the user:
