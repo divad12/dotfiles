@@ -120,11 +120,12 @@ Do not run full validation suites after every small edit by habit. Run the narro
   - Global (`~/dotfiles/docs/ai/`):
 
   | Task | Doc |
-  |---|---|
+  |------|-----|
   | Git operations, committing, rebasing, merging | git.md |
   | Editing AGENTS.md, .agents/skills/, docs/ai/ | writing-docs.md |
   | Maintaining or troubleshooting ask-intern | ask-intern.md |
   | Operating or changing the learning system | learning-system.md |
+  | Running experiment probes or diagnostic loops | experiment-diagnostics.md |
 - Re-read the hard rules before implementation.
 
 ## Session Tools
