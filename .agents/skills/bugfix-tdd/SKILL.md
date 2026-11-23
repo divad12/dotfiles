@@ -62,6 +62,8 @@ class, missing guardrail, or project-specific workflow lesson. The canonical
 record is `docs/learnings/`; legacy files such as `BUG_PATTERNS.md` and
 `LESSONS_LEARNED.md` may be candidate artifacts when a project still uses them.
 
+For systematic bug bashes (multi-bug sessions), escalate patterns that repeat or have high blast radius. For each deterministic bug class, record: root cause, principle, anti-pattern, current enforcement, and next enforcement candidate. When a class repeats or affects a wide surface, promote it into a mechanical guardrail — regression test, lint restriction, shared helper, API contract, or `docs/ai/` rule — rather than leaving only a prose note. A fixed bug is fully learned only when the bug class is harder to reintroduce.
+
 ### 6. Summarize
 
 Tell the user:
